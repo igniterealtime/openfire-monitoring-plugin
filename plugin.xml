@@ -4,14 +4,13 @@
     <class>org.jivesoftware.openfire.plugin.MonitoringPlugin</class>
     <name>Monitoring Service</name>
     <description>Monitors conversations and statistics of the server.</description>
-    <author>IgniteRealtime // Jive Software</author>
-    <version>${project.version}</version>
-    <date>11/26/2018</date>
-    <minServerVersion>4.3.0</minServerVersion>
-    <minJavaVersion>1.8</minJavaVersion>
+    <author>Jive Software</author>
+    <version>1.3.1-rc1</version>
+    <date>04/30/2013</date>
+    <minServerVersion>3.6.0</minServerVersion>
     <databaseKey>monitoring</databaseKey>
-    <databaseVersion>4</databaseVersion>
-
+    <databaseVersion>1</databaseVersion>
+	
     <adminconsole>
         <tab id="tab-server">
             <sidebar id="stats-dashboard" name="${admin.sidebar.statistics.name}" description="${admin.item.stats-dashboard.description}">
