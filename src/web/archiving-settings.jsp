@@ -1,17 +1,14 @@
-<%@ page contentType="text/html; charset=UTF-8" %>
 <%@ page errorPage="/error.jsp" import="org.jivesoftware.openfire.plugin.MonitoringPlugin"
     %>
 <%@ page import="org.jivesoftware.openfire.archive.ArchiveIndexer" %>
 <%@ page import="org.jivesoftware.openfire.archive.ConversationManager, org.jivesoftware.util.ByteFormat, org.jivesoftware.util.ParamUtils" %>
 <%@ page import="org.jivesoftware.openfire.XMPPServer" %>
 <%@ page import="org.jivesoftware.util.StringUtils" %>
-<%@ page import="org.jivesoftware.util.CookieUtils" %>
-<%@ page import="org.jivesoftware.util.ParamUtils" %>
 <%@ page import="java.util.HashMap" %>
 <%@ page import="java.util.Map" %>
 
-<%@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c" %>
-<%@ taglib uri="http://java.sun.com/jsp/jstl/fmt" prefix="fmt" %>
+<%@ taglib uri="http://java.sun.com/jstl/core_rt" prefix="c" %>
+<%@ taglib uri="http://java.sun.com/jstl/fmt_rt" prefix="fmt" %>
 
 <%
     // Get handle on the Monitoring plugin
@@ -28,16 +25,15 @@
 <head>
 <title><fmt:message key="archive.settings.title"/></title>
 <meta name="pageID" content="archiving-settings"/>
+<link rel="stylesheet" type="text/css" href="style/global.css">
+<script src="dwr/engine.js" type="text/javascript"></script>
+<script src="dwr/util.js" type="text/javascript"></script>
+<script src="dwr/interface/conversations.js" type="text/javascript"></script>
 <link rel="stylesheet" type="text/css" href="style/style.css">
 <script type="text/javascript">
     // Calls a getBuildProgress
     function getBuildProgress() {
-        new Ajax.Request('/plugins/monitoring/api/buildprogress', {
-            method: 'get',
-            onSuccess: function(transport) {
-                showBuildProgress(transport.responseText.evalJSON());
-            }
-        });
+        conversations.getBuildProgress(showBuildProgress);
     }
 
     function showBuildProgress(progress) {
@@ -52,11 +48,9 @@
         else {
             var rebuildProgress = document.getElementById('rebuildProgress');
             rebuildProgress.innerHTML = "100";
-            // Effect.Fade('rebuildElement');
+            Effect.Fade('rebuildElement');
         }
     }
-    
-    //# sourceURL=archiving-settings.jsp 
 </script>
 <style type="text/css">
     .small-label {
@@ -157,7 +151,7 @@
 </style>
 
 <style type="text/css">
-    @import "style/style.css";
+	@import "style/style.css";
 </style>
 </head>
 
@@ -167,7 +161,6 @@
     boolean update = request.getParameter("update") != null;
     boolean messageArchiving = conversationManager.isMessageArchivingEnabled();
     boolean roomArchiving = conversationManager.isRoomArchivingEnabled();
-    boolean roomArchivingStanzas = conversationManager.isRoomArchivingStanzasEnabled();
     int idleTime = ParamUtils.getIntParameter(request, "idleTime", conversationManager.getIdleTime());
     int maxTime = ParamUtils.getIntParameter(request, "maxTime", conversationManager.getMaxTime());
     
@@ -175,21 +168,6 @@
     int maxRetrievable = ParamUtils.getIntParameter(request, "maxRetrievable", conversationManager.getMaxRetrievable());
     
     boolean rebuildIndex = request.getParameter("rebuild") != null;
-    Cookie csrfCookie = CookieUtils.getCookie(request, "csrf");
-    String csrfParam = ParamUtils.getParameter(request, "csrf");
-
-    Map errors = new HashMap();
-    String errorMessage = "";
-
-    if ((rebuildIndex || update) && (csrfCookie == null || csrfParam == null || !csrfCookie.getValue().equals(csrfParam))) {
-        rebuildIndex = false;
-        update = false;
-        errorMessage = "CSRF Failure.";
-        errors.put("csrf", "");
-    }
-    csrfParam = StringUtils.randomString(16);
-    CookieUtils.setCookie(request, response, "csrf", csrfParam, -1);
-    pageContext.setAttribute("csrf", csrfParam);
 
     if (request.getParameter("cancel") != null) {
         response.sendRedirect("archiving-settings.jsp");
@@ -197,19 +175,17 @@
     }
 
     if (rebuildIndex) {
-        if (archiveIndexer.rebuildIndex() == null) {
-            errors.put("rebuildIndex", "");
-            errorMessage = "Archive Index rebuild failed.";
-        }
+        archiveIndexer.rebuildIndex();
     }
 
     // Update the session kick policy if requested
+    Map errors = new HashMap();
+    String errorMessage = "";
     if (update) {
         // New settings for message archiving.
         boolean metadataArchiving = request.getParameter("metadataArchiving") != null;
         messageArchiving = request.getParameter("messageArchiving") != null;
         roomArchiving = request.getParameter("roomArchiving") != null;
-        roomArchivingStanzas = request.getParameter("roomArchivingStanzas") != null;
         String roomsArchived = request.getParameter("roomsArchived");
 
         // Validate params
@@ -229,7 +205,7 @@
             errors.put("maxAge", "");
             errorMessage = "Max Age must be greater than or equal to 0.";
         }
-        if (maxRetrievable < 0) {
+        if (maxRetrievable < 1) {
             errors.put("maxRetrievable", "");
             errorMessage = "Max Retrievable must be greater than or equal to 0.";
         }
@@ -238,7 +214,6 @@
             conversationManager.setMetadataArchivingEnabled(metadataArchiving);
             conversationManager.setMessageArchivingEnabled(messageArchiving);
             conversationManager.setRoomArchivingEnabled(roomArchiving);
-            conversationManager.setRoomArchivingStanzasEnabled(roomArchivingStanzas);
             conversationManager.setRoomsArchived(StringUtils.stringToCollection(roomsArchived));
             conversationManager.setIdleTime(idleTime);
             conversationManager.setMaxTime(maxTime);
@@ -279,7 +254,6 @@
 </p>
 
 <form action="archiving-settings.jsp" method="post">
-    <input type="hidden" name="csrf" value="${csrf}">
     <table class="settingsTable" cellpadding="3" cellspacing="0" border="0" width="90%">
         <thead>
             <tr>
@@ -308,10 +282,6 @@
                         <td><input type="checkbox" name="roomArchiving" <%= conversationManager.isRoomArchivingEnabled() ? "checked" : ""%> /></td>
                     </tr>
                     <tr>
-                        <td><fmt:message key="archive.settings.group_chats.stanzas"/></td>
-                        <td><input type="checkbox" name="roomArchivingStanzas" <%= conversationManager.isRoomArchivingStanzasEnabled() ? "checked" : ""%> /></td>
-                    </tr>
-                    <tr>
                         <td><fmt:message key="archive.settings.certain_rooms"/></td>
                         <td><textarea name="roomsArchived" cols="30" rows="2" wrap="virtual"><%= StringUtils.collectionToString(conversationManager.getRoomsArchived()) %></textarea></td>
                     </tr>
@@ -333,8 +303,7 @@
             
             <tr>
                 <td><label class="jive-label"><fmt:message key="archive.settings.max.age"/>:</label><br>
-                <fmt:message key="archive.settings.max.age.description"/><br><br>
-                <font color="FF0000"><fmt:message key="archive.settings.max.age.warning"/></font><br><br></td>
+                <fmt:message key="archive.settings.max.age.description"/><br><br></td>
                 <td><input type="text" name="maxAge" size="10" maxlength="10" value="<%= conversationManager.getMaxAge()%>" /></td>
                 <td></td>
             </tr>
