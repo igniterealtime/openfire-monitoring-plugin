@@ -145,7 +145,9 @@ public class JdbcPersistenceManager implements PersistenceManager {
 			} else if (startDate.before(maxRetrievableDate)) {
 				result = maxRetrievableDate;
 			}
-		}
+		}else{
+                        result = startDate;
+                }
 		return result;
 	}
 
