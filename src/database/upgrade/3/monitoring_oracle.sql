@@ -1,3 +1,5 @@
+-- $Revision$
+-- $Date$
 
 ALTER TABLE ofMessageArchive ADD messageID INTEGER NULL;
 ALTER TABLE ofMessageArchive ADD stanza LONG NULL;

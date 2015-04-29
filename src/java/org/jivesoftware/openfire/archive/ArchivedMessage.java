@@ -1,4 +1,7 @@
-/*
+/**
+ * $Revision: 3034 $
+ * $Date: 2005-11-04 21:02:33 -0300 (Fri, 04 Nov 2005) $
+ *
  * Copyright (C) 2008 Jive Software. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -56,8 +59,8 @@ public class ArchivedMessage {
     }
 
     public ArchivedMessage(long conversationID, JID fromJID, JID toJID, Date sentDate, String body, String stanza, boolean roomEvent) {
-        this(conversationID, fromJID, toJID, sentDate, body, roomEvent);
-        this.stanza = stanza;
+    	this(conversationID, fromJID, toJID, sentDate, body, roomEvent);
+    	this.stanza = stanza;
     }
 
     /**
@@ -111,7 +114,7 @@ public class ArchivedMessage {
      * @return string encoded message stanza.
      */
     public String getStanza() {
-        return stanza;
+    	return stanza;
     }
 
     /**
