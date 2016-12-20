@@ -99,7 +99,7 @@ public class IQRetrieveHandler extends AbstractIQHandler {
 	}
 
 	private Conversation retrieve(JID from, RetrieveRequest request) {
-		return getPersistenceManager().getConversation(from.toBareJID(),
+		return getPersistenceManager(from).getConversation(from.toBareJID(),
 				request.getWith(), request.getStart());
 	}
 
