@@ -1,4 +1,4 @@
-/*
+/**
  * Copyright (C) 2008 Jive Software. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -55,8 +55,8 @@ import org.slf4j.LoggerFactory;
  */
 public class StatsEngine implements Startable {
 
-    private static final Logger Log = LoggerFactory.getLogger(StatsEngine.class);
-    
+	private static final Logger Log = LoggerFactory.getLogger(StatsEngine.class);
+	
     private static final int STAT_RESOULUTION = 60;
 
     private final TaskEngine taskEngine;
@@ -297,7 +297,7 @@ public class StatsEngine implements Startable {
         private long lastSampleTime = 0;
 
         @Override
-        public void run() {
+		public void run() {
             if (!ClusterManager.isSeniorClusterMember()) {
                 // Create statistics definitions but do not sample them since we are not the senior cluster member
                 for (Map.Entry<String, Statistic> statisticEntry : statsManager.getAllStatistics()) {
@@ -321,7 +321,7 @@ public class StatsEngine implements Startable {
             lastSampleTime = newTime;
 
             // Gather sample statistics from remote cluster nodes
-            Collection<Map<String, Double>> remoteSamples = CacheFactory.doSynchronousClusterTask(new GetStatistics(), false);
+            Collection<Object> remoteSamples = CacheFactory.doSynchronousClusterTask(new GetStatistics(), false);
 
             List<String> sampledStats = new ArrayList<String>();
             for (Map.Entry<String, Statistic> statisticEntry : statsManager.getAllStatistics()) {
@@ -376,7 +376,8 @@ public class StatsEngine implements Startable {
                         // Get a statistic sample of this JVM
                         double statSample = sampleStat(key, definition);
                         // Add up samples of remote cluster nodes
-                        for (Map<String, Double> nodeSamples : remoteSamples) {
+                        for (Object nodeResult : remoteSamples) {
+                            Map<String, Double> nodeSamples = (Map<String, Double>) nodeResult;
                             Double remoteSample = nodeSamples.get(key);
                             if (remoteSample != null) {
                                 statSample += remoteSample;
@@ -452,12 +453,12 @@ public class StatsEngine implements Startable {
         }
 
         @Override
-        public double[][] getData(long startTime, long endTime) {
+		public double[][] getData(long startTime, long endTime) {
             return fetchData(consolidationFunction, startTime, endTime, -1);
         }
 
         @Override
-        public double[][] getData(long startTime, long endTime, int dataPoints) {
+		public double[][] getData(long startTime, long endTime, int dataPoints) {
             // Our greatest datapoints is 60 so if it is something less than that
             // then we want an average.
             return fetchData((dataPoints != 60 ? ConsolFuns.CF_AVERAGE : consolidationFunction),
@@ -465,17 +466,17 @@ public class StatsEngine implements Startable {
         }
 
         @Override
-        public long getLastSampleTime() {
+		public long getLastSampleTime() {
             return lastSampleTime;
         }
 
         @Override
-        public double getLastSample() {
+		public double getLastSample() {
             return lastSample;
         }
 
         @Override
-        public double[] getMax(long startTime, long endTime) {
+		public double[] getMax(long startTime, long endTime) {
             return getMax(startTime, endTime, 1);
         }
 
@@ -528,12 +529,12 @@ public class StatsEngine implements Startable {
         }
 
         @Override
-        public double[] getMin(long startTime, long endTime) {
+		public double[] getMin(long startTime, long endTime) {
             return getMin(startTime, endTime, 1);
         }
 
         @Override
-        public double[] getMin(long startTime, long endTime, int dataPoints) {
+		public double[] getMin(long startTime, long endTime, int dataPoints) {
             double[][] fetchedData = fetchData(consolidationFunction, startTime,
                     endTime, dataPoints);
             if (fetchedData != null) {
@@ -547,7 +548,7 @@ public class StatsEngine implements Startable {
         }
 
         @Override
-        public double[] getMax(long startTime, long endTime, int dataPoints) {
+		public double[] getMax(long startTime, long endTime, int dataPoints) {
             double[][] fetchedData = fetchData(consolidationFunction, startTime,
                     endTime, dataPoints);
             if (fetchedData != null) {
