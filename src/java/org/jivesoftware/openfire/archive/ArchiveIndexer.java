@@ -1,4 +1,4 @@
-/*
+/**
  * Copyright (C) 2008 Jive Software. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -75,7 +75,7 @@ import org.xmpp.packet.JID;
  */
 public class ArchiveIndexer implements Startable {
 
-    private static final Logger Log = LoggerFactory.getLogger(ArchiveIndexer.class);
+	private static final Logger Log = LoggerFactory.getLogger(ArchiveIndexer.class);
 
     private static final String ALL_CONVERSATIONS =
             "SELECT conversationID, isExternal FROM ofConversation";
@@ -171,7 +171,7 @@ public class ArchiveIndexer implements Startable {
 
         indexUpdater = new TimerTask() {
             @Override
-            public void run() {
+			public void run() {
                 updateIndex();
             }
         };
