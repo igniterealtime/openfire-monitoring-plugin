@@ -11,7 +11,7 @@
     <name>Monitoring Plugin</name>
 
     <build>
-        <sourceDirectory>../../src/plugins/monitoring/src/java</sourceDirectory>
+        <sourceDirectory>src/java</sourceDirectory>
         <plugins>
             <plugin>
                 <artifactId>maven-assembly-plugin</artifactId>
