@@ -153,10 +153,10 @@ var currentTimePeriod = '<%= timePeriod %>';
 
 function statsUpdater() {
     new Ajax.Request('/plugins/monitoring/api/stats/updated?timePeriod=' +currentTimePeriod, {
-        method: 'get',
-        onSuccess: function(transport) {
-            updateStats(transport.responseText.evalJSON());
-        }
+    	method: 'get',
+    	onSuccess: function(transport) {
+    		updateStats(transport.responseText.evalJSON());
+    	}
     });
 }
 
@@ -218,10 +218,10 @@ function startupConversations() {
 
 function conversationUpdater() {
     new Ajax.Request('/plugins/monitoring/api/stats/latest?count=6&mostRecentConversationID=' +lastConversationID, {
-        method: 'get',
-        onSuccess: function() {
-            updateConversations(transport.responseText.evalJSON());
-        }
+    	method: 'get',
+    	onSuccess: function() {
+    		updateConversations(transport.responseText.evalJSON());
+    	}
     });
 }
 
