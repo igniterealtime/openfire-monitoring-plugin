@@ -1,4 +1,3 @@
-<%@ page contentType="text/html; charset=UTF-8" %>
 <%@ page import="org.jivesoftware.openfire.plugin.MonitoringPlugin" %>
 <%@ page import="org.jivesoftware.openfire.archive.ArchivedMessage" %>
 <%@ page import="org.jivesoftware.openfire.archive.Conversation" %>
@@ -55,7 +54,7 @@
     <title>Conversation Viewer</title>
 
     <style type="text/css">
-        @import "style/style.css";
+	    @import "style/style.css";
     </style>
 </head>
 
