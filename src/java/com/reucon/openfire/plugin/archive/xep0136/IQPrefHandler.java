@@ -18,7 +18,7 @@ import java.util.List;
  */
 public class IQPrefHandler extends AbstractIQHandler implements ServerFeaturesProvider
 {
-
+    private static final Logger Log = LoggerFactory.getLogger( IQPrefHandler.class );
     private static final String NAMESPACE = "urn:xmpp:archive";
     private static final String NAMESPACE_PREF = "urn:xmpp:archive:pref";
 

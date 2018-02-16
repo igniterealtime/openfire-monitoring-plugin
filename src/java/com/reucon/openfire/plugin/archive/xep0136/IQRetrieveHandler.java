@@ -20,6 +20,7 @@ import java.util.List;
  */
 public class IQRetrieveHandler extends AbstractIQHandler {
 
+    private static final Logger Log = LoggerFactory.getLogger( IQRetrieveHandler.class );
     private static final String NAMESPACE = "urn:xmpp:archive";
 
     public IQRetrieveHandler() {
@@ -34,9 +35,12 @@ public class IQRetrieveHandler extends AbstractIQHandler {
         int toIndex; // exclusive
         int max;
 
+        Log.debug( "Processing a request to retrieve a conversation. Requestor: "+packet.getFrom()+", with: {}, start: {}", retrieveRequest.getWith(), retrieveRequest.getStart() );
         final Conversation conversation = retrieve(packet.getFrom(),
                 retrieveRequest);
+
         if (conversation == null) {
+            Log.debug( "Unable to find conversation." );
             return error(packet, PacketError.Condition.item_not_found);
         }
 
@@ -48,6 +52,7 @@ public class IQRetrieveHandler extends AbstractIQHandler {
         max = conversation.getMessages().size();
         fromIndex = 0;
         toIndex = max > 0 ? max : 0;
+        Log.debug( "Found conversation with {} messages.", max );
 
         final XmppResultSet resultSet = retrieveRequest.getResultSet();
         if (resultSet != null) {
