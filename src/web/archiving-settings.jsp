@@ -1,5 +1,6 @@
-<%@ page errorPage="/error.jsp" import="org.jivesoftware.openfire.plugin.MonitoringPlugin"
-    %>
+<%@ page contentType="text/html; charset=UTF-8" %>
+<%@ page errorPage="/error.jsp" %>
+<%@ page import="org.jivesoftware.openfire.plugin.MonitoringPlugin"%>
 <%@ page import="org.jivesoftware.openfire.archive.ArchiveIndexer" %>
 <%@ page import="org.jivesoftware.openfire.archive.ConversationManager, org.jivesoftware.util.ByteFormat, org.jivesoftware.util.ParamUtils" %>
 <%@ page import="org.jivesoftware.openfire.XMPPServer" %>
