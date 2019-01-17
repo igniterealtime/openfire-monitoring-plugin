@@ -80,9 +80,9 @@ public class MucMamPersistenceManager implements PersistenceManager {
         Connection connection = null;
         PreparedStatement pstmt = null;
         ResultSet rs = null;
-        // If logging isn't enabled, do nothing.
-        if (!room.isLogEnabled()) return null;
         List<ArchivedMessage>msgs = new LinkedList<>();
+        // If logging isn't enabled, do nothing.
+        if (!room.isLogEnabled()) return msgs;
         if (startDate == null) {
             startDate = new Date(0L);
         }
