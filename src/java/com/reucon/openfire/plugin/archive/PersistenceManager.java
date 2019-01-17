@@ -77,7 +77,7 @@ public interface PersistenceManager
      * @param owner     bare jid of the owner of the message to find or <code>null</code> for any.
      * @param with      bare jid of the communication partner or <code>null</code> for any. This is either
      *                  the jid of another XMPP user or the jid of a group chat.
-     * @return the messages that matched search criteria.
+     * @return the messages that matched search criteria (possibly empty, never null).
      */
     Collection<ArchivedMessage> findMessages(Date startDate, Date endDate, String owner, String with, XmppResultSet xmppResultSet);
 

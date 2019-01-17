@@ -181,36 +181,42 @@ abstract class IQQueryHandler extends AbstractIQHandler implements
             @Override
             public void run()
             {
-                while ( System.currentTimeMillis() < targetEndDate.getTime() + 2000 ) // TODO Use the value in org.jivesoftware.openfire.archive.ConversationManager.ArchivingRunnable.maxPurgeInterval but also add time to allow for query execution time.
+                try
                 {
-                    if ( conversationManager.hasWrittenAllDataBefore( targetEndDate ) )
+                    while ( System.currentTimeMillis() < targetEndDate.getTime() + 2000 ) // TODO Use the value in org.jivesoftware.openfire.archive.ConversationManager.ArchivingRunnable.maxPurgeInterval but also add time to allow for query execution time.
                     {
-                        break;
+                        if ( conversationManager.hasWrittenAllDataBefore( targetEndDate ) )
+                        {
+                            break;
+                        }
+                        try
+                        {
+                            Log.debug( "Not all data that is being requested has been written to the database yet. Delaying request processing. " );
+                            Thread.sleep( 100 );
+                        }
+                        catch ( InterruptedException e )
+                        {
+                            break;
+                        }
                     }
-                    try
-                    {
-                        Log.debug( "Not all data that is being requested has been written to the database yet. Delaying request processing. " );
-                        Thread.sleep( 100 );
+                    if ( !conversationManager.hasWrittenAllDataBefore( targetEndDate ) ) {
+                        Log.warn( "Retrieving data from the database to formulate a response to a MAM query, while data is still waiting to be written there. The response might be incomplete." );
                     }
-                    catch ( InterruptedException e )
-                    {
-                        break;
+
+                    Log.debug("Retrieving messages from archive...");
+                    Collection<ArchivedMessage> archivedMessages = retrieveMessages(queryRequest);
+                    Log.debug("Retrieved {} messages from archive.", archivedMessages.size());
+
+                    for(ArchivedMessage archivedMessage : archivedMessages) {
+                        sendMessageResult(packet.getFrom(), queryRequest, archivedMessage);
                     }
-                }
-                if ( !conversationManager.hasWrittenAllDataBefore( targetEndDate ) ) {
-                    Log.warn( "Retrieving data from the database to formulate a response to a MAM query, while data is still waiting to be written there. The response might be incomplete." );
-                }
 
-                Log.debug("Retrieving messages from archive...");
-                Collection<ArchivedMessage> archivedMessages = retrieveMessages(queryRequest);
-                Log.debug("Retrieved {} messages from archive.", archivedMessages.size());
-
-                for(ArchivedMessage archivedMessage : archivedMessages) {
-                    sendMessageResult(packet.getFrom(), queryRequest, archivedMessage);
+                    sendEndQuery(packet, packet.getFrom(), queryRequest);
+                    Log.debug("Done with request.");
                 }
-
-                sendEndQuery(packet, packet.getFrom(), queryRequest);
-                Log.debug("Done with request.");
+                catch ( Exception e ) {
+                    Log.error( "An unexpected exception occurred while processing: {}", packet, e );
+                }
             }
         } );
 
@@ -249,8 +255,8 @@ abstract class IQQueryHandler extends AbstractIQHandler implements
 
     /**
      * Retrieve messages matching query request from server archive
-     * @param queryRequest
-     * @return
+     * @param queryRequest The request (cannot be null).
+     * @return A collection of messages (possibly empty, never null).
      */
     private Collection<ArchivedMessage> retrieveMessages(QueryRequest queryRequest) {
 
