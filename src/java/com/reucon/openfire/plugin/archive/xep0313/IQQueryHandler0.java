@@ -42,7 +42,7 @@ class IQQueryHandler0 extends IQQueryHandler {
 
     /**
      * Send final message back to client following query.
-     * @param JID to respond to
+     * @param from to respond to
      * @param queryRequest Received query request
      */
     private void sendFinalMessage(JID from, final QueryRequest queryRequest) {
