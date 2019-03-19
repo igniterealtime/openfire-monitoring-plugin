@@ -77,7 +77,7 @@ public class ArchiveInterceptor implements PacketInterceptor, Startable {
                         ConversationEventsQueue eventsQueue = conversationManager.getConversationEventsQueue();
                         eventsQueue.addChatEvent(conversationManager.getConversationKey(sender, receiver),
                                 ConversationEvent.chatMessageReceived(sender, receiver,
-                                        conversationManager.isMessageArchivingEnabled() ? message.getBody() : null,
+                                        conversationManager.isMessageArchivingEnabled() ? message.getBody() : null, message.toXML(),
                                         new Date()));
                     }
                 }

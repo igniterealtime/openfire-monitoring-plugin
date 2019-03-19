@@ -131,7 +131,7 @@ public class GroupConversationInterceptor implements MUCEventListener, Startable
                  ConversationEventsQueue eventsQueue = conversationManager.getConversationEventsQueue();
                  eventsQueue.addChatEvent(conversationManager.getConversationKey(fromJID, toJID),
                          ConversationEvent.chatMessageReceived(toJID, fromJID,
-                                 conversationManager.isMessageArchivingEnabled() ? message.getBody() : null,
+                                 conversationManager.isMessageArchivingEnabled() ? message.getBody() : null, message.toXML(),
                                  new Date()));
              }
          }
