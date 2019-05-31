@@ -26,23 +26,24 @@ import org.jivesoftware.util.cache.ExternalizableUtil;
 import java.io.IOException;
 import java.io.ObjectInput;
 import java.io.ObjectOutput;
-import java.util.Date;
+import java.time.Duration;
+import java.time.Instant;
 
 /**
- * A task that verifies if the data cache up to a specific point in time has been written to persistent storage.
+ * A task that retrieves a time estimation on the time it takes for conversations (and metadata) to have been written to persistent storage.
  *
  * @author Guus der Kinderen, guus.der.kinderen@gmail.com
  */
-public class HasWrittenAllDataTask implements ClusterTask<Boolean>
+public class GetConversationsWriteETATask implements ClusterTask<Duration>
 {
-    private Date input;
-    private Boolean result;
+    private Instant instant;
+    private Duration result;
 
-    public HasWrittenAllDataTask() {}
+    public GetConversationsWriteETATask() {}
 
-    public HasWrittenAllDataTask( Date date )
+    public GetConversationsWriteETATask( Instant instant )
     {
-        this.input = date;
+        this.instant = instant;
     }
 
     @Override
@@ -50,11 +51,11 @@ public class HasWrittenAllDataTask implements ClusterTask<Boolean>
     {
         final MonitoringPlugin plugin = (MonitoringPlugin) XMPPServer.getInstance().getPluginManager().getPlugin( MonitoringConstants.NAME );
         final ConversationManager conversationManager = (ConversationManager) plugin.getModule( ConversationManager.class );
-        result = conversationManager.hasLocalNodeWrittenAllDataBefore( input );
+        result = conversationManager.availabilityETAOnLocalNode( instant );
     }
 
     @Override
-    public Boolean getResult()
+    public Duration getResult()
     {
         return result;
     }
@@ -62,12 +63,12 @@ public class HasWrittenAllDataTask implements ClusterTask<Boolean>
     @Override
     public void writeExternal( ObjectOutput out ) throws IOException
     {
-        ExternalizableUtil.getInstance().writeLong( out, input.getTime() );
+        ExternalizableUtil.getInstance().writeSerializable( out, instant );
     }
 
     @Override
     public void readExternal( ObjectInput in ) throws IOException, ClassNotFoundException
     {
-        input = new Date( ExternalizableUtil.getInstance().readLong( in ) );
+        instant = (Instant) ExternalizableUtil.getInstance().readSerializable( in );
     }
 }

@@ -16,22 +16,6 @@
 
 package org.jivesoftware.openfire.archive;
 
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.Date;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Queue;
-import java.util.TimerTask;
-import java.util.concurrent.*;
-
 import org.dom4j.Element;
 import org.jivesoftware.database.DbConnectionManager;
 import org.jivesoftware.openfire.XMPPServer;
@@ -39,10 +23,11 @@ import org.jivesoftware.openfire.XMPPServerInfo;
 import org.jivesoftware.openfire.archive.cluster.GetConversationCountTask;
 import org.jivesoftware.openfire.archive.cluster.GetConversationTask;
 import org.jivesoftware.openfire.archive.cluster.GetConversationsTask;
-import org.jivesoftware.openfire.archive.cluster.HasWrittenAllDataTask;
+import org.jivesoftware.openfire.archive.cluster.GetConversationsWriteETATask;
 import org.jivesoftware.openfire.cluster.ClusterManager;
 import org.jivesoftware.openfire.component.ComponentEventListener;
 import org.jivesoftware.openfire.component.InternalComponentManager;
+import org.jivesoftware.openfire.muc.MultiUserChatService;
 import org.jivesoftware.openfire.plugin.MonitoringPlugin;
 import org.jivesoftware.openfire.reporting.util.TaskEngine;
 import org.jivesoftware.openfire.stats.Statistic;
@@ -55,6 +40,16 @@ import org.slf4j.LoggerFactory;
 import org.xmpp.packet.IQ;
 import org.xmpp.packet.JID;
 import org.xmpp.packet.Message;
+
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.*;
+import java.util.concurrent.*;
+import java.util.stream.Stream;
 
 /**
  * Manages all conversations in the system. Optionally, conversations (messages plus meta-data) can be archived to the database. Archiving of
@@ -119,8 +114,6 @@ public class ConversationManager implements Startable, ComponentEventListener{
     private final PriorityBlockingQueue<ArchiveCandidate<ArchivedMessage>> messageQueue = new PriorityBlockingQueue<>();
     private final PriorityBlockingQueue<ArchiveCandidate<RoomParticipant>> participantQueue = new PriorityBlockingQueue<>();
 
-    private ExecutorService executorService;
-
     private TimerTask cleanupTask;
     private TimerTask maxAgeTask;
 
@@ -131,6 +124,10 @@ public class ConversationManager implements Startable, ComponentEventListener{
      */
     private List<String> gateways;
     private XMPPServerInfo serverInfo;
+
+    private Archiver<Conversation> conversationArchiver;
+    private Archiver<ArchivedMessage> messageArchiver;
+    private Archiver<RoomParticipant> participantArchiver;
 
     public ConversationManager(TaskEngine taskEngine) {
         this.taskEngine = taskEngine;
@@ -165,14 +162,12 @@ public class ConversationManager implements Startable, ComponentEventListener{
 
         conversationListeners = new CopyOnWriteArraySet<ConversationListener>();
 
-        if ( executorService != null && !executorService.isShutdown() )
-        {
-            executorService.shutdownNow();
-        }
-        executorService = Executors.newFixedThreadPool( 3, new NamedThreadFactory( "MonitorPluginArchiver", null, null, null ) );
-        executorService.submit( new ConversationArchivingRunnable( conversationQueue ) );
-        executorService.submit( new MessageArchivingRunnable( messageQueue ) );
-        executorService.submit( new ParticipantArchivingRunnable( participantQueue ) );
+        conversationArchiver = new ConversationArchivingRunnable( "MonitoringPlugin Conversations" );
+        messageArchiver = new MessageArchivingRunnable( "MonitoringPlugin Messages" );
+        participantArchiver = new ParticipantArchivingRunnable( "MonitoringPlugin Participants" );
+        XMPPServer.getInstance().getArchiveManager().add( conversationArchiver );
+        XMPPServer.getInstance().getArchiveManager().add( messageArchiver );
+        XMPPServer.getInstance().getArchiveManager().add( participantArchiver );
 
         if (JiveGlobals.getProperty("conversation.maxTimeDebug") != null) {
             Log.info("Monitoring plugin max time value deleted. Must be left over from stalled userCreation plugin run.");
@@ -275,8 +270,6 @@ public class ConversationManager implements Startable, ComponentEventListener{
     }
 
     public void stop() {
-        executorService.shutdownNow();
-
         cleanupTask.cancel();
         cleanupTask = null;
 
@@ -291,6 +284,10 @@ public class ConversationManager implements Startable, ComponentEventListener{
 
         serverInfo = null;
         InternalComponentManager.getInstance().removeListener(this);
+
+        XMPPServer.getInstance().getArchiveManager().remove( conversationArchiver );
+        XMPPServer.getInstance().getArchiveManager().remove( messageArchiver );
+        XMPPServer.getInstance().getArchiveManager().remove( participantArchiver );
     }
 
     /**
@@ -642,6 +639,7 @@ public class ConversationManager implements Startable, ComponentEventListener{
      *            date when the message was sent.
      */
     void processMessage(JID sender, JID receiver, String body, String stanza, Date date) {
+        Log.trace("Processing message from date {}...", date );
         String conversationKey = getConversationKey(sender, receiver);
         synchronized (conversationKey.intern()) {
             Conversation conversation = conversations.get(conversationKey);
@@ -703,6 +701,7 @@ public class ConversationManager implements Startable, ComponentEventListener{
                 listener.conversationUpdated(conversation, date);
             }
         }
+        Log.trace("Done processing message from date {}.", date );
     }
 
     /**
@@ -720,6 +719,7 @@ public class ConversationManager implements Startable, ComponentEventListener{
      *            date when the message was sent.
      */
     void processRoomMessage(JID roomJID, JID sender, String nickname, String body, String stanza, Date date) {
+        Log.trace("Processing room {} message from date {}.", roomJID, date );
         String conversationKey = getRoomConversationKey(roomJID);
         synchronized (conversationKey.intern()) {
             Conversation conversation = conversations.get(conversationKey);
@@ -764,6 +764,8 @@ public class ConversationManager implements Startable, ComponentEventListener{
             for (ConversationListener listener : conversationListeners) {
                 listener.conversationUpdated(conversation, date);
             }
+
+            Log.trace("Done processing room {} message from date {}.", roomJID, date );
         }
     }
 
@@ -948,184 +950,73 @@ public class ConversationManager implements Startable, ComponentEventListener{
     }
 
     /**
-     * A to-be-archived entity.
-     *
-     * Note that the ordering imposed by the Comparable implementation is not consistent with equals, and serves only
-     * to order instances by their creation timestamp.
-     */
-    private static class ArchiveCandidate<E> implements Comparable<ArchiveCandidate<E>> {
-        private final Date creation = new Date();
-
-        private final E element;
-
-        public ArchiveCandidate( E element ) {
-            if ( element == null ) {
-                throw new IllegalArgumentException( "Argument 'element' cannot be null." );
-            }
-            this.element = element;
-        }
-
-        public Date createdAt()
-        {
-            return creation;
-        }
-
-        public E getElement()
-        {
-            return element;
-        }
-
-        @Override
-        public int compareTo( ArchiveCandidate<E> o )
-        {
-            return creation.compareTo( o.creation );
-        }
-    }
-
-    /**
-     * Returns true if none of the queues hold data that was delivered before the provided argument.
+     * Returns an estimation on how long it takes for all data that arrived before a certain instant will have become
+     * available in the data store. When data is immediately available, 'zero', is returned;
      *
      * This method is intended to be used to determine if it's safe to construct an answer (based on database
      * content) to a request for archived data. Such response should only be generated after all data that was
      * queued before the request arrived has been written to the database.
      *
-     * This method performs a cluster-wide check, unlike {@link #hasLocalNodeWrittenAllDataBefore(Date)}.
+     * This method performs a cluster-wide check, unlike {@link #availabilityETAOnLocalNode(Instant)}.
      *
-     * @param date A date (cannot be null).
-     * @return false if any of the the queues contain work that was created before the provided date, otherwise true.
+     * @param instant A date (cannot be null).
+     * @return A period of time, zero when the requested data is already available.
      */
-    public boolean hasWrittenAllDataBefore( Date date )
+    public Duration availabilityETA( Instant instant )
     {
-        final boolean localNode = hasLocalNodeWrittenAllDataBefore( date );
-        if ( !localNode )
+        final Duration localNode = availabilityETAOnLocalNode( instant );
+        if ( !localNode.isZero() )
         {
-            return false;
+            return localNode;
         }
 
         // Check all other cluster nodes.
-        final Collection<Boolean> objects = CacheFactory.doSynchronousClusterTask( new HasWrittenAllDataTask( date ), false );
-        for ( final Boolean object : objects )
-        {
-            if ( !object) {
-                return false;
-            }
-        }
-        return true;
+        final Collection<Duration> objects = CacheFactory.doSynchronousClusterTask( new GetConversationsWriteETATask( instant ), false );
+        final Duration maxDuration = objects.stream().max( Comparator.naturalOrder() ).orElse( Duration.ZERO );
+        return maxDuration;
     }
 
     /**
-     * Returns true if none of the queues hold data that was delivered before the provided argument.
+     * Returns an estimation on how long it takes for all data that arrived before a certain instant will have become
+     * available in the data store. When data is immediately available, 'zero', is returned;
      *
      * This method is intended to be used to determine if it's safe to construct an answer (based on database
      * content) to a request for archived data. Such response should only be generated after all data that was
      * queued before the request arrived has been written to the database.
      *
-     * This method performs a check on the local cluster-node only, unlike {@link #hasWrittenAllDataBefore(Date)}.
+     * This method performs a check on the local cluster-node only, unlike {@link #availabilityETA(Instant)}.
      *
-     * @param date A date (cannot be null).
-     * @return false if any of the the queues contain work that was created before the provided date, otherwise true.
+     * @param instant A date (cannot be null).
+     * @return A period of time, zero when the requested data is already available.
      */
-    public boolean hasLocalNodeWrittenAllDataBefore( Date date )
+    public Duration availabilityETAOnLocalNode( Instant instant )
     {
-        if ( date == null )
+        if ( instant == null )
         {
-            throw new IllegalArgumentException( "Argument 'date' cannot be null." );
-        }
-        final ArchiveCandidate c = conversationQueue.peek();
-        final ArchiveCandidate m = messageQueue.peek();
-        final ArchiveCandidate p = participantQueue.peek();
-        return ( c == null || c.creation.after( date ) )
-            && ( m == null || m.creation.after( date ) )
-            && ( p == null || p.creation.after( date ) );
-    }
-
-    /**
-     * An abstract runnable that adds to-be-archived data to the database.
-     *
-     * This implementation is designed to reduce the work load on the database, by batching work where possible, without
-     * severely delaying database writes.
-     *
-     * This implementation acts as a consumer (in context of the producer-consumer design pattern), where the queue that
-     * is used to relay work from both processes is passed as an argument to the constructor of this class.
-     *
-     * @author Guus der Kinderen, guus.der.kinderen@gmail.com
-     */
-    private static abstract class ArchivingRunnable<E> implements Runnable
-    {
-        // Do not add more than this amount of queries in a batch.
-        final int maxWorkQueueSize = 500; // TODO make this value configurable.
-
-        // Do not delay longer than this amount of milliseconds before storing data in the database.
-        final long maxPurgeInterval = 1000; // TODO make this value configurable.
-
-        // Maximum amount of milliseconds to wait for 'more' work to arrive, before committing the batch.
-        final long gracePeriod = 50; // TODO make this value configurable.
-
-        // Reference to the queue in which work is produced.
-        final PriorityBlockingQueue<ArchiveCandidate<E>> queue;
-
-        ArchivingRunnable( PriorityBlockingQueue<ArchiveCandidate<E>> queue )
-        {
-            if ( queue == null )
-            {
-                throw new IllegalArgumentException( "Argument 'queue' cannot be null." );
-            }
-            this.queue = queue;
+            throw new IllegalArgumentException( "Argument 'instant' cannot be null." );
         }
 
-        public void run()
-        {
-            boolean running = true;
+        // Each muc-service writes it's own messages.
+        final Stream<Archiver> mucService = XMPPServer.getInstance().getMultiUserChatManager().getMultiUserChatServices().stream().map( MultiUserChatService::getArchiver );
+        final Stream<Archiver> monitoring = Stream.of( conversationArchiver, messageArchiver, participantArchiver );
 
-            // This loop is designed to write data to be stored in the database without much delay, while at the same
-            // time allowing for batching of work that's produced at roughly the same time (which improves performance).
-            while ( running )
-            {
-                // The batch of work for this iteration.
-                final List<ArchiveCandidate<E>> workQueue = new ArrayList<>();
-
-                try
-                {
-                    // Blocks until work is produced.
-                    ArchiveCandidate<E> work = queue.take();
-                    workQueue.add( work );
-
-                    // Continue filling up this batch as long as new archive candidates can be retrieved pretty much
-                    // instantaneously, but don't take longer than the maximum allowed purge interval (this is intended
-                    // to make sure that the database content is updated regularly)
-                    final long start = System.currentTimeMillis();
-                    while ( ( workQueue.size() < maxWorkQueueSize ) // Don't allow the batch to grow to big.
-                        && ( System.currentTimeMillis() - start < maxPurgeInterval - gracePeriod ) // Don't take to long between commits.
-                        && ( ( work = queue.poll( gracePeriod, TimeUnit.MILLISECONDS ) ) != null ) )
-                    {
-                        workQueue.add( work );
-                    }
-                }
-                catch ( InterruptedException e )
-                {
-                    // Causes the thread to stop.
-                    running = false;
-                }
-
-                // Store all produced work in the database.
-                store( workQueue );
-            }
-        }
-
-        abstract void store( List<ArchiveCandidate<E>> workQueue );
+        return Stream.concat( mucService, monitoring )
+            .map( archiver -> archiver.availabilityETAOnLocalNode( instant ) )
+            .max( Comparator.naturalOrder() )
+            .orElse( Duration.ZERO );
     }
 
     /**
      * Stores Conversations in the database.
      */
-    private static class ConversationArchivingRunnable extends ArchivingRunnable<Conversation>
+    private static class ConversationArchivingRunnable extends Archiver<Conversation>
     {
-        ConversationArchivingRunnable( PriorityBlockingQueue<ArchiveCandidate<Conversation>> queue )
+        ConversationArchivingRunnable( String id )
         {
-            super( queue );
+            super( id, 500, Duration.ofSeconds( 1 ), Duration.ofMillis( 50 ) ); // TODO make values configurable.
         }
 
-        protected void store( List<ArchiveCandidate<Conversation>> workQueue )
+        protected void store( List<Conversation> workQueue )
         {
             if ( workQueue.isEmpty() )
             {
@@ -1140,11 +1031,11 @@ public class ConversationManager implements Startable, ComponentEventListener{
                 con = DbConnectionManager.getConnection();
                 pstmt = con.prepareStatement(UPDATE_CONVERSATION);
 
-                for ( final ArchiveCandidate<Conversation> work : workQueue )
+                for ( final Conversation work : workQueue )
                 {
-                    pstmt.setLong( 1, work.getElement().getLastActivity().getTime() );
-                    pstmt.setInt( 2, work.getElement().getMessageCount() );
-                    pstmt.setLong( 3, work.getElement().getConversationID() );
+                    pstmt.setLong( 1, work.getLastActivity().getTime() );
+                    pstmt.setInt( 2, work.getMessageCount() );
+                    pstmt.setLong( 3, work.getConversationID() );
                     if ( DbConnectionManager.isBatchUpdatesSupported() )
                     {
                         pstmt.addBatch();
@@ -1174,15 +1065,15 @@ public class ConversationManager implements Startable, ComponentEventListener{
     /**
      * Stores Messages in the database.
      */
-    private class MessageArchivingRunnable extends ArchivingRunnable<ArchivedMessage>
+    private class MessageArchivingRunnable extends Archiver<ArchivedMessage>
     {
-        MessageArchivingRunnable( PriorityBlockingQueue<ArchiveCandidate<ArchivedMessage>> queue )
+        MessageArchivingRunnable( String id )
         {
-            super( queue );
+            super( id, 500, Duration.ofSeconds( 1 ), Duration.ofMillis( 50 ) ); // TODO make values configurable.
         }
 
         @Override
-        void store( List<ArchiveCandidate<ArchivedMessage>> workQueue )
+        protected void store( List<ArchivedMessage> workQueue )
         {
             if ( workQueue.isEmpty() )
             {
@@ -1199,17 +1090,17 @@ public class ConversationManager implements Startable, ComponentEventListener{
                 con = DbConnectionManager.getConnection();
                 pstmt = con.prepareStatement(INSERT_MESSAGE);
 
-                for ( final ArchiveCandidate<ArchivedMessage> work : workQueue )
+                for ( final ArchivedMessage work : workQueue )
                 {
                     pstmt.setInt(1, ++msgCount);
-                    pstmt.setLong(2, work.getElement().getConversationID());
-                    pstmt.setString(3, work.getElement().getFromJID().toBareJID());
-                    pstmt.setString(4, work.getElement().getFromJID().getResource());
-                    pstmt.setString(5, work.getElement().getToJID().toBareJID());
-                    pstmt.setString(6, work.getElement().getToJID().getResource());
-                    pstmt.setLong(7, work.getElement().getSentDate().getTime());
-                    DbConnectionManager.setLargeTextField(pstmt, 8, work.getElement().getBody());
-                    DbConnectionManager.setLargeTextField(pstmt, 9, work.getElement().getStanza());
+                    pstmt.setLong(2, work.getConversationID());
+                    pstmt.setString(3, work.getFromJID().toBareJID());
+                    pstmt.setString(4, work.getFromJID().getResource());
+                    pstmt.setString(5, work.getToJID().toBareJID());
+                    pstmt.setString(6, work.getToJID().getResource());
+                    pstmt.setLong(7, work.getSentDate().getTime());
+                    DbConnectionManager.setLargeTextField(pstmt, 8, work.getBody());
+                    DbConnectionManager.setLargeTextField(pstmt, 9, work.getStanza());
 
                     if ( DbConnectionManager.isBatchUpdatesSupported() )
                     {
@@ -1240,14 +1131,14 @@ public class ConversationManager implements Startable, ComponentEventListener{
     /**
      * Stores Participants in the database.
      */
-    private static class ParticipantArchivingRunnable extends ArchivingRunnable<RoomParticipant>
+    private static class ParticipantArchivingRunnable extends Archiver<RoomParticipant>
     {
-        ParticipantArchivingRunnable( PriorityBlockingQueue<ArchiveCandidate<RoomParticipant>> queue )
+        ParticipantArchivingRunnable( String id )
         {
-            super( queue );
+            super( id, 500, Duration.ofSeconds( 1 ), Duration.ofMillis( 50 ) ); // TODO make values configurable.
         }
 
-        protected void store( List<ArchiveCandidate<RoomParticipant>> workQueue )
+        protected void store( List<RoomParticipant> workQueue )
         {
             if ( workQueue.isEmpty() )
             {
@@ -1262,13 +1153,13 @@ public class ConversationManager implements Startable, ComponentEventListener{
                 con = DbConnectionManager.getConnection();
                 pstmt = con.prepareStatement( UPDATE_PARTICIPANT );
 
-                for ( final ArchiveCandidate<RoomParticipant> work : workQueue )
+                for ( final RoomParticipant work : workQueue )
                 {
-                    pstmt.setLong(1, work.getElement().left.getTime());
-                    pstmt.setLong(2, work.getElement().conversationID);
-                    pstmt.setString(3, work.getElement().user.toBareJID());
-                    pstmt.setString(4, work.getElement().user.getResource() == null ? " " : work.getElement().user.getResource());
-                    pstmt.setLong(5, work.getElement().joined.getTime());
+                    pstmt.setLong(1, work.left.getTime());
+                    pstmt.setLong(2, work.conversationID);
+                    pstmt.setString(3, work.user.toBareJID());
+                    pstmt.setString(4, work.user.getResource() == null ? " " : work.user.getResource());
+                    pstmt.setLong(5, work.joined.getTime());
                     if ( DbConnectionManager.isBatchUpdatesSupported() )
                     {
                         pstmt.addBatch();

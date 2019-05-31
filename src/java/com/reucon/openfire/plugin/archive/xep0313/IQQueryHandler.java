@@ -30,10 +30,9 @@ import org.xmpp.packet.Message;
 import org.xmpp.packet.PacketError;
 
 import java.text.ParseException;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Date;
-import java.util.Iterator;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -174,49 +173,40 @@ abstract class IQQueryHandler extends AbstractIQHandler implements
         // OF-1200: make sure that data is flushed to the database before retrieving it.
         final MonitoringPlugin plugin = (MonitoringPlugin) XMPPServer.getInstance().getPluginManager().getPlugin(MonitoringConstants.NAME);
         final ConversationManager conversationManager = (ConversationManager)plugin.getModule( ConversationManager.class);
-        final Date targetEndDate = new Date(); // TODO or, the 'before' date from RSM, if that's set and in the past.
+        final Instant targetEndDate = Instant.now(); // TODO or, the timestamp of the element referenced by 'before' from RSM, if that's set.
 
-        executorService.submit( new Runnable()
-        {
-            @Override
-            public void run()
+        executorService.submit( () -> {
+            try
             {
-                try
+                Log.debug("Retrieving messages from archive...");
+                Duration eta;
+                while ( !(eta = conversationManager.availabilityETA( targetEndDate )).isZero() )
                 {
-                    while ( System.currentTimeMillis() < targetEndDate.getTime() + 2000 ) // TODO Use the value in org.jivesoftware.openfire.archive.ConversationManager.ArchivingRunnable.maxPurgeInterval but also add time to allow for query execution time.
+                    try
                     {
-                        if ( conversationManager.hasWrittenAllDataBefore( targetEndDate ) )
-                        {
-                            break;
-                        }
-                        try
-                        {
-                            Log.debug( "Not all data that is being requested has been written to the database yet. Delaying request processing. " );
-                            Thread.sleep( 100 );
-                        }
-                        catch ( InterruptedException e )
-                        {
-                            break;
-                        }
+                        Log.trace( "Not all data that is being requested has been written to the database yet. Delaying request processing for {}", eta );
+                        Thread.sleep( eta.toMillis() );
                     }
-                    if ( !conversationManager.hasWrittenAllDataBefore( targetEndDate ) ) {
-                        Log.warn( "Retrieving data from the database to formulate a response to a MAM query, while data is still waiting to be written there. The response might be incomplete." );
+                    catch ( InterruptedException e )
+                    {
+                        Log.warn( "Interrupted wait for data availability. Data might be incomplete!", e );
+                        break;
                     }
-
-                    Log.debug("Retrieving messages from archive...");
-                    Collection<ArchivedMessage> archivedMessages = retrieveMessages(queryRequest);
-                    Log.debug("Retrieved {} messages from archive.", archivedMessages.size());
-
-                    for(ArchivedMessage archivedMessage : archivedMessages) {
-                        sendMessageResult(packet.getFrom(), queryRequest, archivedMessage);
-                    }
-
-                    sendEndQuery(packet, packet.getFrom(), queryRequest);
-                    Log.debug("Done with request.");
                 }
-                catch ( Exception e ) {
-                    Log.error( "An unexpected exception occurred while processing: {}", packet, e );
+                Log.debug( "All data that has been requested has been written to the database. Proceed to process request." );
+
+                Collection<ArchivedMessage> archivedMessages = retrieveMessages(queryRequest);
+                Log.debug("Retrieved {} messages from archive.", archivedMessages.size());
+
+                for(ArchivedMessage archivedMessage : archivedMessages) {
+                    sendMessageResult(packet.getFrom(), queryRequest, archivedMessage);
                 }
+
+                sendEndQuery(packet, packet.getFrom(), queryRequest);
+                Log.debug("Done with request.");
+            }
+            catch ( Exception e ) {
+                Log.error( "An unexpected exception occurred while processing: {}", packet, e );
             }
         } );
 
@@ -308,7 +298,7 @@ abstract class IQQueryHandler extends AbstractIQHandler implements
 
     /**
      * Send final message back to client following query.
-     * @param JID to respond to
+     * @param from to respond to
      * @param queryRequest Received query request
      */
     private void sendFinalMessage(JID from, final QueryRequest queryRequest) {
@@ -334,7 +324,7 @@ abstract class IQQueryHandler extends AbstractIQHandler implements
 
     /**
      * Send archived message to requesting client
-     * @param JID to recieve message
+     * @param from to recieve message
      * @param queryRequest Query request made by client
      * @param archivedMessage Message to send to client
      * @return
