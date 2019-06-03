@@ -110,10 +110,6 @@ public class ConversationManager implements Startable, ComponentEventListener{
     private long maxRetrievable;
     private PropertyEventListener propertyListener;
 
-    private final PriorityBlockingQueue<ArchiveCandidate<Conversation>> conversationQueue = new PriorityBlockingQueue<>();
-    private final PriorityBlockingQueue<ArchiveCandidate<ArchivedMessage>> messageQueue = new PriorityBlockingQueue<>();
-    private final PriorityBlockingQueue<ArchiveCandidate<RoomParticipant>> participantQueue = new PriorityBlockingQueue<>();
-
     private TimerTask cleanupTask;
     private TimerTask maxAgeTask;
 
@@ -688,12 +684,12 @@ public class ConversationManager implements Startable, ComponentEventListener{
             // Record the newly received message.
             conversation.messageReceived(sender, date);
             if (metadataArchivingEnabled) {
-                conversationQueue.add(new ArchiveCandidate<>(conversation));
+                conversationArchiver.archive(conversation);
             }
             if (messageArchivingEnabled) {
                 if (body != null) {
                     /* OF-677 - Workaround to prevent null messages being archived */
-                    messageQueue.add(new ArchiveCandidate<>( new ArchivedMessage(conversation.getConversationID(), sender, receiver, date, body, stanza, false) ));
+                    messageArchiver.archive(new ArchivedMessage(conversation.getConversationID(), sender, receiver, date, body, stanza, false) );
                 }
             }
             // Notify listeners of the conversation update.
@@ -751,13 +747,13 @@ public class ConversationManager implements Startable, ComponentEventListener{
             // Record the newly received message.
             conversation.messageReceived(sender, date);
             if (metadataArchivingEnabled) {
-                conversationQueue.add(new ArchiveCandidate<>( conversation ));
+                conversationArchiver.archive( conversation );
             }
             if (roomArchivingEnabled && (roomsArchived.isEmpty() || roomsArchived.contains(roomJID.getNode()))) {
                 JID jid = new JID(roomJID + "/" + nickname);
                 if (body != null) {
                     /* OF-677 - Workaround to prevent null messages being archived */
-                    messageQueue.add(new ArchiveCandidate<>( new ArchivedMessage(conversation.getConversationID(), sender, jid, date, body, roomArchivingStanzasEnabled ? stanza : "", false)) );
+                    messageArchiver.archive( new ArchivedMessage(conversation.getConversationID(), sender, jid, date, body, roomArchivingStanzasEnabled ? stanza : "", false));
                 }
             }
             // Notify listeners of the conversation update.
@@ -946,7 +942,7 @@ public class ConversationManager implements Startable, ComponentEventListener{
         updatedParticipant.user = user;
         updatedParticipant.joined = participation.getJoined();
         updatedParticipant.left = participation.getLeft();
-        participantQueue.add(new ArchiveCandidate<>( updatedParticipant ));
+        participantArchiver.archive( updatedParticipant );
     }
 
     /**
