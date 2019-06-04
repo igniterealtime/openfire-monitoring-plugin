@@ -69,7 +69,7 @@ public class ArchiveManagerImpl implements ArchiveManager
             return;
         }
 
-        archivedMessage = ArchiveFactory.createArchivedMessage(session, message, direction, withJid);
+        archivedMessage = ArchiveFactory.createArchivedMessage(session, message, direction, ownerJid, withJid);
         if (archivedMessage.isEmpty())
         {
             return;

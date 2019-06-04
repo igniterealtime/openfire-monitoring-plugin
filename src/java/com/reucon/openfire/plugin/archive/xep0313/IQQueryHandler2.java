@@ -19,6 +19,12 @@ class IQQueryHandler2 extends IQQueryHandler {
     }
 
     @Override
+    boolean usesUniqueAndStableIDs()
+    {
+        return true;
+    }
+
+    @Override
     protected void sendEndQuery(IQ packet, JID jid, QueryRequest queryRequest) {
         sendAcknowledgementResult(packet, jid, queryRequest);
     }

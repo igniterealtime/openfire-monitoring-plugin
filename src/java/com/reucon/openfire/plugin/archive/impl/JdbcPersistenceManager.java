@@ -5,15 +5,15 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Date;
-import java.util.TreeMap;
-import java.util.HashSet;
-import java.util.List;
+import java.util.*;
 
+import org.dom4j.Document;
+import org.dom4j.DocumentException;
+import org.dom4j.DocumentHelper;
 import org.jivesoftware.database.DbConnectionManager;
 import org.jivesoftware.openfire.archive.ConversationManager;
+import org.jivesoftware.openfire.muc.MUCRoom;
+import org.jivesoftware.openfire.stanzaid.StanzaIDUtil;
 import org.jivesoftware.util.JiveConstants;
 import org.jivesoftware.util.JiveGlobals;
 import org.slf4j.Logger;
@@ -27,6 +27,7 @@ import com.reucon.openfire.plugin.archive.model.ArchivedMessage.Direction;
 import com.reucon.openfire.plugin.archive.model.Conversation;
 import com.reucon.openfire.plugin.archive.model.Participant;
 import com.reucon.openfire.plugin.archive.xep0059.XmppResultSet;
+import org.xmpp.packet.Message;
 
 /**
  * Manages database persistence.
@@ -190,29 +191,35 @@ public class JdbcPersistenceManager implements PersistenceManager {
             + "INNER JOIN ofConParticipant ON ofMessageArchive.conversationID = ofConParticipant.conversationID "
             + "WHERE (ofMessageArchive.stanza IS NOT NULL OR ofMessageArchive.body IS NOT NULL) ";
 
+    @Override
     public boolean createMessage(ArchivedMessage message) {
         /* read only */
         return false;
     }
 
+    @Override
     public int processAllMessages(ArchivedMessageConsumer callback) {
         return 0;
     }
 
+    @Override
     public boolean createConversation(Conversation conversation) {
         /* read only */
         return false;
     }
 
+    @Override
     public boolean updateConversationEnd(Conversation conversation) {
         /* read only */
         return false;
     }
 
+    @Override
     public boolean createParticipant(Participant participant, Long conversationId) {
         return false;
     }
 
+    @Override
     public List<Conversation> findConversations(String[] participants, Date startDate, Date endDate) {
         final List<Conversation> conversations = new ArrayList<Conversation>();
         return conversations;
@@ -234,6 +241,7 @@ public class JdbcPersistenceManager implements PersistenceManager {
         return result;
     }
 
+    @Override
     public Collection<Conversation> findConversations(Date startDate, Date endDate, String ownerJid, String withJid, XmppResultSet xmppResultSet) {
         final TreeMap<Long, Conversation> conversations;
         final StringBuilder querySB;
@@ -268,10 +276,10 @@ public class JdbcPersistenceManager implements PersistenceManager {
             if (xmppResultSet.getIndex() != null) {
                 firstIndex = xmppResultSet.getIndex();
             } else if (xmppResultSet.getAfter() != null) {
-                firstIndex = countConversationsBefore(startDate, endDate, ownerJid, withJid, xmppResultSet.getAfter(), whereSB.toString());
+                firstIndex = countConversationsBefore(startDate, endDate, ownerJid, withJid, Long.parseLong( xmppResultSet.getAfter() ), whereSB.toString());
                 firstIndex += 1;
             } else if (xmppResultSet.getBefore() != null) {
-                firstIndex = countConversationsBefore(startDate, endDate, ownerJid, withJid, xmppResultSet.getBefore(), whereSB.toString());
+                firstIndex = countConversationsBefore(startDate, endDate, ownerJid, withJid, Long.parseLong( xmppResultSet.getBefore() ), whereSB.toString());
                 firstIndex -= max;
                 if (firstIndex < 0) {
                     firstIndex = 0;
@@ -323,8 +331,8 @@ public class JdbcPersistenceManager implements PersistenceManager {
         }
 
         if (xmppResultSet != null && conversations.size() > 0) {
-            xmppResultSet.setFirst(conversations.firstKey());
-            xmppResultSet.setLast(conversations.lastKey());
+            xmppResultSet.setFirst( String.valueOf( conversations.firstKey() ));
+            xmppResultSet.setLast( String.valueOf( conversations.lastKey() ));
         }
         return conversations.values();
     }
@@ -422,10 +430,9 @@ public class JdbcPersistenceManager implements PersistenceManager {
     }
 
     @Override
-    public Collection<ArchivedMessage> findMessages(Date startDate,
-            Date endDate, String ownerJid, String withJid, XmppResultSet xmppResultSet) {
+    public Collection<ArchivedMessage> findMessages(Date startDate, Date endDate, String ownerJid, String withJid, XmppResultSet xmppResultSet, boolean useStableID) {
 
-        Log.debug( "Finding messages of owner '{}' with start date '{}', end date '{}' with '{}' and resultset '{}'.", new Object[] { ownerJid, startDate, endDate, withJid, xmppResultSet } );
+        Log.debug( "Finding messages of owner '{}' with start date '{}', end date '{}' with '{}' and resultset '{}', useStableId '{}'.", ownerJid, startDate, endDate, withJid, xmppResultSet, useStableID );
 
         final boolean isOracleDB = isOracleDB();
 
@@ -482,11 +489,23 @@ public class JdbcPersistenceManager implements PersistenceManager {
             if (xmppResultSet.getIndex() != null) {
                 firstIndex = xmppResultSet.getIndex();
             } else if (xmppResultSet.getAfter() != null) {
-                firstIndex = countMessagesBefore(startDate, endDate, ownerJid, withJid, xmppResultSet.getAfter(), whereSB.toString());
+                final Long needle;
+                if ( useStableID ) {
+                    needle = ConversationManager.getMessageIdForStableId( new JID(ownerJid), xmppResultSet.getAfter() );
+                } else {
+                    needle = Long.parseLong( xmppResultSet.getAfter() );
+                }
+                firstIndex = countMessagesBefore(startDate, endDate, ownerJid, withJid, needle, whereSB.toString());
                 firstIndex += 1;
             } else if (xmppResultSet.getBefore() != null) {
+                final Long needle;
+                if ( useStableID ) {
+                    needle = ConversationManager.getMessageIdForStableId( new JID(ownerJid), xmppResultSet.getBefore() );
+                } else {
+                    needle = Long.parseLong( xmppResultSet.getBefore() );
+                }
 
-                int messagesBeforeCount = countMessagesBefore(startDate, endDate, ownerJid, withJid, xmppResultSet.getBefore(), whereSB.toString());
+                int messagesBeforeCount = countMessagesBefore(startDate, endDate, ownerJid, withJid, needle, whereSB.toString());
                 firstIndex = messagesBeforeCount;
                 firstIndex -= max;
 
@@ -560,10 +579,25 @@ public class JdbcPersistenceManager implements PersistenceManager {
             rs = pstmt.executeQuery();
             Log.debug("findMessages: SELECT_MESSAGES: " + pstmt.toString());
             while(rs.next()) {
-                Date time = millisToDate(rs.getLong("sentDate"));
-                ArchivedMessage archivedMessage = new ArchivedMessage(time, null, null, null);
-                archivedMessage.setId(rs.getLong("messageID"));
-                archivedMessage.setStanza(rs.getString("stanza"));
+                // TODO Can we replace this with #extractMessage?
+                final String stanza = rs.getString( "stanza" );
+                final long id = rs.getLong( "messageID" );
+                final Date time = millisToDate(rs.getLong("sentDate"));
+
+                UUID sid;
+                try
+                {
+                    final Document doc = DocumentHelper.parseText( stanza );
+                    final Message message = new Message( doc.getRootElement() );
+                    sid = StanzaIDUtil.parseUniqueAndStableStanzaID( message, new JID(ownerJid).toBareJID() );
+                } catch ( Exception e ) {
+                    Log.warn( "An exception occurred while parsing message with ID {}", id, e );
+                    sid = null;
+                }
+
+                ArchivedMessage archivedMessage = new ArchivedMessage(time, null, null, null, sid);
+                archivedMessage.setId(id);
+                archivedMessage.setStanza(stanza);
 
                 archivedMessages.put(archivedMessage.getId(), archivedMessage);
             }
@@ -574,8 +608,8 @@ public class JdbcPersistenceManager implements PersistenceManager {
         }
 
         if (xmppResultSet != null && archivedMessages.size() > 0) {
-            xmppResultSet.setFirst(archivedMessages.firstKey());
-            xmppResultSet.setLast(archivedMessages.lastKey());
+            xmppResultSet.setFirst(String.valueOf( archivedMessages.firstKey() ));
+            xmppResultSet.setLast(String.valueOf( archivedMessages.lastKey() ));
         }
 
         return archivedMessages.values();
@@ -674,6 +708,7 @@ public class JdbcPersistenceManager implements PersistenceManager {
         return parameterIndex;
     }
 
+    @Override
     public Collection<Conversation> getActiveConversations(int conversationTimeout) {
         final Collection<Conversation> conversations;
         final long now = System.currentTimeMillis();
@@ -701,6 +736,7 @@ public class JdbcPersistenceManager implements PersistenceManager {
         return conversations;
     }
 
+    @Override
     public List<Conversation> getConversations(Collection<Long> conversationIds) {
         final List<Conversation> conversations;
         final StringBuilder querySB;
@@ -749,10 +785,12 @@ public class JdbcPersistenceManager implements PersistenceManager {
         return conversations;
     }
 
+    @Override
     public Conversation getConversation(String ownerJid, String withJid, Date start) {
         return getConversation(null, ownerJid, withJid, start);
     }
 
+    @Override
     public Conversation getConversation(Long conversationId) {
         return getConversation(conversationId, null, null, null);
     }
@@ -934,14 +972,27 @@ public class JdbcPersistenceManager implements PersistenceManager {
         String type = null;
         String subject = null;
         String body = rs.getString("body");
+        String stanza = rs.getString("stanza");
         String bareJid = rs.getString("bareJID");
+        Long id = rs.getLong( "messageID" );
         JID withJid = null;
 
         if (Direction.from == direction) {
             withJid = new JID(rs.getString("fromJID"));
         }
 
-        message = new ArchivedMessage(time, direction, null, withJid);
+        UUID sid;
+        try
+        {
+            final Document doc = DocumentHelper.parseText( stanza );
+            final Message m = new Message( doc.getRootElement() );
+            sid = StanzaIDUtil.parseUniqueAndStableStanzaID( m, new JID(bareJid).toBareJID() );
+        } catch ( Exception e ) {
+            Log.warn( "An exception occurred while parsing message with ID {}", id, e );
+            sid = null;
+        }
+
+        message = new ArchivedMessage(time, direction, null, withJid, sid);
         // message.setId(id);
         // message.setSubject(subject);
         message.setBody(body);
