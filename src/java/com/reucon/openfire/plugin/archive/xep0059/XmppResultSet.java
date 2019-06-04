@@ -2,20 +2,24 @@ package com.reucon.openfire.plugin.archive.xep0059;
 
 import org.dom4j.DocumentFactory;
 import org.dom4j.Element;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A <a href="http://www.xmpp.org/extensions/xep-0059.html">XEP-0059</a> result set.
  */
 public class XmppResultSet
 {
+    private static final Logger Log = LoggerFactory.getLogger( XmppResultSet.class );
+
     public static String NAMESPACE = "http://jabber.org/protocol/rsm";
-    private Long after;
-    private Long before;
+    private String after;
+    private String before;
     private Integer index;
     private Integer max;
-    private Long first;
+    private String first;
     private Integer firstIndex;
-    private Long last;
+    private String last;
     private Integer count;
     private boolean complete;
 
@@ -23,38 +27,16 @@ public class XmppResultSet
     {
         if (setElement.element("after") != null)
         {
-            try
-            {
-                after = Long.parseLong(setElement.elementText("after"));
-                if (after < 0)
-                {
-                    after = null;
-                }
-            }
-            catch (Exception e)
-            {
-                // swallow
+            after = setElement.elementText( "after" );
+            if ( after.isEmpty() ) {
+                after = null;
             }
         }
         if (setElement.element("before") != null)
         {
-            try
-            {
-                before = Long.parseLong(setElement.elementText("before"));
-                if (before < 0)
-                {
-                    before = null;
-                }
-            }
-                        catch (NumberFormatException e)
-                        {
-                            if (setElement.elementText("before").isEmpty()) {
-                                this.before = Long.MAX_VALUE;
-                            }
-                        }
-            catch (Exception e)
-            {
-                // swallow
+            before = setElement.elementText("before");
+            if ( before.isEmpty() ) {
+                before = null;
             }
         }
         if (setElement.element("max") != null)
@@ -69,7 +51,7 @@ public class XmppResultSet
             }
             catch (Exception e)
             {
-                // swallow
+                Log.debug( "Unable to parse value '{}' as a RSM 'max' value.", setElement.elementText("max") );
             }
         }
         if (setElement.element("index") != null)
@@ -84,17 +66,17 @@ public class XmppResultSet
             }
             catch (Exception e)
             {
-                // swallow
+                Log.debug( "Unable to parse value '{}' as a RSM 'index' value.", setElement.elementText("index") );
             }
         }
     }
 
-    public Long getAfter()
+    public String getAfter()
     {
         return after;
     }
 
-    public Long getBefore()
+    public String getBefore()
     {
         return before;
     }
@@ -142,8 +124,11 @@ public class XmppResultSet
      *
      * @param first the id of the first element returned.
      */
-    public void setFirst(Long first)
+    public void setFirst(String first)
     {
+        if (first != null && first.isEmpty()) {
+            first = null;
+        }
         this.first = first;
     }
 
@@ -162,8 +147,11 @@ public class XmppResultSet
      *
      * @param last the id of the last element returned.
      */
-    public void setLast(Long last)
+    public void setLast(String last)
     {
+        if (last != null && last.isEmpty()) {
+            last = null;
+        }
         this.last = last;
     }
 
@@ -180,7 +168,7 @@ public class XmppResultSet
     /**
      * Sets whether the result set is complete (used by last page of results)
      *
-     * @param complete
+     * @param complete true if the result set is on its last page, otherwise 'false'.
      */
     public void setComplete(boolean complete) {
         this.complete = complete;
@@ -195,7 +183,7 @@ public class XmppResultSet
         {
             final Element firstElement;
             firstElement = set.addElement("first");
-            firstElement.setText(first.toString());
+            firstElement.setText(first);
             if (firstIndex != null)
             {
                 firstElement.addAttribute("index", firstIndex.toString());
@@ -203,7 +191,7 @@ public class XmppResultSet
         }
         if (last != null)
         {
-            set.addElement("last").setText(last.toString());
+            set.addElement("last").setText(last);
         }
         if (count != null)
         {

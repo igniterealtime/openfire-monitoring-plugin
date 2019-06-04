@@ -207,6 +207,13 @@ abstract class IQQueryHandler extends AbstractIQHandler implements
             }
             catch ( Exception e ) {
                 Log.error( "An unexpected exception occurred while processing: {}", packet, e );
+                if (packet.isRequest()) {
+                    try {
+                        router.route( buildErrorResponse( packet ) );
+                    } catch ( Exception ex ) {
+                        Log.error( "An unexpected exception occurred while returning an error stanza to the originator of: {}", packet, ex );
+                    }
+                }
             }
         } );
 
@@ -284,8 +291,17 @@ abstract class IQQueryHandler extends AbstractIQHandler implements
                 endDate,
                 queryRequest.getArchive().toBareJID(),
                 withField,
-                queryRequest.getResultSet());
+                queryRequest.getResultSet(),
+                this.usesUniqueAndStableIDs());
     }
+
+    /**
+     * Defines if the implementation uses XEP-0359-defined 'unique and stable'
+     * stanza identifiers. MAM2 introduced a dependency on this new feature.
+     *
+     * @return true if the implementation uses XEP-0359, otherwise, false.
+     */
+    abstract boolean usesUniqueAndStableIDs();
 
     /**
      * Send result packet to client acknowledging query.
