@@ -65,11 +65,11 @@ public class IQRetrieveHandler extends AbstractIQHandler {
                 fromIndex = resultSet.getIndex();
                 toIndex = fromIndex + max;
             } else if (resultSet.getAfter() != null) {
-                fromIndex = resultSet.getAfter().intValue() + 1;
+                fromIndex = Long.valueOf(resultSet.getAfter()).intValue() + 1;
                 toIndex = fromIndex + max;
             } else if (resultSet.getBefore() != null) {
-                if (resultSet.getBefore()!=Long.MAX_VALUE)
-                                toIndex = resultSet.getBefore().intValue();
+                if (Long.valueOf(resultSet.getBefore())!=Long.MAX_VALUE)
+                                toIndex = Long.valueOf(resultSet.getBefore()).intValue();
                         else
                                 toIndex = conversation.getMessages().size();
                 fromIndex = toIndex - max;
@@ -92,9 +92,9 @@ public class IQRetrieveHandler extends AbstractIQHandler {
 
         if (resultSet != null) {
             if (messages.size() > 0) {
-                        resultSet.setFirst((long) fromIndex);
+                        resultSet.setFirst(String.valueOf(fromIndex));
                         resultSet.setFirstIndex(fromIndex);
-                        resultSet.setLast((long) toIndex - 1);
+                        resultSet.setLast(String.valueOf(toIndex - 1));
                     }
                     resultSet.setCount(conversation.getMessages().size());
                     chatElement.add(resultSet.createResultElement());

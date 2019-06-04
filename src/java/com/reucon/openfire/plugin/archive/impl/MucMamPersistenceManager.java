@@ -6,14 +6,19 @@ import com.reucon.openfire.plugin.archive.model.ArchivedMessage;
 import com.reucon.openfire.plugin.archive.model.Conversation;
 import com.reucon.openfire.plugin.archive.model.Participant;
 import com.reucon.openfire.plugin.archive.xep0059.XmppResultSet;
+import org.dom4j.Document;
+import org.dom4j.DocumentException;
+import org.dom4j.DocumentHelper;
 import org.jivesoftware.database.DbConnectionManager;
 import org.jivesoftware.openfire.XMPPServer;
 import org.jivesoftware.openfire.muc.MUCRoom;
 import org.jivesoftware.openfire.muc.MultiUserChatManager;
 import org.jivesoftware.openfire.muc.MultiUserChatService;
+import org.jivesoftware.openfire.stanzaid.StanzaIDUtil;
 import org.jivesoftware.util.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.w3c.dom.DOMException;
 import org.xmpp.packet.JID;
 import org.xmpp.packet.Message;
 
@@ -71,8 +76,8 @@ public class MucMamPersistenceManager implements PersistenceManager {
     }
 
     @Override
-    public Collection<ArchivedMessage> findMessages(Date startDate, Date endDate, String owner, String with, XmppResultSet xmppResultSet) {
-        Log.debug( "Finding messages of owner '{}' with start date '{}', end date '{}' with '{}' and resultset '{}'.", new Object[] { owner, startDate, endDate, with, xmppResultSet } );
+    public Collection<ArchivedMessage> findMessages(Date startDate, Date endDate, String owner, String with, XmppResultSet xmppResultSet, boolean useStableID ) {
+        Log.debug( "Finding messages of owner '{}' with start date '{}', end date '{}' with '{}' and resultset '{}', useStableId '{}'.", owner, startDate, endDate, with, xmppResultSet, useStableID );
         JID mucRoom = new JID(owner);
         MultiUserChatManager manager = XMPPServer.getInstance().getMultiUserChatManager();
         MultiUserChatService service =  manager.getMultiUserChatService(mucRoom);
@@ -113,10 +118,22 @@ public class MucMamPersistenceManager implements PersistenceManager {
                 pstmt.setString(++pos, with);
             }
             if (xmppResultSet.getAfter() != null) {
-                pstmt.setLong(++pos, xmppResultSet.getAfter());
+                final Long needle;
+                if ( useStableID ) {
+                    needle = getMessageIdForStableId( room, xmppResultSet.getAfter() );
+                } else {
+                    needle = Long.parseLong( xmppResultSet.getAfter() );
+                }
+                pstmt.setLong(++pos, needle );
             }
             if (xmppResultSet.getBefore() != null) {
-                pstmt.setLong(++pos, xmppResultSet.getBefore());
+                final Long needle;
+                if ( useStableID ) {
+                    needle = getMessageIdForStableId( room, xmppResultSet.getBefore() );
+                } else {
+                    needle = Long.parseLong( xmppResultSet.getBefore() );
+                }
+                pstmt.setLong(++pos, needle );
             }
             rs = pstmt.executeQuery();
             while (rs.next()) {
@@ -144,9 +161,22 @@ public class MucMamPersistenceManager implements PersistenceManager {
                     }
                     stanza = message.toString();
                 }
-                ArchivedMessage archivedMessage = new ArchivedMessage(sentDate, ArchivedMessage.Direction.from, null, null);
+
+                UUID sid;
+                try
+                {
+                    final Document doc = DocumentHelper.parseText( stanza );
+                    final Message message = new Message( doc.getRootElement() );
+                    sid = StanzaIDUtil.parseUniqueAndStableStanzaID( message, room.getJID().toBareJID() );
+                } catch ( Exception e ) {
+                    Log.warn( "An exception occurred while parsing message with ID {}", id, e );
+                    sid = null;
+                }
+
+                final ArchivedMessage archivedMessage = new ArchivedMessage(sentDate, ArchivedMessage.Direction.from, null, null, sid);
                 archivedMessage.setStanza(stanza);
                 archivedMessage.setId(id);
+
                 msgs.add(archivedMessage);
             }
         } catch (SQLException e) {
@@ -171,12 +201,77 @@ public class MucMamPersistenceManager implements PersistenceManager {
         }
         xmppResultSet.setComplete(complete);
         if (msgs.size() > 0) {
-            xmppResultSet.setFirst(msgs.get(0).getId());
+            String first = null;
+            String last = null;
+            if ( useStableID ) {
+                final UUID firstSid = msgs.get( 0 ).getStableId();
+                if ( firstSid != null ) {
+                    first = firstSid.toString();
+                }
+                final UUID lastSid = msgs.get(msgs.size()-1).getStableId();
+                if ( lastSid != null ) {
+                    last = lastSid.toString();
+                }
+            } else {
+                first = String.valueOf( msgs.get(0) );
+                last = String.valueOf( msgs.get(msgs.size()-1));
+            }
+            xmppResultSet.setFirst(first);
             if (msgs.size() > 1) {
-                xmppResultSet.setLast(msgs.get(msgs.size() - 1).getId());
+                xmppResultSet.setLast(last);
             }
         }
         return msgs;
+    }
+
+    static Long getMessageIdForStableId( final MUCRoom room, final String value )
+    {
+        Log.debug( "Looking for ID of the message with stable/unique stanza ID {}", value );
+
+        Connection connection = null;
+        PreparedStatement pstmt = null;
+        ResultSet rs = null;
+        try
+        {
+            final UUID uuid = UUID.fromString( value );
+
+            connection = DbConnectionManager.getConnection();
+            pstmt = connection.prepareStatement( "SELECT messageId, stanza FROM ofMucConversationLog WHERE messageId IS NOT NULL AND roomID=? AND stanza LIKE ?" );
+            pstmt.setLong( 1, room.getID() );
+            pstmt.setString( 2, "%"+uuid.toString()+"%" );
+
+            rs = pstmt.executeQuery();
+            while ( rs.next() ) {
+                final Long messageId = rs.getLong( "messageId" );
+                final String stanza = rs.getString( "stanza" );
+                Log.trace( "Iterating over message with ID {}.", messageId );
+                try
+                {
+                    final Document doc = DocumentHelper.parseText( stanza );
+                    final Message message = new Message( doc.getRootElement() );
+                    final UUID sid = StanzaIDUtil.parseUniqueAndStableStanzaID( message, room.getJID().toBareJID() );
+                    if ( sid != null ) {
+                        Log.debug( "Found stable/unique stanza ID {} in message with ID {}.", uuid, messageId );
+                        return messageId;
+                    }
+                }
+                catch ( DocumentException e )
+                {
+                    Log.warn( "An exception occurred while trying to parse stable/unique stanza ID from message with database id {}.", value );
+                }
+            }
+        }
+        catch ( SQLException e )
+        {
+            Log.warn( "An exception occurred while trying to determine the message ID for stanza ID '{}'.", value, e );
+        }
+        finally
+        {
+            DbConnectionManager.closeConnection( rs, pstmt, connection );
+        }
+
+        Log.debug( "Unable to find ID of the message with stable/unique stanza ID {}", value );
+        return null;
     }
 
     @Override

@@ -16,6 +16,9 @@
 
 package org.jivesoftware.openfire.archive;
 
+import org.dom4j.Document;
+import org.dom4j.DocumentException;
+import org.dom4j.DocumentHelper;
 import org.dom4j.Element;
 import org.jivesoftware.database.DbConnectionManager;
 import org.jivesoftware.openfire.XMPPServer;
@@ -30,6 +33,7 @@ import org.jivesoftware.openfire.component.InternalComponentManager;
 import org.jivesoftware.openfire.muc.MultiUserChatService;
 import org.jivesoftware.openfire.plugin.MonitoringPlugin;
 import org.jivesoftware.openfire.reporting.util.TaskEngine;
+import org.jivesoftware.openfire.stanzaid.StanzaIDUtil;
 import org.jivesoftware.openfire.stats.Statistic;
 import org.jivesoftware.openfire.stats.StatisticsManager;
 import org.jivesoftware.util.*;
@@ -943,6 +947,64 @@ public class ConversationManager implements Startable, ComponentEventListener{
         updatedParticipant.joined = participation.getJoined();
         updatedParticipant.left = participation.getLeft();
         participantArchiver.archive( updatedParticipant );
+    }
+
+    /**
+     * Returns the database identifier of a message that is identified by a particular
+     * XEP-0359-defined Unique and Stable Stanza ID.
+     *
+     * @param owner The owner of the message to lookup (cannot be null).
+     * @param value The XEP-0359 identifier (cannot be null or empty)
+     * @return A message ID, or null of no match was found.
+     */
+    public static Long getMessageIdForStableId( final JID owner, final String value )
+    {
+        Log.debug( "Looking for ID of the message with stable/unique stanza ID {}", value );
+
+        Connection connection = null;
+        PreparedStatement pstmt = null;
+        ResultSet rs = null;
+        try
+        {
+            final UUID uuid = UUID.fromString( value );
+
+            connection = DbConnectionManager.getConnection();
+            pstmt = connection.prepareStatement( "SELECT messageId, stanza FROM ofMessageArchive WHERE messageId IS NOT NULL AND ownerJID = ? AND stanza LIKE ?" );
+            pstmt.setString( 1, owner.toBareJID() );
+            pstmt.setString( 2, "%"+uuid.toString()+"%" );
+
+            rs = pstmt.executeQuery();
+            while ( rs.next() ) {
+                final Long messageId = rs.getLong( "messageId" );
+                final String stanza = rs.getString( "stanza" );
+                Log.trace( "Iterating over message with ID {}.", messageId );
+                try
+                {
+                    final Document doc = DocumentHelper.parseText( stanza );
+                    final Message message = new Message( doc.getRootElement() );
+                    final UUID sid = StanzaIDUtil.parseUniqueAndStableStanzaID( message, owner.toBareJID() );
+                    if ( sid != null ) {
+                        Log.debug( "Found stable/unique stanza ID {} in message with ID {}.", uuid, messageId );
+                        return messageId;
+                    }
+                }
+                catch ( DocumentException e )
+                {
+                    Log.warn( "An exception occurred while trying to parse stable/unique stanza ID from message with database id {}.", value );
+                }
+            }
+        }
+        catch ( SQLException e )
+        {
+            Log.warn( "An exception occurred while trying to determine the message ID for stanza ID '{}'.", value, e );
+        }
+        finally
+        {
+            DbConnectionManager.closeConnection( rs, pstmt, connection );
+        }
+
+        Log.debug( "Unable to find ID of the message with stable/unique stanza ID {}", value );
+        return null;
     }
 
     /**
