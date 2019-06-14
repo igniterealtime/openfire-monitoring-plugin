@@ -10,4 +10,5 @@ public interface ArchiveProperties
     String INDEX_DIR = "archive.indexdir";
     // Unnecessary since Open Archive Archive Manager no longer archives messages
     String CONVERSATION_TIMEOUT = "conversation.idleTime";
+    String FORCE_RSM = "archive.FORCE_RSM";
 }

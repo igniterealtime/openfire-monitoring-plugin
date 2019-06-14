@@ -40,6 +40,8 @@ public class MucMamPersistenceManager implements PersistenceManager {
     private static final String WHERE_AFTER = " AND messageId > ? ";
     private static final String WHERE_BEFORE = " AND messageId < ? ";
     private static final String ORDER_BY = " ORDER BY logTime";
+    private static final int DEFAULT_MAX = 100;
+
     @Override
     public boolean createMessage(ArchivedMessage message) {
         throw new UnsupportedOperationException("MAM-MUC cannot perform this operation");
@@ -94,7 +96,7 @@ public class MucMamPersistenceManager implements PersistenceManager {
         if (endDate == null) {
             endDate = new Date();
         }
-        int max = xmppResultSet.getMax();
+        int max = xmppResultSet.getMax() != null ? xmppResultSet.getMax() : DEFAULT_MAX;
         with = null; // TODO: Suppress this, since we don't yet have requestor information for access control.
         try {
             connection = DbConnectionManager.getConnection();
@@ -186,7 +188,7 @@ public class MucMamPersistenceManager implements PersistenceManager {
         }
         // TODO - Not great, really should be done by suitable LIMIT stuff.
         // Would need to reverse ordering in some cases and then reverse results.
-        boolean pagingBackwards = xmppResultSet.getBefore() != null && xmppResultSet.getAfter() == null;
+        boolean pagingBackwards = xmppResultSet.isPagingBackwards();
         if ( pagingBackwards ) {
             Collections.reverse(msgs);
         }
@@ -228,12 +230,25 @@ public class MucMamPersistenceManager implements PersistenceManager {
     {
         Log.debug( "Looking for ID of the message with stable/unique stanza ID {}", value );
 
+        final UUID uuid;
+        try {
+            uuid = UUID.fromString( value );
+        } catch ( IllegalArgumentException e ) {
+            Log.debug( "Client presented a value that's not a UUID: '{}'", value );
+
+            try {
+                Log.debug( "Fallback mechanism: parse value as old database identifier: '{}'", value );
+                return Long.parseLong( value );
+            } catch ( NumberFormatException e1 ) {
+                Log.debug( "Fallback failed: value cannot be parsed as the old database identifier." );
+                throw e; // throwing the original exception, as we'd originally expected an UUID here.
+            }
+        }
         Connection connection = null;
         PreparedStatement pstmt = null;
         ResultSet rs = null;
         try
         {
-            final UUID uuid = UUID.fromString( value );
 
             connection = DbConnectionManager.getConnection();
             pstmt = connection.prepareStatement( "SELECT messageId, stanza FROM ofMucConversationLog WHERE messageId IS NOT NULL AND roomID=? AND stanza LIKE ?" );
