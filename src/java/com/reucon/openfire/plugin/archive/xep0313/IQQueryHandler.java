@@ -1,12 +1,10 @@
 package com.reucon.openfire.plugin.archive.xep0313;
 
+import com.reucon.openfire.plugin.archive.ArchiveProperties;
 import com.reucon.openfire.plugin.archive.model.ArchivedMessage;
 import com.reucon.openfire.plugin.archive.xep.AbstractIQHandler;
 import com.reucon.openfire.plugin.archive.xep0059.XmppResultSet;
-import org.dom4j.Document;
-import org.dom4j.DocumentException;
-import org.dom4j.DocumentHelper;
-import org.dom4j.Element;
+import org.dom4j.*;
 import org.jivesoftware.openfire.XMPPServer;
 import org.jivesoftware.openfire.PacketRouter;
 import org.jivesoftware.openfire.archive.ConversationManager;
@@ -18,6 +16,7 @@ import org.jivesoftware.openfire.muc.MUCRole;
 import org.jivesoftware.openfire.muc.MUCRoom;
 import org.jivesoftware.openfire.muc.MultiUserChatService;
 import org.jivesoftware.openfire.plugin.MonitoringPlugin;
+import org.jivesoftware.util.JiveGlobals;
 import org.jivesoftware.util.NamedThreadFactory;
 import org.jivesoftware.util.XMPPDateTimeFormat;
 import org.slf4j.Logger;
@@ -168,6 +167,12 @@ abstract class IQQueryHandler extends AbstractIQHandler implements
 
         sendMidQuery(packet);
 
+        if ( JiveGlobals.getBooleanProperty( ArchiveProperties.FORCE_RSM, true ) ) {
+            final QName seQName = QName.get( "set", XmppResultSet.NAMESPACE);
+            if ( packet.getChildElement().element(seQName ) == null ) {
+                packet.getChildElement().addElement( seQName );
+            }
+        }
         final QueryRequest queryRequest = new QueryRequest(packet.getChildElement(), archiveJid);
 
         // OF-1200: make sure that data is flushed to the database before retrieving it.
