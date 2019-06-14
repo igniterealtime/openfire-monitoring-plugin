@@ -22,6 +22,7 @@ public class XmppResultSet
     private String last;
     private Integer count;
     private boolean complete;
+    boolean pagingBackwards = false;
 
     public XmppResultSet(Element setElement)
     {
@@ -35,6 +36,12 @@ public class XmppResultSet
         if (setElement.element("before") != null)
         {
             before = setElement.elementText("before");
+
+            // If 'before' is set it's an indication that backwards paging is desired, even if it's empty.
+            if ( after == null && setElement.element( "before" ) != null ) {
+                pagingBackwards = true;
+            }
+
             if ( before.isEmpty() ) {
                 before = null;
             }
@@ -172,6 +179,15 @@ public class XmppResultSet
      */
     public void setComplete(boolean complete) {
         this.complete = complete;
+    }
+
+    /**
+     * Returns whether the result set is a request to page backwards through the result set.
+     *
+     * @return whether the result set is being paged to backwards..
+     */
+    public boolean isPagingBackwards() {
+        return pagingBackwards;
     }
 
     public Element createResultElement()
