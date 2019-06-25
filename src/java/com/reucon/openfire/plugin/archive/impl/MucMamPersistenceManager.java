@@ -33,13 +33,6 @@ import java.util.*;
  */
 public class MucMamPersistenceManager implements PersistenceManager {
     private final static Logger Log = LoggerFactory.getLogger( MucMamPersistenceManager.class );
-    private static final String LOAD_HISTORY =
-            "SELECT sender, nickname, logTime, subject, body, stanza, messageId FROM ofMucConversationLog " +
-                    "WHERE messageId IS NOT NULL AND logTime>? AND logTime <= ? AND roomID=? AND (nickname IS NOT NULL OR subject IS NOT NULL) ";
-    private static final String WHERE_SENDER = " AND sender = ? ";
-    private static final String WHERE_AFTER = " AND messageId > ? ";
-    private static final String WHERE_BEFORE = " AND messageId < ? ";
-    private static final String ORDER_BY = " ORDER BY logTime";
     private static final int DEFAULT_MAX = 100;
 
     @Override
@@ -80,128 +73,39 @@ public class MucMamPersistenceManager implements PersistenceManager {
     @Override
     public Collection<ArchivedMessage> findMessages(Date startDate, Date endDate, String owner, String with, XmppResultSet xmppResultSet, boolean useStableID ) {
         Log.debug( "Finding messages of owner '{}' with start date '{}', end date '{}' with '{}' and resultset '{}', useStableId '{}'.", owner, startDate, endDate, with, xmppResultSet, useStableID );
-        JID mucRoom = new JID(owner);
-        MultiUserChatManager manager = XMPPServer.getInstance().getMultiUserChatManager();
-        MultiUserChatService service =  manager.getMultiUserChatService(mucRoom);
-        MUCRoom room = service.getChatRoom(mucRoom.getNode());
-        Connection connection = null;
-        PreparedStatement pstmt = null;
-        ResultSet rs = null;
-        List<ArchivedMessage>msgs = new LinkedList<>();
-        // If logging isn't enabled, do nothing.
-        if (!room.isLogEnabled()) return msgs;
+        final JID mucRoom = new JID(owner);
+        final MultiUserChatManager manager = XMPPServer.getInstance().getMultiUserChatManager();
+        final MultiUserChatService service = manager.getMultiUserChatService(mucRoom);
+        final MUCRoom room = service.getChatRoom(mucRoom.getNode());
+
+        if (!room.isLogEnabled()) {
+            Log.debug( "Request for message archive of room '{}' that currently has message logging disabled. Returning an empty list.", room.getJID() );
+            return Collections.emptyList();
+        }
+
         if (startDate == null) {
+            Log.debug( "Request for message archive of room '{}' did not specify a start date. Using EPOCH.", room.getJID() );
             startDate = new Date(0L);
         }
         if (endDate == null) {
+            Log.debug( "Request for message archive of room '{}' did not specify an end date. Using the current timestamp.", room.getJID() );
             endDate = new Date();
         }
-        int max = xmppResultSet.getMax() != null ? xmppResultSet.getMax() : DEFAULT_MAX;
-        with = null; // TODO: Suppress this, since we don't yet have requestor information for access control.
-        try {
-            connection = DbConnectionManager.getConnection();
-            StringBuilder sql = new StringBuilder(LOAD_HISTORY);
-            if (with != null) {
-                sql.append(WHERE_SENDER);
-            }
-            if (xmppResultSet.getAfter() != null) {
-                sql.append(WHERE_AFTER);
-            }
-            if (xmppResultSet.getBefore() != null) {
-                sql.append(WHERE_BEFORE);
-            }
-            sql.append(ORDER_BY);
-            pstmt = connection.prepareStatement(sql.toString());
-            pstmt.setString(1, StringUtils.dateToMillis(startDate));
-            pstmt.setString(2, StringUtils.dateToMillis(endDate));
-            pstmt.setLong(3, room.getID());
-            int pos = 3;
-            if (with != null) {
-                pstmt.setString(++pos, with);
-            }
-            if (xmppResultSet.getAfter() != null) {
-                final Long needle;
-                if ( useStableID ) {
-                    needle = getMessageIdForStableId( room, xmppResultSet.getAfter() );
-                } else {
-                    needle = Long.parseLong( xmppResultSet.getAfter() );
-                }
-                pstmt.setLong(++pos, needle );
-            }
-            if (xmppResultSet.getBefore() != null) {
-                final Long needle;
-                if ( useStableID ) {
-                    needle = getMessageIdForStableId( room, xmppResultSet.getBefore() );
-                } else {
-                    needle = Long.parseLong( xmppResultSet.getBefore() );
-                }
-                pstmt.setLong(++pos, needle );
-            }
-            rs = pstmt.executeQuery();
-            while (rs.next()) {
-                String senderJID = rs.getString(1);
-                String nickname = rs.getString(2);
-                Date sentDate = new Date(Long.parseLong(rs.getString(3).trim()));
-                String subject = rs.getString(4);
-                String body = rs.getString(5);
-                String stanza = rs.getString(6);
-                long id = rs.getLong(7);
-                if (stanza == null) {
-                    Message message = new Message();
-                    message.setType(Message.Type.groupchat);
-                    message.setSubject(subject);
-                    message.setBody(body);
-                    // Set the sender of the message
-                    if (nickname != null && nickname.trim().length() > 0) {
-                        JID roomJID = room.getRole().getRoleAddress();
-                        // Recreate the sender address based on the nickname and room's JID
-                        message.setFrom(new JID(roomJID.getNode(), roomJID.getDomain(), nickname, true));
-                    }
-                    else {
-                        // Set the room as the sender of the message
-                        message.setFrom(room.getRole().getRoleAddress());
-                    }
-                    stanza = message.toString();
-                }
 
-                UUID sid;
-                try
-                {
-                    final Document doc = DocumentHelper.parseText( stanza );
-                    final Message message = new Message( doc.getRootElement() );
-                    sid = StanzaIDUtil.parseUniqueAndStableStanzaID( message, room.getJID().toBareJID() );
-                } catch ( Exception e ) {
-                    Log.warn( "An exception occurred while parsing message with ID {}", id, e );
-                    sid = null;
-                }
+        final Long after = parseIdentifier( xmppResultSet.getAfter(), room, useStableID );
+        final Long before = parseIdentifier( xmppResultSet.getBefore(), room, useStableID );
+        final int maxResults = xmppResultSet.getMax() != null ? xmppResultSet.getMax() : DEFAULT_MAX;
+        final boolean isPagingBackwards = xmppResultSet.isPagingBackwards();
+        final PaginatedMucMessageQuery paginatedMucMessageQuery = new PaginatedMucMessageQuery( startDate, endDate, room, with, after, before, maxResults, isPagingBackwards );
+        Log.debug( "Request for message archive of room '{}' resulted in the following query data: {}", room.getJID(), paginatedMucMessageQuery );
 
-                final ArchivedMessage archivedMessage = new ArchivedMessage(sentDate, ArchivedMessage.Direction.from, null, null, sid);
-                archivedMessage.setStanza(stanza);
-                archivedMessage.setId(id);
+        final List<ArchivedMessage> msgs = getArchivedMessages( paginatedMucMessageQuery, room.getRole().getRoleAddress() );
+        final int totalCount = getTotalCount( paginatedMucMessageQuery );
+        Log.debug( "Request for message archive of room '{}' found a total of {} applicable messages in the database. Of these, {} were actually retrieved from the database.", room.getJID(), totalCount, msgs.size() );
 
-                msgs.add(archivedMessage);
-            }
-        } catch (SQLException e) {
-            Log.error("SQL failure during MAM-MUC: ", e);
-        } finally {
-            DbConnectionManager.closeConnection(rs, pstmt, connection);
-        }
-        // TODO - Not great, really should be done by suitable LIMIT stuff.
-        // Would need to reverse ordering in some cases and then reverse results.
-        boolean pagingBackwards = xmppResultSet.isPagingBackwards();
-        if ( pagingBackwards ) {
-            Collections.reverse(msgs);
-        }
-        boolean complete = true;
-        xmppResultSet.setCount(msgs.size());
-        while (msgs.size() > max) {
-            msgs.remove(msgs.size() - 1);
-            complete = false;
-        }
-        if ( pagingBackwards ) {
-            Collections.reverse(msgs);
-        }
-        xmppResultSet.setComplete(complete);
+        xmppResultSet.setCount(totalCount);
+        xmppResultSet.setComplete( msgs.size() <= maxResults );
+
         if (msgs.size() > 0) {
             String first = null;
             String last = null;
@@ -224,6 +128,101 @@ public class MucMamPersistenceManager implements PersistenceManager {
             }
         }
         return msgs;
+    }
+
+    protected List<ArchivedMessage> getArchivedMessages( PaginatedMucMessageQuery paginatedMucMessageQuery, JID roomJID )
+    {
+        Connection connection = null;
+        PreparedStatement pstmt = null;
+        ResultSet rs = null;
+        List<ArchivedMessage>msgs = new LinkedList<>();
+        try {
+            connection = DbConnectionManager.getConnection();
+            pstmt = paginatedMucMessageQuery.prepareStatement( connection, false );
+            rs = pstmt.executeQuery();
+            while (rs.next()) {
+                String senderJID = rs.getString(1);
+                String nickname = rs.getString(2);
+                Date sentDate = new Date(Long.parseLong(rs.getString(3).trim()));
+                String subject = rs.getString(4);
+                String body = rs.getString(5);
+                String stanza = rs.getString(6);
+                long id = rs.getLong(7);
+                if (stanza == null) {
+                    Message message = new Message();
+                    message.setType(Message.Type.groupchat);
+                    message.setSubject(subject);
+                    message.setBody(body);
+                    // Set the sender of the message
+                    if (nickname != null && nickname.trim().length() > 0) {
+                        // Recreate the sender address based on the nickname and room's JID
+                        message.setFrom(new JID(roomJID.getNode(), roomJID.getDomain(), nickname, true));
+                    }
+                    else {
+                        // Set the room as the sender of the message
+                        message.setFrom(roomJID);
+                    }
+                    stanza = message.toString();
+                }
+
+                UUID sid;
+                try
+                {
+                    final Document doc = DocumentHelper.parseText( stanza );
+                    final Message message = new Message( doc.getRootElement() );
+                    sid = StanzaIDUtil.parseUniqueAndStableStanzaID( message, roomJID.toBareJID() );
+                } catch ( Exception e ) {
+                    Log.warn( "An exception occurred while parsing message with ID {}", id, e );
+                    sid = null;
+                }
+
+                final ArchivedMessage archivedMessage = new ArchivedMessage(sentDate, ArchivedMessage.Direction.from, null, null, sid);
+                archivedMessage.setStanza(stanza);
+                archivedMessage.setId(id);
+
+                msgs.add(archivedMessage);
+            }
+        } catch (SQLException e) {
+            Log.error("SQL failure during MAM-MUC: ", e);
+        } finally {
+            DbConnectionManager.closeConnection(rs, pstmt, connection);
+        }
+
+        return msgs;
+    }
+
+    protected int getTotalCount( PaginatedMucMessageQuery paginatedMucMessageQuery )
+    {
+        Connection connection = null;
+        PreparedStatement pstmt = null;
+        ResultSet rs = null;
+
+        int totalCount = 0;
+        try {
+            connection = DbConnectionManager.getConnection();
+            pstmt = paginatedMucMessageQuery.prepareStatement( connection, true );
+            rs = pstmt.executeQuery();
+            if (rs.next()) {
+                totalCount = rs.getInt(1);
+            }
+        } catch (SQLException e) {
+            Log.error("SQL failure while counting messages in MAM-MUC: ", e);
+        } finally {
+            DbConnectionManager.closeConnection(rs, pstmt, connection);
+        }
+        return totalCount;
+    }
+
+    static Long parseIdentifier( String value, MUCRoom room, boolean useStableID )
+    {
+        if ( value == null ) {
+            return null;
+        }
+        if ( useStableID ) {
+            return getMessageIdForStableId( room, value );
+        }
+
+        return Long.parseLong( value );
     }
 
     static Long getMessageIdForStableId( final MUCRoom room, final String value )
