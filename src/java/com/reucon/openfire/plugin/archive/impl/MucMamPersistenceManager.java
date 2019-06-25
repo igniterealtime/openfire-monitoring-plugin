@@ -15,6 +15,7 @@ import org.jivesoftware.openfire.muc.MUCRoom;
 import org.jivesoftware.openfire.muc.MultiUserChatManager;
 import org.jivesoftware.openfire.muc.MultiUserChatService;
 import org.jivesoftware.openfire.stanzaid.StanzaIDUtil;
+import org.jivesoftware.util.JiveGlobals;
 import org.jivesoftware.util.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -168,6 +169,19 @@ public class MucMamPersistenceManager implements PersistenceManager {
                 UUID sid;
                 try
                 {
+                    if ( !JiveGlobals.getBooleanProperty( "conversation.OF-1804.disable", false ) )
+                    {
+                        // Prior to OF-1804 (Openfire 4.4.0), the stanza was logged with a formatter applied.
+                        // This causes message formatting to be modified (notably, new lines could be altered).
+                        // This workaround restores the original body text, that was stored in a different column.
+                        final int pos1 = stanza.indexOf( "<body>" );
+                        final int pos2 = stanza.indexOf( "</body>" );
+
+                        if ( pos1 > -1 && pos2 > -1 )
+                        {
+                            stanza = stanza.substring( 0, pos1 + 6 ) + body + stanza.substring( pos2 );
+                        }
+                    }
                     final Document doc = DocumentHelper.parseText( stanza );
                     final Message message = new Message( doc.getRootElement() );
                     sid = StanzaIDUtil.parseUniqueAndStableStanzaID( message, roomJID.toBareJID() );
