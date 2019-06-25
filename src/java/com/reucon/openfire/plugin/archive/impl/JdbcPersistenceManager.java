@@ -53,7 +53,7 @@ public class JdbcPersistenceManager implements PersistenceManager {
             + "ofConversation.conversationID, " + " ofConversation.room, " + "ofConversation.isExternal, "+ "ofConversation.lastActivity, "
             + "ofConversation.messageCount, " + "ofConversation.startDate, " + "ofConParticipant.bareJID, " + "ofConParticipant.jidResource,"
             + "ofConParticipant.nickname, " + "ofConParticipant.bareJID AS fromJID, " + "ofMessageArchive.toJID, "
-            + "min(ofConParticipant.joinedDate) AS startDate, " + "max(ofConParticipant.leftDate) as leftDate "
+            + "min(ofConParticipant.joinedDate) AS joinedDate, " + "max(ofConParticipant.leftDate) as leftDate "
             + "FROM ofConversation "
             + "INNER JOIN ofConParticipant ON ofConversation.conversationID = ofConParticipant.conversationID "
             + "INNER JOIN (SELECT conversationID, toJID FROM ofMessageArchive union all SELECT conversationID, fromJID as toJID FROM ofMessageArchive) ofMessageArchive ON ofConParticipant.conversationID = ofMessageArchive.conversationID ";
