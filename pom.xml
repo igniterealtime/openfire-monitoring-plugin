@@ -72,7 +72,7 @@
             <groupId>org.apache.lucene</groupId>
             <artifactId>lucene-core</artifactId>
             <!-- NB. Later versions are available but require code changes -->
-            <version>2.9.4</version>
+            <version>7.1.0</version>
         </dependency>
         <dependency>
             <groupId>com.lowagie</groupId>
