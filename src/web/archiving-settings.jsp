@@ -313,7 +313,7 @@
                     </tr>
                     <tr>
                         <td><fmt:message key="archive.settings.certain_rooms"/></td>
-                        <td><textarea name="roomsArchived" cols="30" rows="2" wrap="virtual"><%= StringUtils.collectionToString(conversationManager.getRoomsArchived()) %></textarea></td>
+                        <td><textarea name="roomsArchived" cols="30" rows="2" wrap="virtual"><%=StringUtils.escapeForXML( StringUtils.collectionToString(conversationManager.getRoomsArchived()) ) %></textarea></td>
                     </tr>
                 </table>
                 </td>
