@@ -117,11 +117,11 @@ public class PaginatedMucMessageQuery
         String sql = null;
         switch (org.jivesoftware.database.DbConnectionManager.getDatabaseType())
         {
-            case org.jivesoftware.database.DbConnectionManager.DatabaseType.mysql:
+            case mysql:
                 sql=getStatementForMySQL();
             break;
                 
-            case org.jivesoftware.database.DbConnectionManager.DatabaseType.sqlserver:
+            case sqlserver:
                 sql=getStatementForSQLServer();                
             break;                
                 //TODO: Insert Syntax for other DB Types...
