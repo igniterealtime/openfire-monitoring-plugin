@@ -35,6 +35,9 @@ import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+import org.jivesoftware.util.JiveConstants;
+import java.text.SimpleDateFormat;
+
 /**
  * XEP-0313 IQ Query Handler
  */
@@ -265,39 +268,79 @@ abstract class IQQueryHandler extends AbstractIQHandler implements
         String withField = null;
         String startField = null;
         String endField = null;
+        final MonitoringPlugin plugin = (MonitoringPlugin) XMPPServer.getInstance().getPluginManager().getPlugin(MonitoringConstants.NAME);
+        final ConversationManager conversationManager = (ConversationManager)plugin.getModule( ConversationManager.class);
+
+        
         DataForm dataForm = queryRequest.getDataForm();
         if(dataForm != null) {
             if(dataForm.getField("with") != null) {
                 withField = dataForm.getField("with").getFirstValue();
+                Log.debug("MAM: withField="+withField!=null?withField:"NULL");
             }
             if(dataForm.getField("start") != null) {
                 startField = dataForm.getField("start").getFirstValue();
+                Log.debug("MAM: startField="+startField!=null?startField:"NULL");
             }
             if(dataForm.getField("end") != null) {
                 endField = dataForm.getField("end").getFirstValue();
+                Log.debug("MAM: endField="+endField!=null?endField:"NULL");
             }
         }
 
-        Date startDate = null;
-        Date endDate = null;
-        try {
-            if(startField != null) {
-                startDate = xmppDateTimeFormat.parseString(startField);
-            }
-            if(endField != null) {
-                endDate = xmppDateTimeFormat.parseString(endField);
-            }
-        } catch (ParseException e) {
-            Log.error("Error parsing query date filters.", e);
+       try
+        {
+	        long newDate = System.currentTimeMillis()-(conversationManager.getMaxRetrievable() * JiveConstants.DAY);
+	       
+	        Date startDate = null;
+	        Date endDate = null;
+	        try {
+	            if(startField != null) {
+	            	if (conversationManager.getMaxRetrievable()<=0)
+	            	{
+	            		startDate = xmppDateTimeFormat.parseString(startField);
+	            	}
+	            	else
+	            		startDate = new Date(newDate);
+	               
+	            	Log.debug("MAM: startDate="+new SimpleDateFormat("yyyy-MM-dd hh:mm:ss").format(startDate));
+	            }
+	            else
+	            {
+	            	if (conversationManager.getMaxRetrievable()>0)
+	            	{
+	            		startDate = new Date(newDate);
+	            		
+	            		Log.debug("MAM: startDate="+new SimpleDateFormat("yyyy-MM-dd hh:mm:ss").format(startDate));
+	            	}
+	            	else
+	            		Log.debug("MAM maxRetrievable not set!");	            	
+	            }
+	            if(endField != null) {
+	                endDate = xmppDateTimeFormat.parseString(endField);
+	                Log.debug("MAM: endDate="+endDate!=null?endDate.toString():"NULL");
+	            }
+	        } catch (ParseException e) {
+	            Log.error("Error parsing query date filters.", e);
+	        }
+	       
+	        Collection <ArchivedMessage> result = getPersistenceManager(queryRequest.getArchive()).findMessages(
+	                startDate,
+	                endDate,
+	                queryRequest.getArchive().toBareJID(),
+	                withField,
+	                queryRequest.getResultSet(),
+                	this.usesUniqueAndStableIDs());
+	        
+	        Log.debug("MAM: found: "+String.valueOf(result.size())+" items");
+	        
+	        return result;
         }
-
-        return getPersistenceManager(queryRequest.getArchive()).findMessages(
-                startDate,
-                endDate,
-                queryRequest.getArchive().toBareJID(),
-                withField,
-                queryRequest.getResultSet(),
-                this.usesUniqueAndStableIDs());
+        catch (Exception e)
+        {
+        	Log.error("MAM: 0 items found (error): "+e.getMessage());        	
+        	return new LinkedList<ArchivedMessage>();
+        }
     }
 
     /**
