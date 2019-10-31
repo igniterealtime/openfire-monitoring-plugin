@@ -320,6 +320,8 @@ abstract class IQQueryHandler extends AbstractIQHandler implements
 	                endDate = xmppDateTimeFormat.parseString(endField);
 	                Log.debug("MAM: endDate="+endDate!=null?endDate.toString():"NULL");
 	            }
+	            else
+	        	endDate=new Date();
 	        } catch (ParseException e) {
 	            Log.error("Error parsing query date filters.", e);
 	        }
