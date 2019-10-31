@@ -489,22 +489,31 @@ public class JdbcPersistenceManager implements PersistenceManager {
             if (xmppResultSet.getIndex() != null) {
                 firstIndex = xmppResultSet.getIndex();
             } else if (xmppResultSet.getAfter() != null) {
-                final Long needle;
+                Long needle;
                 if ( useStableID ) {
                     needle = ConversationManager.getMessageIdForStableId( new JID(ownerJid), xmppResultSet.getAfter() );
+                    if (needle==null)
+                    	needle = new Long((new java.util.Date()).getTime());
                 } else {
-                    needle = Long.parseLong( xmppResultSet.getAfter() );
-                }
+                    needle = Long.parseLong( xmppResultSet.getAfter() );   
+                    if (needle==null)
+                    	needle = new Long((new java.util.Date()).getTime());
+                }              
+               
                 firstIndex = countMessagesBefore(startDate, endDate, ownerJid, withJid, needle, whereSB.toString());
                 firstIndex += 1;
             } else if (xmppResultSet.getBefore() != null) {
-                final Long needle;
+                Long needle;
                 if ( useStableID ) {
                     needle = ConversationManager.getMessageIdForStableId( new JID(ownerJid), xmppResultSet.getBefore() );
+                    if (needle==null)
+                    	needle = new Long((new java.util.Date()).getTime());
                 } else {
                     needle = Long.parseLong( xmppResultSet.getBefore() );
+                    if (needle==null)
+                    	needle = new Long((new java.util.Date()).getTime());
                 }
-
+              
                 int messagesBeforeCount = countMessagesBefore(startDate, endDate, ownerJid, withJid, needle, whereSB.toString());
                 firstIndex = messagesBeforeCount;
                 firstIndex -= max;

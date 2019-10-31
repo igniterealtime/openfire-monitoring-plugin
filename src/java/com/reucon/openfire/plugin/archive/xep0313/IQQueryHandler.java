@@ -340,7 +340,7 @@ abstract class IQQueryHandler extends AbstractIQHandler implements
         }
         catch (Exception e)
         {
-        	Log.error("MAM: 0 items found (error): "+e.getMessage());        	
+        	Log.error("MAM: 0 items found (error): ",e);        	
         	return new LinkedList<ArchivedMessage>();
         }
     }
