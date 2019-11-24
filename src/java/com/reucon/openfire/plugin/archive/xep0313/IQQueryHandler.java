@@ -301,7 +301,9 @@ abstract class IQQueryHandler extends AbstractIQHandler implements
 	            		startDate = xmppDateTimeFormat.parseString(startField);
 	            	}
 	            	else
+	            	{
 	            		startDate = new Date(newDate);
+	            	}
 	               
 	            	Log.debug("MAM: startDate="+new SimpleDateFormat("yyyy-MM-dd hh:mm:ss").format(startDate));
 	            }
@@ -310,18 +312,21 @@ abstract class IQQueryHandler extends AbstractIQHandler implements
 	            	if (conversationManager.getMaxRetrievable()>0)
 	            	{
 	            		startDate = new Date(newDate);
-	            		
 	            		Log.debug("MAM: startDate="+new SimpleDateFormat("yyyy-MM-dd hh:mm:ss").format(startDate));
 	            	}
 	            	else
-	            		Log.debug("MAM maxRetrievable not set!");	            	
+	            	{
+	            		Log.debug("MAM maxRetrievable not set!");
+	            	}
 	            }
 	            if(endField != null) {
 	                endDate = xmppDateTimeFormat.parseString(endField);
 	                Log.debug("MAM: endDate="+endDate!=null?endDate.toString():"NULL");
 	            }
 	            else
-	        	endDate=new Date();
+	            {
+	            	endDate=new Date();
+	            }
 	        } catch (ParseException e) {
 	            Log.error("Error parsing query date filters.", e);
 	        }
