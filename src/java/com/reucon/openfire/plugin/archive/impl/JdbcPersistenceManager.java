@@ -493,11 +493,15 @@ public class JdbcPersistenceManager implements PersistenceManager {
                 if ( useStableID ) {
                     needle = ConversationManager.getMessageIdForStableId( new JID(ownerJid), xmppResultSet.getAfter() );
                     if (needle==null)
+                    {
                     	needle = new Long((new java.util.Date()).getTime());
+                    }
                 } else {
-                    needle = Long.parseLong( xmppResultSet.getAfter() );   
+                    needle = Long.parseLong( xmppResultSet.getAfter());   
                     if (needle==null)
+                    {
                     	needle = new Long((new java.util.Date()).getTime());
+                    }
                 }              
                
                 firstIndex = countMessagesBefore(startDate, endDate, ownerJid, withJid, needle, whereSB.toString());
@@ -507,11 +511,15 @@ public class JdbcPersistenceManager implements PersistenceManager {
                 if ( useStableID ) {
                     needle = ConversationManager.getMessageIdForStableId( new JID(ownerJid), xmppResultSet.getBefore() );
                     if (needle==null)
+                    {
                     	needle = new Long((new java.util.Date()).getTime());
+                    }
                 } else {
                     needle = Long.parseLong( xmppResultSet.getBefore() );
                     if (needle==null)
+                    {
                     	needle = new Long((new java.util.Date()).getTime());
+                    }
                 }
               
                 int messagesBeforeCount = countMessagesBefore(startDate, endDate, ownerJid, withJid, needle, whereSB.toString());
