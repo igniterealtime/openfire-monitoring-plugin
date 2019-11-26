@@ -22,6 +22,9 @@ import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.util.Date;
 
+import org.jivesoftware.database.DbConnectionManager;
+import org.jivesoftware.database.DbConnectionManager.DatabaseType;
+
 /**
  * Encapsulates responsibility of creating a database query that retrieves a specific subset (page) of archived messages related to a MUC room.
  *
@@ -65,7 +68,7 @@ public class PaginatedMucMessageQuery
             '}';
     }
 
-    private String buildQueryForMessages()
+    private String getStatementForMySQL()
     {
         String sql = "SELECT sender, nickname, logTime, subject, body, stanza, messageId ";
         sql += " FROM ( ";
@@ -84,7 +87,52 @@ public class PaginatedMucMessageQuery
         sql += "ORDER BY logTime " + (isPagingBackwards ? "DESC" : "ASC");
         sql += " LIMIT " + maxResults;
         sql += " ) AS part ";
-        sql += " ORDER BY logTime ASC";
+        sql += " ORDER BY logTime ASC";   
+        return sql;
+    }
+
+    private String getStatementForSQLServer()
+    {
+        String sql = "SELECT sender, nickname, logTime, subject, body, stanza, messageId ";
+        sql += " FROM ( ";
+        sql += "   SELECT TOP("+String.valueOf(maxResults)+") sender, nickname, logTime, subject, body, stanza, messageId FROM ofMucConversationLog ";
+        sql += "   WHERE messageId IS NOT NULL AND logTime > ? AND logTime <= ? AND roomID = ? AND (nickname IS NOT NULL OR subject IS NOT NULL) ";
+        if ( with != null ) {
+            sql += " AND sender = ? ";
+        }
+        if ( after != null ) {
+            sql += " AND messageId > ? ";
+        }
+        if ( before != null ) {
+            sql += " AND messageId < ? ";
+        }
+
+        sql += "ORDER BY logTime " + (isPagingBackwards ? "DESC" : "ASC");    		        
+        sql += " ) AS part ";
+        sql += " ORDER BY logTime ASC";   
+        return sql;
+    }
+
+    private String buildQueryForMessages()
+    {
+        String sql = null;
+        switch (org.jivesoftware.database.DbConnectionManager.getDatabaseType())
+        {
+            case org.jivesoftware.database.DbConnectionManager.DatabaseType.mysql:
+                sql=getStatementForMySQL();
+            break;
+
+            case org.jivesoftware.database.DbConnectionManager.DatabaseType.sqlserver:
+                sql=getStatementForSQLServer();                
+            break;                
+                //TODO: Insert Syntax for other DB Types...
+
+            default:
+                 sql=getStatementForMySQL(); //Standardsyntax like mysql!?
+            break;
+        }
+
+
         return sql;
     }
 
