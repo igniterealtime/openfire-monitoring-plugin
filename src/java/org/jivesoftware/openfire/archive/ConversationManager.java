@@ -984,8 +984,8 @@ public class ConversationManager implements Startable, ComponentEventListener{
             connection = DbConnectionManager.getConnection();
             pstmt = connection.prepareStatement( "SELECT messageId, stanza FROM ofMessageArchive WHERE messageId IS NOT NULL AND (fromJID = ? OR toJID = ?) AND stanza LIKE ?" );
             pstmt.setString( 1, owner.toBareJID() );
-            pstmt.setString( 1, owner.toBareJID() );
-            pstmt.setString( 2, "%"+uuid.toString()+"%" );
+            pstmt.setString( 2, owner.toBareJID() );
+            pstmt.setString( 3, "%"+uuid.toString()+"%" );
 
             rs = pstmt.executeQuery();
             while ( rs.next() ) {
