@@ -316,7 +316,7 @@ abstract class IQQueryHandler extends AbstractIQHandler implements
 	        	}
 	        	else
 	        	/*
-	        	   Client has provied a start date.
+	        	   Client has provided a start date.
 	        	   Check if the server has set a number-of-days limit to the history that clients are allowed retrieve.
 	        	   if Yes: check if the client requests data that is older than the server-defined limit
 	        	     -- if Yes: use the server-defined limit
