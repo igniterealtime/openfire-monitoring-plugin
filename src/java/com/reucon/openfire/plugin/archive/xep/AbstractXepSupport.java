@@ -1,5 +1,6 @@
 package com.reucon.openfire.plugin.archive.xep;
 
+import org.dom4j.QName;
 import org.jivesoftware.openfire.IQRouter;
 import org.jivesoftware.openfire.XMPPServer;
 import org.jivesoftware.openfire.auth.UnauthorizedException;
@@ -19,7 +20,7 @@ import java.util.*;
 public abstract class AbstractXepSupport implements UserFeaturesProvider {
 
     protected final XMPPServer server;
-    protected final Map<String, IQHandler> element2Handlers;
+    protected final Map<QName, IQHandler> element2Handlers;
     protected final IQHandler iqDispatcher;
     protected final String namespace;
     protected boolean muc;
@@ -28,8 +29,7 @@ public abstract class AbstractXepSupport implements UserFeaturesProvider {
     public AbstractXepSupport(XMPPServer server, String namespace,String iqDispatcherNamespace, String iqDispatcherName, boolean muc) {
 
         this.server = server;
-        this.element2Handlers = Collections
-                .synchronizedMap(new HashMap<>());
+        this.element2Handlers = Collections.synchronizedMap(new HashMap<>());
         this.iqDispatcher = new AbstractIQHandler(iqDispatcherName, null, iqDispatcherNamespace) {
             public IQ handleIQ(IQ packet) throws UnauthorizedException {
                 if (!MonitoringPlugin.getInstance().isEnabled()) {
@@ -37,8 +37,7 @@ public abstract class AbstractXepSupport implements UserFeaturesProvider {
                             PacketError.Condition.feature_not_implemented);
                 }
 
-                final IQHandler iqHandler = element2Handlers.get(packet
-                        .getChildElement().getName());
+                final IQHandler iqHandler = element2Handlers.get(packet.getChildElement().getQName());
                 if (iqHandler != null) {
                     return iqHandler.handleIQ(packet);
                 } else {
@@ -63,7 +62,8 @@ public abstract class AbstractXepSupport implements UserFeaturesProvider {
                 continue;
             }
 
-            element2Handlers.put(iqHandler.getInfo().getName(), iqHandler);
+            final QName qName = QName.get( iqHandler.getInfo().getName(), iqHandler.getInfo().getNamespace() );
+            element2Handlers.put(qName, iqHandler);
             if (iqHandler instanceof ServerFeaturesProvider) {
                 for (Iterator<String> i = ((ServerFeaturesProvider) iqHandler)
                         .getFeatures(); i.hasNext();) {
@@ -91,7 +91,8 @@ public abstract class AbstractXepSupport implements UserFeaturesProvider {
         iqDiscoInfoHandler.removeUserFeaturesProvider( this );
 
         for (IQHandler iqHandler : iqHandlers) {
-            element2Handlers.remove(iqHandler.getInfo().getName());
+            final QName qName = QName.get( iqHandler.getInfo().getName(), iqHandler.getInfo().getNamespace() );
+            element2Handlers.remove(qName);
             try {
                 iqHandler.stop();
                 iqHandler.destroy();

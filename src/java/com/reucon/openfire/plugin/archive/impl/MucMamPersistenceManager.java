@@ -6,9 +6,7 @@ import com.reucon.openfire.plugin.archive.model.ArchivedMessage;
 import com.reucon.openfire.plugin.archive.model.Conversation;
 import com.reucon.openfire.plugin.archive.model.Participant;
 import com.reucon.openfire.plugin.archive.xep0059.XmppResultSet;
-import org.dom4j.Document;
-import org.dom4j.DocumentException;
-import org.dom4j.DocumentHelper;
+import org.dom4j.*;
 import org.jivesoftware.database.DbConnectionManager;
 import org.jivesoftware.openfire.XMPPServer;
 import org.jivesoftware.openfire.muc.MUCRoom;
@@ -34,6 +32,7 @@ import java.util.*;
  */
 public class MucMamPersistenceManager implements PersistenceManager {
     private final static Logger Log = LoggerFactory.getLogger( MucMamPersistenceManager.class );
+    protected static final DocumentFactory docFactory = DocumentFactory.getInstance();
     private static final int DEFAULT_MAX = 100;
 
     @Override
@@ -179,7 +178,10 @@ public class MucMamPersistenceManager implements PersistenceManager {
 
                         if ( pos1 > -1 && pos2 > -1 )
                         {
-                            stanza = stanza.substring( 0, pos1 + 6 ) + body + stanza.substring( pos2 );
+                            // Add the body value to a proper XML element, so that the strings get XML encoded (eg: ampersand is escaped).
+                            final Element bodyEl = docFactory.createDocument().addElement("body");
+                            bodyEl.setText(body);
+                            stanza = stanza.substring( 0, pos1 ) + bodyEl.asXML() + stanza.substring( pos2 + 7 );
                         }
                     }
                     final Document doc = DocumentHelper.parseText( stanza );
