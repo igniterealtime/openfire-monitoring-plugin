@@ -16,6 +16,9 @@
 
 package org.jivesoftware.openfire.archive;
 
+import org.jivesoftware.database.JiveID;
+import org.jivesoftware.database.SequenceManager;
+import org.jivesoftware.util.JiveConstants;
 import org.xmpp.packet.JID;
 
 import java.util.Date;
@@ -25,7 +28,13 @@ import java.util.Date;
  *
  * @author Matt Tucker
  */
+@JiveID(604)
 public class ArchivedMessage {
+
+    static {
+        // Instantiate a sequence manager to ensure that a block size larger than the default value of '1' is used.
+        new SequenceManager(604, 50);
+    }
 
     private long conversationID;
     private JID fromJID;
