@@ -21,6 +21,7 @@ import org.dom4j.DocumentException;
 import org.dom4j.DocumentHelper;
 import org.dom4j.Element;
 import org.jivesoftware.database.DbConnectionManager;
+import org.jivesoftware.database.SequenceManager;
 import org.jivesoftware.openfire.XMPPServer;
 import org.jivesoftware.openfire.XMPPServerInfo;
 import org.jivesoftware.openfire.archive.cluster.GetConversationCountTask;
@@ -984,8 +985,8 @@ public class ConversationManager implements Startable, ComponentEventListener{
             connection = DbConnectionManager.getConnection();
             pstmt = connection.prepareStatement( "SELECT messageId, stanza FROM ofMessageArchive WHERE messageId IS NOT NULL AND (fromJID = ? OR toJID = ?) AND stanza LIKE ?" );
             pstmt.setString( 1, owner.toBareJID() );
-            pstmt.setString( 1, owner.toBareJID() );
-            pstmt.setString( 2, "%"+uuid.toString()+"%" );
+            pstmt.setString( 2, owner.toBareJID() );
+            pstmt.setString( 3, "%"+uuid.toString()+"%" );
 
             rs = pstmt.executeQuery();
             while ( rs.next() ) {
@@ -1162,14 +1163,14 @@ public class ConversationManager implements Startable, ComponentEventListener{
 
             try
             {
-                int msgCount = getArchivedMessageCount();
-
                 con = DbConnectionManager.getConnection();
                 pstmt = con.prepareStatement(INSERT_MESSAGE);
 
                 for ( final ArchivedMessage work : workQueue )
                 {
-                    pstmt.setInt(1, ++msgCount);
+                    long id = SequenceManager.nextID(work);
+
+                    pstmt.setLong(1, id);
                     pstmt.setLong(2, work.getConversationID());
                     pstmt.setString(3, work.getFromJID().toBareJID());
                     pstmt.setString(4, work.getFromJID().getResource());

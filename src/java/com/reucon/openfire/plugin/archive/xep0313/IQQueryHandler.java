@@ -29,11 +29,15 @@ import org.xmpp.packet.Message;
 import org.xmpp.packet.PacketError;
 
 import java.text.ParseException;
-import java.time.Duration;
+import java.time.*;
 import java.time.Instant;
+import java.time.chrono.ChronoLocalDate;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+
+import org.jivesoftware.util.JiveConstants;
+import java.text.SimpleDateFormat;
 
 /**
  * XEP-0313 IQ Query Handler
@@ -265,6 +269,10 @@ abstract class IQQueryHandler extends AbstractIQHandler implements
         String withField = null;
         String startField = null;
         String endField = null;
+        final MonitoringPlugin plugin = (MonitoringPlugin) XMPPServer.getInstance().getPluginManager().getPlugin(MonitoringConstants.NAME);
+        final ConversationManager conversationManager = (ConversationManager)plugin.getModule( ConversationManager.class);
+
+        
         DataForm dataForm = queryRequest.getDataForm();
         if(dataForm != null) {
             if(dataForm.getField("with") != null) {
@@ -278,26 +286,97 @@ abstract class IQQueryHandler extends AbstractIQHandler implements
             }
         }
 
-        Date startDate = null;
-        Date endDate = null;
-        try {
-            if(startField != null) {
-                startDate = xmppDateTimeFormat.parseString(startField);
-            }
-            if(endField != null) {
-                endDate = xmppDateTimeFormat.parseString(endField);
-            }
-        } catch (ParseException e) {
-            Log.error("Error parsing query date filters.", e);
+       try
+        {
+	        ZonedDateTime nowDate = ZonedDateTime.now();
+	        ZonedDateTime newDate = nowDate.minusDays(conversationManager.getMaxRetrievable());
+   
+	        Date startDate = null;
+	        Date endDate = null;
+	        try {
+	        	
+	        	/*
+	        	   Client has not provided a start date.
+	        	   Check if the server has set a number-of-days limit to the history that clients are allowed retrieve.
+	        	        if Yes: use the server-defined limit
+	        	        if No: use null for any (more infos: PersistenceManager.findMessages())
+	        	*/
+	        	if (startField==null)
+	        	{
+	        		if (conversationManager.getMaxRetrievable()>0)
+	        		{
+	        			// we have maxRetrievable set
+	        			startDate = Date.from(newDate.toInstant());
+	        		}
+	        		else
+	        		{
+	        			// we dont have maxRetrievable set
+	        			startDate = null;
+	        		}
+	        	}
+	        	else
+	        	/*
+	        	   Client has provided a start date.
+	        	   Check if the server has set a number-of-days limit to the history that clients are allowed retrieve.
+	        	   if Yes: check if the client requests data that is older than the server-defined limit
+	        	     -- if Yes: use the server-defined limit
+	        	     -- if No: use the client start date
+	        	   if No: use the client start date
+	        	*/
+	        	{
+	        		if (conversationManager.getMaxRetrievable()>0)
+	        		{
+	        			// we have maxRetrievable set
+	        			ZonedDateTime date = ZonedDateTime.ofInstant(xmppDateTimeFormat.parseString(startField).toInstant(),ZoneId.systemDefault());
+	        			if (newDate.isAfter(date))
+	        			{
+	        				// clients date is chronographically "earlier" than maxRetrievable date
+	        				startDate = Date.from(newDate.toInstant());
+	        			}
+	        			else
+	        			{
+	        				// clients date is chronographically "alter" than maxRetrievable date
+	        				startDate = xmppDateTimeFormat.parseString(startField);
+	        			}
+	        		}
+	        		else
+	        		{
+	        			// we dont have maxRetrievable set, use clients date
+	        			startDate = xmppDateTimeFormat.parseString(startField);
+	        		}
+	        	}
+	        	/* Check if client has set endField
+	        	   > yes: use clients end field
+	        	   > no : use actual date	        	 
+	        	 */
+	            if(endField != null) {
+	                endDate = xmppDateTimeFormat.parseString(endField);
+	            }
+	            else
+	            {
+	            	endDate=new Date();
+	            }
+	        } catch (ParseException e) {
+	            Log.error("An exception has occurred while parsing one of the date fields: ", e);
+	        }
+	       
+	        Collection <ArchivedMessage> result = getPersistenceManager(queryRequest.getArchive()).findMessages(
+	                startDate,
+	                endDate,
+	                queryRequest.getArchive().toBareJID(),
+	                withField,
+	                queryRequest.getResultSet(),
+                	this.usesUniqueAndStableIDs());
+	        
+	        Log.debug("MAM: found: "+(result!=null?String.valueOf(result.size()):"0 (result==null)")+" items");
+	        
+	        return result;
         }
-
-        return getPersistenceManager(queryRequest.getArchive()).findMessages(
-                startDate,
-                endDate,
-                queryRequest.getArchive().toBareJID(),
-                withField,
-                queryRequest.getResultSet(),
-                this.usesUniqueAndStableIDs());
+        catch (Exception e)
+        {
+        	Log.error("An exception has occurred while retrieving messages: ",e);        	
+        	return new LinkedList<ArchivedMessage>();
+        }
     }
 
     /**
