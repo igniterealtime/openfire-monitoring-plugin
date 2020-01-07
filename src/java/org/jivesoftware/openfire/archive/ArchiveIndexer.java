@@ -336,15 +336,17 @@ public class ArchiveIndexer implements Startable {
         if (stopped) {
             return null;
         }
+
+        // Do nothing if archiving is disabled.
+        if (!conversationManager.isArchivingEnabled()) {
+            return null;
+        }
+
         // If a rebuild is already happening, return.
         if (rebuildInProgress) {
             return null;
         }
         rebuildInProgress = true;
-        // Do nothing if archiving is disabled.
-        if (!conversationManager.isArchivingEnabled()) {
-            return null;
-        }
 
         // Create a future to track the index rebuild progress.
         rebuildFuture = new RebuildFuture();
