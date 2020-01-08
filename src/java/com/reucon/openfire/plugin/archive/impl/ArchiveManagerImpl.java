@@ -25,8 +25,7 @@ public class ArchiveManagerImpl implements ArchiveManager
     private final Collection<Conversation> activeConversations;
     private int conversationTimeout;
 
-    public ArchiveManagerImpl(PersistenceManager persistenceManager, IndexManager indexManager,
-                              int conversationTimeout)
+    public ArchiveManagerImpl(PersistenceManager persistenceManager, IndexManager indexManager, int conversationTimeout)
     {
         this.persistenceManager = persistenceManager;
         this.indexManager = indexManager;
@@ -41,8 +40,8 @@ public class ArchiveManagerImpl implements ArchiveManager
         final ArchivedMessage.Direction direction;
         final ArchivedMessage archivedMessage;
         final Conversation conversation;
-        final JID ownerJid;
-        final JID withJid;
+        final JID owner;
+        final JID with;
 
         // TODO support groupchat
         if (message.getType() != Message.Type.chat && message.getType() != Message.Type.normal)
@@ -52,15 +51,15 @@ public class ArchiveManagerImpl implements ArchiveManager
 
         if (server.isLocal(message.getFrom()) && incoming)
         {
-            ownerJid = message.getFrom();
-            withJid = message.getTo();
+            owner = message.getFrom();
+            with = message.getTo();
             // sent by the owner => to
             direction = ArchivedMessage.Direction.to;
         }
         else if (server.isLocal(message.getTo()) && ! incoming)
         {
-            ownerJid = message.getTo();
-            withJid = message.getFrom();
+            owner = message.getTo();
+            with = message.getFrom();
             // received by the owner => from
             direction = ArchivedMessage.Direction.from;
         }
@@ -69,13 +68,13 @@ public class ArchiveManagerImpl implements ArchiveManager
             return;
         }
 
-        archivedMessage = ArchiveFactory.createArchivedMessage(session, message, direction, ownerJid, withJid);
+        archivedMessage = ArchiveFactory.createArchivedMessage(session, message, direction, owner, with);
         if (archivedMessage.isEmpty())
         {
             return;
         }
 
-        conversation = determineConversation(ownerJid, withJid, message.getSubject(), message.getThread(), archivedMessage);
+        conversation = determineConversation(owner, with, message.getSubject(), message.getThread(), archivedMessage);
         archivedMessage.setConversation(conversation);
 
         persistenceManager.createMessage(archivedMessage);
@@ -90,7 +89,7 @@ public class ArchiveManagerImpl implements ArchiveManager
         this.conversationTimeout = conversationTimeout;
     }
 
-    private Conversation determineConversation(JID ownerJid, JID withJid, String subject, String thread, ArchivedMessage archivedMessage)
+    private Conversation determineConversation(JID owner, JID with, String subject, String thread, ArchivedMessage archivedMessage)
     {
         Conversation conversation = null;
         Collection<Conversation> staleConversations;
@@ -106,7 +105,7 @@ public class ArchiveManagerImpl implements ArchiveManager
                     continue;
                 }
 
-                if (matches(ownerJid, withJid, thread, c))
+                if (matches(owner, with, thread, c))
                 {
                     conversation = c;
                     break;
@@ -120,16 +119,14 @@ public class ArchiveManagerImpl implements ArchiveManager
                 final Participant p1;
                 final Participant p2;
 
-                conversation = new Conversation(archivedMessage.getTime(),
-                        ownerJid.toBareJID(), ownerJid.getResource(), withJid.toBareJID(), withJid.getResource(),
-                        subject, thread);
+                conversation = new Conversation(archivedMessage.getTime(), owner, with, subject, thread);
                 persistenceManager.createConversation(conversation);
 
-                p1 = new Participant(archivedMessage.getTime(), ownerJid.toBareJID());
+                p1 = new Participant(archivedMessage.getTime(), owner.asBareJID());
                 conversation.addParticipant(p1);
                 persistenceManager.createParticipant(p1, conversation.getId());
 
-                p2 = new Participant(archivedMessage.getTime(), withJid.toBareJID());
+                p2 = new Participant(archivedMessage.getTime(), with.asBareJID());
                 conversation.addParticipant(p2);
                 persistenceManager.createParticipant(p2, conversation.getId());
                 activeConversations.add(conversation);
@@ -144,48 +141,16 @@ public class ArchiveManagerImpl implements ArchiveManager
         return conversation;
     }
 
-    private boolean matches(JID ownerJid, JID withJid, String thread, Conversation c)
+    private boolean matches(JID owner, JID with, String thread, Conversation c)
     {
-        if (! ownerJid.toBareJID().equals(c.getOwnerJid()))
+        if (! owner.asBareJID().equals(c.getOwnerBareJid()))
         {
             return false;
         }
-        if (! withJid.toBareJID().equals(c.getWithJid()))
+        if (! with.asBareJID().equals(c.getWithBareJid()))
         {
             return false;
         }
-
-        /*
-        if (ownerJid.getResource() != null)
-        {
-            if (! ownerJid.getResource().equals(c.getOwnerResource()))
-            {
-                return false;
-            }
-        }
-        else
-        {
-            if (c.getOwnerResource() != null)
-            {
-                return false;
-            }
-        }
-
-        if (withJid.getResource() != null)
-        {
-            if (! withJid.getResource().equals(c.getWithResource()))
-            {
-                return false;
-            }
-        }
-        else
-        {
-            if (c.getWithResource() != null)
-            {
-                return false;
-            }
-        }
-        */
 
         if (thread != null)
         {
