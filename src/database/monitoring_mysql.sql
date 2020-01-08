@@ -1,5 +1,5 @@
 
-INSERT INTO ofVersion (name, version) VALUES ('monitoring', 5);
+INSERT INTO ofVersion (name, version) VALUES ('monitoring', 6);
 
 CREATE TABLE ofConversation (
   conversationID        BIGINT        NOT NULL,
@@ -37,7 +37,8 @@ CREATE TABLE ofMessageArchive (
    body              TEXT,
    INDEX ofMessageArchive_con_idx (conversationID),
    INDEX ofMessageArchive_fromjid_idx (fromJID),
-   INDEX ofMessageArchive_tojid_idx (toJID)
+   INDEX ofMessageArchive_tojid_idx (toJID),
+   INDEX ofMessageArchive_sent_idx (sentDate)
 );
 
 CREATE TABLE ofRRDs (
