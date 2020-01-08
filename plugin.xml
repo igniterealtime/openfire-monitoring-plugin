@@ -10,7 +10,7 @@
     <minServerVersion>4.4.0</minServerVersion>
     <minJavaVersion>1.8</minJavaVersion>
     <databaseKey>monitoring</databaseKey>
-    <databaseVersion>5</databaseVersion>
+    <databaseVersion>6</databaseVersion>
 
     <adminconsole>
         <tab id="tab-server">

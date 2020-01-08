@@ -1,5 +1,5 @@
 
-INSERT INTO ofVersion (name, version) VALUES ('monitoring', 5);
+INSERT INTO ofVersion (name, version) VALUES ('monitoring', 6);
 
 CREATE TABLE ofConversation (
   conversationID        INTEGER        NOT NULL,
@@ -31,7 +31,7 @@ CREATE TABLE ofMessageArchive (
    fromJID           VARCHAR2(1024)   NOT NULL,
    fromJIDResource   VARCHAR2(255)    NULL,
    toJID             VARCHAR2(1024)   NOT NULL,
-   toJIDResource   VARCHAR2(255)      NULL,
+   toJIDResource     VARCHAR2(255)    NULL,
    sentDate          INTEGER          NOT NULL,
    stanza			 CLOB			  NULL,
    body              CLOB
@@ -39,6 +39,7 @@ CREATE TABLE ofMessageArchive (
 CREATE INDEX ofMessageArchive_con_idx ON ofMessageArchive (conversationID);
 CREATE INDEX ofMessageArchive_fromjid_idx ON ofMessageArchive (fromJID);
 CREATE INDEX ofMessageArchive_tojid_idx ON ofMessageArchive (toJID);
+CREATE INDEX ofMessageArchive_sent_idx ON ofMessageArchive (sentDate);
 
 CREATE TABLE ofRRDs (
    id            VARCHAR2(100)        NOT NULL,
