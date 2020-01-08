@@ -4,6 +4,7 @@ import com.reucon.openfire.plugin.archive.util.XmppDateUtil;
 import com.reucon.openfire.plugin.archive.xep0059.XmppResultSet;
 import org.dom4j.Element;
 import org.dom4j.QName;
+import org.xmpp.packet.JID;
 
 import java.util.Date;
 
@@ -12,14 +13,15 @@ import java.util.Date;
  */
 public class RetrieveRequest
 {
-    private String with;
+    private JID with;
     private Date start;
 
     private XmppResultSet resultSet;
 
     public RetrieveRequest(Element listElement)
     {
-        this.with = listElement.attributeValue("with");
+        final String withValue = listElement.attributeValue("with");
+        this.with = withValue == null || withValue.isEmpty() ? null : new JID(withValue);
         this.start = XmppDateUtil.parseDate(listElement.attributeValue("start"));
 
         Element setElement = listElement.element(QName.get("set", XmppResultSet.NAMESPACE));
@@ -29,7 +31,7 @@ public class RetrieveRequest
         }
     }
 
-    public String getWith()
+    public JID getWith()
     {
         return with;
     }

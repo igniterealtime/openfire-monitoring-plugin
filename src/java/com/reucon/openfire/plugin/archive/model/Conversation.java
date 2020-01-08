@@ -1,6 +1,7 @@
 package com.reucon.openfire.plugin.archive.model;
 
 import org.jivesoftware.database.JiveID;
+import org.xmpp.packet.JID;
 
 import java.util.*;
 
@@ -13,34 +14,28 @@ public class Conversation
     private Long id;
     private final Date start;
     private Date end;
-    private final String ownerJid;
-    private final String ownerResource;
-    private final String withJid;
-    private final String withResource;
+    private final JID owner;
+    private final JID with;
     private String subject;
     private final String thread;
     private final List<Participant> participants;
     private final List<ArchivedMessage> messages;
 
-    public Conversation(Date start, String ownerJid, String ownerResource, String withJid, String withResource,
-                        String subject, String thread)
+    public Conversation(Date start, JID owner, JID with, String subject, String thread)
     {
-        this(start, start, ownerJid, ownerResource, withJid, withResource, subject, thread);
+        this(start, start, owner, with, subject, thread);
     }
 
-    public Conversation(Date start, Date end, String ownerJid, String ownerResource, String withJid, String withResource,
-                        String subject, String thread)
+    public Conversation(Date start, Date end, JID owner, JID with, String subject, String thread)
     {
         this.start = start;
         this.end = end;
-        this.ownerJid = ownerJid;
-        this.ownerResource = ownerResource;
-        this.withJid = withJid;
-        this.withResource = withResource;
+        this.owner = owner;
+        this.with = with;
         this.subject = subject;
         this.thread = thread;
-        participants = new ArrayList<Participant>();
-        messages = new ArrayList<ArchivedMessage>();
+        participants = new ArrayList<>();
+        messages = new ArrayList<>();
     }
 
     public Long getId()
@@ -68,24 +63,24 @@ public class Conversation
         this.end = end;
     }
 
-    public String getOwnerJid()
+    public JID getOwnerBareJid()
     {
-        return ownerJid;
+        return owner.asBareJID();
     }
 
     public String getOwnerResource()
     {
-        return ownerResource;
+        return owner.getResource();
     }
 
-    public String getWithJid()
+    public JID getWithBareJid()
     {
-        return withJid;
+        return with.asBareJID();
     }
 
     public String getWithResource()
     {
-        return withResource;
+        return with.getResource();
     }
 
     public String getSubject()
@@ -143,7 +138,7 @@ public class Conversation
      * @return <code>true</code> if this conversation has an active participant with the given JID,
      *         <code>false</code> otherwise.
      */
-    public boolean hasParticipant(String jid)
+    public boolean hasParticipant(JID jid)
     {
         synchronized (participants)
         {

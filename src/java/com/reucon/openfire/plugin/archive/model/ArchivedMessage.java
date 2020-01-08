@@ -1,12 +1,7 @@
 package com.reucon.openfire.plugin.archive.model;
 
-import org.dom4j.Document;
-import org.dom4j.DocumentException;
-import org.dom4j.DocumentHelper;
 import org.jivesoftware.database.JiveID;
-import org.jivesoftware.openfire.stanzaid.StanzaIDUtil;
 import org.xmpp.packet.JID;
-import org.xmpp.packet.Message;
 
 import java.util.Date;
 import java.util.UUID;
@@ -35,15 +30,15 @@ public class ArchivedMessage {
     private String subject;
     private String body;
     private Conversation conversation;
-    private JID withJid;
+    private JID with;
     private String stanza;
     private UUID stableId;
 
-    public ArchivedMessage(Date time, Direction direction, String type, JID withJid, UUID stableId) {
+    public ArchivedMessage( Date time, Direction direction, String type, JID with, UUID stableId) {
         this.time = time;
         this.direction = direction;
         this.type = type;
-        this.withJid = withJid;
+        this.with = with;
         this.stableId = stableId;
     }
 
@@ -109,8 +104,8 @@ public class ArchivedMessage {
         return subject == null && body == null;
     }
 
-    public JID getWithJid() {
-        return withJid;
+    public JID getWith() {
+        return with;
     }
 
     public UUID getStableId()

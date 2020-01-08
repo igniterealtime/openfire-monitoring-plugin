@@ -55,7 +55,7 @@ public class IQListHandler extends AbstractIQHandler implements
 
     private Collection<Conversation> list(JID from, ListRequest request) {
         return getPersistenceManager(from).findConversations(request.getStart(),
-                request.getEnd(), from.toBareJID(), request.getWith(),
+                request.getEnd(), from.asBareJID(), request.getWith(),
                 request.getResultSet());
     }
 
@@ -63,9 +63,8 @@ public class IQListHandler extends AbstractIQHandler implements
             Conversation conversation) {
         Element chatElement = listElement.addElement("chat");
 
-        chatElement.addAttribute("with", conversation.getWithJid());
-        chatElement.addAttribute("start",
-                XmppDateUtil.formatDate(conversation.getStart()));
+        chatElement.addAttribute("with", conversation.getWithBareJid().toString());
+        chatElement.addAttribute("start", XmppDateUtil.formatDate(conversation.getStart()));
 
         return chatElement;
     }

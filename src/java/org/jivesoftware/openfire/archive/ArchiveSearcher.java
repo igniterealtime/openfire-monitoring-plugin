@@ -158,8 +158,8 @@ public class ArchiveSearcher implements Startable {
             // See if we need to restrict the search to certain users.
             if (!participants.isEmpty()) {
                 if (participants.size() == 1) {
-                    String jid = participants.iterator().next().toBareJID();
-                    Query participantQuery = new QueryParser("jid", analyzer).parse(jid);
+                    JID jid = participants.iterator().next().asBareJID();
+                    Query participantQuery = new QueryParser("jid", analyzer).parse(jid.toString());
                     Log.debug( "... restricting to participant: {}", jid );
 
                     // Add this query to the existing query.
