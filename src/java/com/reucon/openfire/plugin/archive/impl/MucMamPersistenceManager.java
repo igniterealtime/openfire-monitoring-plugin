@@ -14,10 +14,8 @@ import org.jivesoftware.openfire.muc.MultiUserChatManager;
 import org.jivesoftware.openfire.muc.MultiUserChatService;
 import org.jivesoftware.openfire.stanzaid.StanzaIDUtil;
 import org.jivesoftware.util.JiveGlobals;
-import org.jivesoftware.util.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.w3c.dom.DOMException;
 import org.xmpp.packet.JID;
 import org.xmpp.packet.Message;
 
@@ -66,17 +64,16 @@ public class MucMamPersistenceManager implements PersistenceManager {
     }
 
     @Override
-    public Collection<Conversation> findConversations(Date startDate, Date endDate, String owner, String with, XmppResultSet xmppResultSet) {
+    public Collection<Conversation> findConversations(Date startDate, Date endDate, JID owner, JID with, XmppResultSet xmppResultSet) {
         throw new UnsupportedOperationException("MAM-MUC cannot perform this operation");
     }
 
     @Override
-    public Collection<ArchivedMessage> findMessages(Date startDate, Date endDate, String owner, String with, XmppResultSet xmppResultSet, boolean useStableID ) {
+    public Collection<ArchivedMessage> findMessages(Date startDate, Date endDate, JID owner, JID with, XmppResultSet xmppResultSet, boolean useStableID ) {
         Log.debug( "Finding messages of owner '{}' with start date '{}', end date '{}' with '{}' and resultset '{}', useStableId '{}'.", owner, startDate, endDate, with, xmppResultSet, useStableID );
-        final JID mucRoom = new JID(owner);
         final MultiUserChatManager manager = XMPPServer.getInstance().getMultiUserChatManager();
-        final MultiUserChatService service = manager.getMultiUserChatService(mucRoom);
-        final MUCRoom room = service.getChatRoom(mucRoom.getNode());
+        final MultiUserChatService service = manager.getMultiUserChatService(owner);
+        final MUCRoom room = service.getChatRoom(owner.getNode());
 
         if (!room.isLogEnabled()) {
             Log.debug( "Request for message archive of room '{}' that currently has message logging disabled. Returning an empty list.", room.getJID() );
@@ -315,7 +312,7 @@ public class MucMamPersistenceManager implements PersistenceManager {
     }
 
     @Override
-    public Conversation getConversation(String ownerJid, String withJid, Date start) {
+    public Conversation getConversation(JID owner, JID with, Date start) {
         throw new UnsupportedOperationException("MAM-MUC cannot perform this operation");
     }
 

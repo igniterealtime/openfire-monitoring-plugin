@@ -24,6 +24,7 @@ import java.util.Date;
 
 import org.jivesoftware.database.DbConnectionManager;
 import org.jivesoftware.database.DbConnectionManager.DatabaseType;
+import org.xmpp.packet.JID;
 
 /**
  * Encapsulates responsibility of creating a database query that retrieves a specific subset (page) of archived messages related to a MUC room.
@@ -35,13 +36,13 @@ public class PaginatedMucMessageQuery
     private final Date startDate;
     private final Date endDate;
     private final MUCRoom room;
-    private final String with;
+    private final JID with;
     private final Long after;
     private final Long before;
     private final int maxResults;
     private final boolean isPagingBackwards;
 
-    public PaginatedMucMessageQuery( Date startDate, Date endDate, MUCRoom room, String with, Long after, Long before, int maxResults, boolean isPagingBackwards )
+    public PaginatedMucMessageQuery( Date startDate, Date endDate, MUCRoom room, JID with, Long after, Long before, int maxResults, boolean isPagingBackwards )
     {
         this.startDate = startDate == null ? new Date( 0L ) : startDate ;
         this.endDate = endDate == null ? new Date() : endDate;
@@ -162,7 +163,7 @@ public class PaginatedMucMessageQuery
         int pos = 3;
 
         if ( with != null ) {
-            pstmt.setString( ++pos, with );
+            pstmt.setString( ++pos, with.toString() );
         }
 
         if ( after != null ) {
