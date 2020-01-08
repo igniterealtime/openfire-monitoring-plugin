@@ -175,6 +175,7 @@
     int maxRetrievable = ParamUtils.getIntParameter(request, "maxRetrievable", conversationManager.getMaxRetrievable());
     
     boolean rebuildIndex = request.getParameter("rebuild") != null;
+    boolean calculateCounts = request.getParameter("calculateCounts") != null;
     Cookie csrfCookie = CookieUtils.getCookie(request, "csrf");
     String csrfParam = ParamUtils.getParameter(request, "csrf");
 
@@ -194,6 +195,13 @@
     if (request.getParameter("cancel") != null) {
         response.sendRedirect("archiving-settings.jsp");
         return;
+    }
+
+    int archivedMessageCount = -1;
+    int archivedConversationCount = -1;
+    if ( calculateCounts ) {
+        archivedMessageCount = conversationManager.getArchivedMessageCount();
+        archivedConversationCount = conversationManager.getArchivedConversationCount();
     }
 
     if (rebuildIndex) {
@@ -375,12 +383,18 @@
            </tr>
            <tr valign="top">
                <td><b><fmt:message key="archive.settings.message.count"/></b> - <fmt:message key="archive.settings.message.count.description"/></td>
-               <td><%= conversationManager.getArchivedMessageCount()%></td>
+               <% if ( archivedMessageCount > -1 ) { %>
+               <td><%= archivedMessageCount %></td>
+               <% } else { %>
+               <td rowspan="2"><input type="submit" name="calculateCounts" value="<fmt:message key="archive.settings.calculateCounts" />"/></td>
+               <% } %>
                <td></td>
            </tr>
            <tr valign="top">
                <td><b><fmt:message key="archive.settings.conversation.count"/></b> - <fmt:message key="archive.settings.conversation.count.description"/><br><br></td>
-               <td><%= conversationManager.getArchivedConversationCount()%></td>
+               <% if ( archivedConversationCount > -1 ) { %>
+               <td><%= archivedConversationCount %></td>
+               <% } %>
                <td></td>
            </tr>
         </tbody>
