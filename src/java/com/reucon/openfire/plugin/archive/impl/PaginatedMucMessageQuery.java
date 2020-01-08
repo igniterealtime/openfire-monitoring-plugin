@@ -22,8 +22,6 @@ import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.util.Date;
 
-import org.jivesoftware.database.DbConnectionManager;
-import org.jivesoftware.database.DbConnectionManager.DatabaseType;
 import org.xmpp.packet.JID;
 
 /**
@@ -47,7 +45,7 @@ public class PaginatedMucMessageQuery
         this.startDate = startDate == null ? new Date( 0L ) : startDate ;
         this.endDate = endDate == null ? new Date() : endDate;
         this.room = room;
-        this.with = null; // TODO: Suppress this, since we don't yet have requestor information for access control.
+        this.with = with;
         this.after = after;
         this.before = before;
         this.maxResults = maxResults;
@@ -76,7 +74,12 @@ public class PaginatedMucMessageQuery
         sql += "   SELECT sender, nickname, logTime, subject, body, stanza, messageId FROM ofMucConversationLog ";
         sql += "   WHERE messageId IS NOT NULL AND logTime > ? AND logTime <= ? AND roomID = ? AND (nickname IS NOT NULL OR subject IS NOT NULL) ";
         if ( with != null ) {
-            sql += " AND sender = ? ";
+            // XEP-0313 specifies: If (and only if) the supplied JID is a bare JID (i.e. no resource is present), then the server SHOULD return messages if their bare to/from address for a user archive, or from address otherwise, would match it.
+            if (with.getResource() == null) {
+                sql += " AND sender LIKE ? ";
+            } else {
+                sql += " AND sender = ? ";
+            }
         }
         if ( after != null ) {
             sql += " AND messageId > ? ";
@@ -99,7 +102,14 @@ public class PaginatedMucMessageQuery
         sql += "   SELECT TOP("+String.valueOf(maxResults)+") sender, nickname, logTime, subject, body, stanza, messageId FROM ofMucConversationLog ";
         sql += "   WHERE messageId IS NOT NULL AND logTime > ? AND logTime <= ? AND roomID = ? AND (nickname IS NOT NULL OR subject IS NOT NULL) ";
         if ( with != null ) {
-            sql += " AND sender = ? ";
+            // XEP-0313 specifies: If (and only if) the supplied JID is a bare JID (i.e. no resource is present), then the server
+            // SHOULD return messages if their bare to/from address for a user archive, or from address otherwise, would match it.
+            // TODO using a 'LIKE' query is unlikely to perform well on large data sets. Fix this with an additional column or index (which could also utilize Lucene, perhaps).
+            if (with.getResource() == null) {
+                sql += " AND sender LIKE ? ";
+            } else {
+                sql += " AND sender = ? ";
+            }
         }
         if ( after != null ) {
             sql += " AND messageId > ? ";
@@ -116,25 +126,17 @@ public class PaginatedMucMessageQuery
 
     private String buildQueryForMessages()
     {
-        String sql = null;
         switch (org.jivesoftware.database.DbConnectionManager.getDatabaseType())
         {
             case mysql:
-                sql=getStatementForMySQL();
-            break;
+                return getStatementForMySQL();
 
             case sqlserver:
-                sql=getStatementForSQLServer();                
-            break;                
-                //TODO: Insert Syntax for other DB Types...
+                return getStatementForSQLServer();
 
             default:
-                 sql=getStatementForMySQL(); //Standardsyntax like mysql!?
-            break;
+                return getStatementForMySQL(); //Standardsyntax like mysql!?
         }
-
-
-        return sql;
     }
 
     private String buildQueryForTotalCount()
@@ -142,7 +144,11 @@ public class PaginatedMucMessageQuery
         String sql = "SELECT count(*) FROM ofMucConversationLog ";
         sql += "WHERE messageId IS NOT NULL AND logTime > ? AND logTime <= ? AND roomID = ? AND (nickname IS NOT NULL OR subject IS NOT NULL) ";
         if ( with != null ) {
-            sql += " AND sender = ? ";
+            if (with.getResource() == null) {
+                sql += " AND sender LIKE ? ";
+            } else {
+                sql += " AND sender = ? ";
+            }
         }
         if ( after != null ) {
             sql += " AND messageId > ? ";
@@ -163,7 +169,11 @@ public class PaginatedMucMessageQuery
         int pos = 3;
 
         if ( with != null ) {
-            pstmt.setString( ++pos, with.toString() );
+            if (with.getResource() == null) {
+                pstmt.setString( ++pos, with.toString() + "%" );
+            } else {
+                pstmt.setString( ++pos, with.toString() );
+            }
         }
 
         if ( after != null ) {
