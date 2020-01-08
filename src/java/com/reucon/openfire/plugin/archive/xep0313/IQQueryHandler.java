@@ -371,7 +371,7 @@ abstract class IQQueryHandler extends AbstractIQHandler implements
         catch (Exception e)
         {
         	Log.error("An exception has occurred while retrieving messages: ",e);        	
-        	return new LinkedList<ArchivedMessage>();
+        	return new LinkedList<>();
         }
     }
 
