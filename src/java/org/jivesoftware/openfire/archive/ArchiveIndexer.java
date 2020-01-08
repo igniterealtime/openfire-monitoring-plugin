@@ -16,39 +16,15 @@
 
 package org.jivesoftware.openfire.archive;
 
-import java.io.File;
-import java.io.FileWriter;
-import java.io.FilenameFilter;
-import java.io.IOException;
-import java.io.Writer;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.TimerTask;
-import java.util.TreeSet;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantLock;
-
+import org.apache.commons.io.FileUtils;
+import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
-import org.apache.lucene.document.DateTools;
-import org.apache.lucene.document.Document;
-import org.apache.lucene.document.Field;
-import org.apache.lucene.index.IndexModifier;
-import org.apache.lucene.index.IndexReader;
-import org.apache.lucene.index.Term;
+import org.apache.lucene.document.*;
+import org.apache.lucene.index.*;
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.FSDirectory;
+import org.apache.lucene.util.BytesRef;
 import org.dom4j.DocumentFactory;
 import org.dom4j.io.OutputFormat;
 import org.dom4j.io.XMLWriter;
@@ -61,6 +37,19 @@ import org.picocontainer.Startable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.xmpp.packet.JID;
+
+import java.io.*;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.*;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 /**
  * Indexes archived conversations. If conversation archiving is not enabled,
@@ -93,7 +82,6 @@ public class ArchiveIndexer implements Startable {
     private XMLProperties indexProperties;
     private Directory directory;
     private IndexSearcher searcher;
-    private Lock writerLock;
     private boolean stopped = false;
 
     private boolean rebuildInProgress = false;
@@ -115,36 +103,55 @@ public class ArchiveIndexer implements Startable {
     }
 
     public void start() {
+        Log.debug( "Starting..." );
         searchDir = new File(JiveGlobals.getHomeDirectory() +
                     File.separator + MonitoringConstants.NAME + File.separator + "search");
         if (!searchDir.exists()) {
-            searchDir.mkdirs();
+            if (!searchDir.mkdirs()) {
+                Log.warn( "Lucene index directory '{}' does not exist, but cannot be created!", searchDir);
+            }
         }
         boolean indexCreated = false;
         try {
             loadPropertiesFile(searchDir);
-            // If the index already exists, use it.
-            if (IndexReader.indexExists(searchDir)) {
-                directory = FSDirectory.getDirectory(searchDir, false);
-            }
-            // Otherwise, create a new index.
-            else {
-                directory = FSDirectory.getDirectory(searchDir, true);
+            directory = FSDirectory.open(searchDir.toPath());
+            if (!DirectoryReader.indexExists(directory)) {
+                // Create a new index.
                 indexCreated = true;
-            }
-        }
-        catch (IOException ioe) {
-            Log.error(ioe.getMessage(), ioe);
-        }
-        writerLock = new ReentrantLock(true);
-
-        // Force the directory unlocked if it's locked (due to non-clean app shut-down,
-        // for example).
-        try {
-            if (IndexReader.isLocked(directory)) {
-                Log.warn("Archiving search index was locked, probably due to non-clean " +
-                        "application shutdown.");
-                IndexReader.unlock(directory);
+            } else {
+                // See if we can read the format.
+                try {
+                    // TODO make this optional through configuration.
+                    Log.debug( "Checking Lucene index...");
+                    boolean isClean;
+                    try ( final CheckIndex check = new CheckIndex(directory) )
+                    {
+                        check.setChecksumsOnly(true);
+                        check.setDoSlowChecks(false);
+                        check.setFailFast(true);
+                        isClean = check.checkIndex().clean;
+                        Log.info( "Lucene index {} clean.", isClean ? "is" : "is not");
+                    }
+                    if ( !isClean ) {
+                        Log.info( "Lucene index is not clean. Removing and rebuilding: {}", isClean);
+                        directory.close();
+                        FileUtils.deleteDirectory( searchDir );
+                        if (!searchDir.mkdirs()) {
+                            Log.warn( "Lucene index directory '{}' cannot be recreated!", searchDir);
+                        }
+                        directory = FSDirectory.open(searchDir.toPath());
+                        indexCreated = true;
+                    }
+                } catch ( IndexFormatTooOldException ex ) {
+                    Log.info( "Format of Lucene index is to old. Removing and rebuilding.", ex);
+                    directory.close();
+                    FileUtils.deleteDirectory( searchDir );
+                    if (!searchDir.mkdirs()) {
+                        Log.warn( "Lucene index directory '{}' cannot be recreated!", searchDir);
+                    }
+                    directory = FSDirectory.open(searchDir.toPath());
+                    indexCreated = true;
+                }
             }
         }
         catch (IOException ioe) {
@@ -162,11 +169,7 @@ public class ArchiveIndexer implements Startable {
         }
         // If the index has never been updated, build it from scratch.
         if (lastModified == 0 || indexCreated) {
-            taskEngine.submit(new Runnable() {
-                public void run() {
-                    rebuildIndex();
-                }
-            });
+            taskEngine.submit(this::rebuildIndex);
         }
 
         indexUpdater = new TimerTask() {
@@ -176,16 +179,16 @@ public class ArchiveIndexer implements Startable {
             }
         };
         int updateInterval = JiveGlobals.getIntProperty("conversation.search.updateInterval", 15);
-        taskEngine.scheduleAtFixedRate(indexUpdater, JiveConstants.MINUTE * 5,
-                JiveConstants.MINUTE * updateInterval);
+        taskEngine.scheduleAtFixedRate(indexUpdater, JiveConstants.MINUTE * 5, JiveConstants.MINUTE * updateInterval);
     }
 
     public void stop() {
+        Log.debug( "Stopping..." );
         stopped = true;
         indexUpdater.cancel();
         if (searcher != null) {
             try {
-                searcher.close();
+                searcher.getIndexReader().close();
             }
             catch (Exception e) {
                 Log.error(e.getMessage(), e);
@@ -244,37 +247,37 @@ public class ArchiveIndexer implements Startable {
         if (rebuildInProgress) {
             return;
         }
-        writerLock.lock();
-        IndexModifier writer = null;
-        try {
-            writer = new IndexModifier(directory, new StandardAnalyzer(), false);
-            List<Long> conversationIDs = new ArrayList<Long>();
-            Connection con = null;
-            PreparedStatement pstmt = null;
-            ResultSet rs = null;
-            try {
-                con = DbConnectionManager.getConnection();
-                pstmt = con.prepareStatement(NEW_CONVERSATIONS);
-                pstmt.setLong(1, lastModified);
-                rs = pstmt.executeQuery();
-                while (rs.next()) {
-                    conversationIDs.add(rs.getLong(1));
-                }
-            }
-            catch (SQLException sqle) {
-                Log.error(sqle.getMessage(), sqle);
-            }
-            finally {
-                DbConnectionManager.closeConnection(rs, pstmt, con);
-            }
+        Log.debug("Updating the Lucene index...");
+        final Instant start = Instant.now();
 
-            // Delete any conversations found -- they may have already been indexed, but
-            // updated since then.
-            for (long conversationID : conversationIDs) {
-                writer.deleteDocuments(new Term("conversationID", Long.toString(conversationID)));
+        List<Long> conversationIDs = new ArrayList<>();
+        Connection con = null;
+        PreparedStatement pstmt = null;
+        ResultSet rs = null;
+        try {
+            con = DbConnectionManager.getConnection();
+            pstmt = con.prepareStatement(NEW_CONVERSATIONS);
+            pstmt.setLong(1, lastModified);
+            rs = pstmt.executeQuery();
+            while (rs.next()) {
+                conversationIDs.add(rs.getLong(1));
             }
+        }
+        catch (SQLException sqle) {
+            Log.error("An exception occurred while trying to fetch new/updated conversations from the database to update the Lucene index.", sqle);
+        }
+        finally {
+            DbConnectionManager.closeConnection(rs, pstmt, con);
+        }
+
+        Log.debug("... identified {} conversations.", conversationIDs.size());
+        if (!conversationIDs.isEmpty()) {
+            final Analyzer analyzer = new StandardAnalyzer();
+            final IndexWriterConfig iwc = new IndexWriterConfig(analyzer);
+            iwc.setOpenMode(IndexWriterConfig.OpenMode.CREATE_OR_APPEND);
 
             // Load meta-data for each conversation.
+            Log.debug("... loading meta-data for all to-be-updated conversations.");
             Map<Long, Boolean> externalMetaData = new HashMap<Long, Boolean>();
             for (long conversationID : conversationIDs) {
                 try {
@@ -287,37 +290,36 @@ public class ArchiveIndexer implements Startable {
                     }
                 }
                 catch (SQLException sqle) {
-                    Log.error(sqle.getMessage(), sqle);
+                    Log.error("An exception occurred while trying to load metadata for conversations to be updated in the Lucene index.", sqle);
                 }
                 finally {
                     DbConnectionManager.closeConnection(rs, pstmt, con);
                 }
             }
 
-            // Now index all the new conversations.
-            long newestDate = indexConversations(conversationIDs, externalMetaData, writer, false);
-
-            writer.optimize();
-
-            // Done indexing so store a last modified date.
-            if (newestDate != -1) {
-                lastModified = newestDate;
-                indexProperties.setProperty("lastModified", Long.toString(lastModified));
-            }
-        }
-        catch (IOException ioe) {
-            Log.error(ioe.getMessage(), ioe);
-        }
-        finally {
-            if (writer != null) {
-                try {
-                    writer.close();
+            try ( final IndexWriter writer = new IndexWriter(directory, iwc) )
+            {
+                // Delete any conversations found -- they may have already been indexed, but updated since then.
+                Log.debug("... deleting all to-be-updated conversations from the index.");
+                for (long conversationID : conversationIDs) {
+                    writer.deleteDocuments(new Term("conversationID", Long.toString(conversationID)));
                 }
-                catch (Exception e) {
-                    Log.error(e.getMessage(), e);
+
+                // Now index all the new conversations.
+                Log.debug("... started to index conversations to update the Lucene index.");
+                long newestDate = indexConversations(conversationIDs, externalMetaData, writer, false);
+
+                // Done indexing so store a last modified date.
+                if (newestDate != -1) {
+                    lastModified = newestDate;
+                    indexProperties.setProperty("lastModified", Long.toString(lastModified));
                 }
+                final Duration duration = Duration.between( start, Instant.now() );
+                Log.debug("Finished updating the Lucene index. Duration: " + duration);
             }
-            writerLock.unlock();
+            catch (IOException ioe) {
+                Log.error("An exception occurred while updating the Lucene index.", ioe);
+            }
         }
     }
 
@@ -346,72 +348,66 @@ public class ArchiveIndexer implements Startable {
         if (rebuildInProgress) {
             return null;
         }
+
         rebuildInProgress = true;
 
         // Create a future to track the index rebuild progress.
         rebuildFuture = new RebuildFuture();
 
         // Create a runnable that will perform the actual rebuild work.
-        Runnable rebuildTask = new Runnable() {
-
-            public void run() {
-                List<Long> conversationIDs = new ArrayList<Long>();
-                Map<Long, Boolean> externalMetaData = new HashMap<Long, Boolean>();
-                Connection con = null;
-                PreparedStatement pstmt = null;
-                ResultSet rs = null;
-                try {
-                    con = DbConnectionManager.getConnection();
-                    pstmt = con.prepareStatement(ALL_CONVERSATIONS);
-                    rs = pstmt.executeQuery();
-                    while (rs.next()) {
-                        long conversationID = rs.getLong(1);
-                        conversationIDs.add(conversationID);
-                        externalMetaData.put(conversationID, rs.getInt(2) == 1);
-                    }
+        Runnable rebuildTask = () -> {
+            Log.debug("Rebuilding the Lucene index...");
+            final Instant start = Instant.now();
+            List<Long> conversationIDs = new ArrayList<>();
+            Map<Long, Boolean> externalMetaData = new HashMap<>();
+            Connection con = null;
+            PreparedStatement pstmt = null;
+            ResultSet rs = null;
+            try {
+                con = DbConnectionManager.getConnection();
+                pstmt = con.prepareStatement(ALL_CONVERSATIONS);
+                rs = pstmt.executeQuery();
+                while (rs.next()) {
+                    long conversationID = rs.getLong(1);
+                    conversationIDs.add(conversationID);
+                    externalMetaData.put(conversationID, rs.getInt(2) == 1);
                 }
-                catch (SQLException sqle) {
-                    Log.error(sqle.getMessage(), sqle);
-                }
-                finally {
-                    DbConnectionManager.closeConnection(rs, pstmt, con);
-                }
-
-                if (!conversationIDs.isEmpty()) {
-                    // Index the conversations.
-                    writerLock.lock();
-                    IndexModifier writer = null;
-                    try {
-                        writer = new IndexModifier(directory, new StandardAnalyzer(), true);
-                        long newestDate = indexConversations(conversationIDs, externalMetaData,
-                                writer, true);
-                        writer.optimize();
-
-                        // Done indexing so store a last modified date.
-                        if (newestDate != -1) {
-                            lastModified = newestDate;
-                            indexProperties.setProperty("lastModified", Long.toString(lastModified));
-                        }
-                    }
-                    catch (IOException ioe) {
-                        Log.error(ioe.getMessage(), ioe);
-                    }
-                    finally {
-                        if (writer != null) {
-                            try {
-                                writer.close();
-                            }
-                            catch (Exception e) {
-                                Log.error(e.getMessage(), e);
-                            }
-                        }
-                        writerLock.unlock();
-                    }
-                }
-                // Done rebuilding the index, so reset state.
-                rebuildFuture = null;
-                rebuildInProgress = false;
             }
+            catch (SQLException sqle) {
+                Log.error("An exception occurred while trying to fetch all conversations from the database to rebuild the Lucene index.", sqle);
+            }
+            finally {
+                DbConnectionManager.closeConnection(rs, pstmt, con);
+            }
+
+            Log.debug("... identified {} conversations.", conversationIDs.size());
+            if (!conversationIDs.isEmpty()) {
+                // Index the conversations.
+                final Analyzer analyzer = new StandardAnalyzer();
+                final IndexWriterConfig iwc = new IndexWriterConfig(analyzer);
+                iwc.setOpenMode(IndexWriterConfig.OpenMode.CREATE); // force re-create (as opposed to CREATE_OR_APPEND)
+
+                try ( final IndexWriter writer = new IndexWriter(directory, iwc) )
+                {
+                    Log.debug("... started to index conversations to rebuild the Lucene index.");
+                    final long newestDate = indexConversations(conversationIDs, externalMetaData, writer, true);
+
+                    // Done indexing so store a last modified date.
+                    if (newestDate != -1) {
+                        lastModified = newestDate;
+                        indexProperties.setProperty("lastModified", Long.toString(lastModified));
+                    }
+                    Log.debug("... finished indexing conversations to rebuild the Lucene index..");
+                }
+                catch (IOException ioe) {
+                    Log.error("An exception occurred while rebuilding the Lucene index.", ioe);
+                }
+            }
+            // Done rebuilding the index, so reset state.
+            rebuildFuture = null;
+            rebuildInProgress = false;
+            final Duration duration = Duration.between( start, Instant.now() );
+            Log.debug("Finished rebuilding the Lucene index. Duration: {}", duration );
         };
         taskEngine.submit(rebuildTask);
 
@@ -439,12 +435,12 @@ public class ArchiveIndexer implements Startable {
      * @param conversationIDs the ID's of the conversations to index.
      * @param externalMetaData meta-data about whether each conversation involves a participant on
      *      an external server.
-     * @param writer an IndexModifier to add the documents to.
+     * @param writer an IndexWriter to add the documents to.
      * @param indexRebuild true if this is an index rebuild operation.
      * @return the date of the newest message archived.
      */
     private long indexConversations(List<Long> conversationIDs, Map<Long, Boolean> externalMetaData,
-            IndexModifier writer, boolean indexRebuild) throws IOException
+            IndexWriter writer, boolean indexRebuild) throws IOException
     {
         if (conversationIDs.isEmpty()) {
             return -1;
@@ -551,20 +547,17 @@ public class ArchiveIndexer implements Startable {
      * @param text the full text of the conversation.
      * @throws IOException if an IOException occurs.
      */
-    private void indexDocument(IndexModifier writer, long conversationID, boolean external,
+    private void indexDocument(IndexWriter writer, long conversationID, boolean external,
             long date, Set<String> jids, String text) throws IOException
     {
         Document document = new Document();
-        document.add(new Field("conversationID", String.valueOf(conversationID),
-                Field.Store.YES, Field.Index.UN_TOKENIZED));
-        document.add(new Field("external", String.valueOf(external),
-                Field.Store.YES, Field.Index.UN_TOKENIZED));
-        document.add(new Field("date", DateTools.timeToString(date, DateTools.Resolution.DAY),
-                Field.Store.YES, Field.Index.UN_TOKENIZED));
+        document.add(new StoredField("conversationID", conversationID ) );
+        document.add(new StringField("external", String.valueOf(external), Field.Store.NO));
+        document.add(new SortedDocValuesField("date", new BytesRef(DateTools.timeToString(date, DateTools.Resolution.DAY))));
         for (String jid : jids) {
-            document.add(new Field("jid", jid, Field.Store.YES, Field.Index.TOKENIZED));
+            document.add(new StringField("jid", jid, Field.Store.NO));
         }
-        document.add(new Field("text", text, Field.Store.NO, Field.Index.TOKENIZED));
+        document.add(new TextField("text", text, Field.Store.NO));
         writer.addDocument(document);
     }
 
@@ -577,12 +570,15 @@ public class ArchiveIndexer implements Startable {
     synchronized IndexSearcher getSearcher() throws IOException {
         // If the searcher hasn't been instantiated, create it.
         if (searcher == null) {
-            searcher = new IndexSearcher(directory);
+            DirectoryReader reader = DirectoryReader.open(directory);
+            searcher = new IndexSearcher(reader);
         }
         // See if the searcher needs to be closed due to the index being updated.
-        else if (!searcher.getIndexReader().isCurrent()) {
-            searcher.close();
-            searcher = new IndexSearcher(directory);
+        final DirectoryReader replacement = DirectoryReader.openIfChanged((DirectoryReader) searcher.getIndexReader());
+        if ( replacement != null ) {
+            Log.debug( "Returning new Index Searcher (as index was updated)");
+            searcher.getIndexReader().close();
+            searcher = new IndexSearcher(replacement);
         }
         return searcher;
     }
@@ -602,27 +598,18 @@ public class ArchiveIndexer implements Startable {
             org.dom4j.Document doc = DocumentFactory.getInstance().createDocument(
                     DocumentFactory.getInstance().createElement("search"));
             // Now, write out to the file.
-            Writer out = null;
-            try {
+            try ( Writer out = new FileWriter(indexPropertiesFile) )
+            {
                 // Use JDOM's XMLOutputter to do the writing and formatting.
-                out = new FileWriter(indexPropertiesFile);
                 XMLWriter outputter = new XMLWriter(out, OutputFormat.createPrettyPrint());
                 outputter.write(doc);
                 outputter.flush();
             }
-            catch (Exception e) {
+            catch ( Exception e )
+            {
                 Log.error(e.getMessage(), e);
             }
-            finally {
-                try {
-                    if (out != null) {
-                        out.close();
-                    }
-                }
-                catch (Exception e) {
-                    // Ignore.
-                }
-            }
+            // Ignore.
         }
         indexProperties = new XMLProperties(indexPropertiesFile);
     }
