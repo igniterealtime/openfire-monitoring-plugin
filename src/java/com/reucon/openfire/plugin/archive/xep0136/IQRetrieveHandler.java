@@ -45,7 +45,7 @@ public class IQRetrieveHandler extends AbstractIQHandler {
         }
 
         final Element chatElement = reply.setChildElement("chat", NAMESPACE);
-        chatElement.addAttribute("with", conversation.getWithJid());
+        chatElement.addAttribute("with", conversation.getWithBareJid().toString());
         chatElement.addAttribute("start",
                 XmppDateUtil.formatDate(conversation.getStart()));
 
@@ -104,7 +104,7 @@ public class IQRetrieveHandler extends AbstractIQHandler {
     }
 
     private Conversation retrieve(JID from, RetrieveRequest request) {
-        return getPersistenceManager(from).getConversation(from.toBareJID(),
+        return getPersistenceManager(from).getConversation(from.asBareJID(),
                 request.getWith(), request.getStart());
     }
 
@@ -122,8 +122,8 @@ public class IQRetrieveHandler extends AbstractIQHandler {
         messageElement = parentElement.addElement(message.getDirection()
                 .toString());
         messageElement.addAttribute("secs", Long.toString(secs));
-        if (message.getWithJid() != null) {
-            messageElement.addAttribute("jid", message.getWithJid().toBareJID());
+        if (message.getWith() != null) {
+            messageElement.addAttribute("jid", message.getWith().toBareJID());
         }
         messageElement.addElement("body").setText(message.getBody());
 

@@ -19,12 +19,11 @@ public class ArchiveFactory {
     }
 
     public static ArchivedMessage createArchivedMessage(Session session,
-            Message message, ArchivedMessage.Direction direction, JID ownerJid, JID withJid) {
-        final UUID sid = StanzaIDUtil.parseUniqueAndStableStanzaID( message, ownerJid.toBareJID() );
+            Message message, ArchivedMessage.Direction direction, JID owner, JID with) {
+        final UUID sid = StanzaIDUtil.parseUniqueAndStableStanzaID( message, owner.toBareJID() );
         final ArchivedMessage archivedMessage;
 
-        archivedMessage = new ArchivedMessage(new Date(), direction, message
-                .getType().toString(), withJid, sid);
+        archivedMessage = new ArchivedMessage(new Date(), direction, message.getType().toString(), with, sid);
         archivedMessage.setSubject(message.getSubject());
         archivedMessage.setBody(message.getBody());
 

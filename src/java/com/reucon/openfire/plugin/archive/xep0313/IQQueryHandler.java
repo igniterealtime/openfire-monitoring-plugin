@@ -31,13 +31,9 @@ import org.xmpp.packet.PacketError;
 import java.text.ParseException;
 import java.time.*;
 import java.time.Instant;
-import java.time.chrono.ChronoLocalDate;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-
-import org.jivesoftware.util.JiveConstants;
-import java.text.SimpleDateFormat;
 
 /**
  * XEP-0313 IQ Query Handler
@@ -266,7 +262,7 @@ abstract class IQQueryHandler extends AbstractIQHandler implements
      */
     private Collection<ArchivedMessage> retrieveMessages(QueryRequest queryRequest) {
 
-        String withField = null;
+        JID withField = null;
         String startField = null;
         String endField = null;
         final MonitoringPlugin plugin = (MonitoringPlugin) XMPPServer.getInstance().getPluginManager().getPlugin(MonitoringConstants.NAME);
@@ -276,7 +272,7 @@ abstract class IQQueryHandler extends AbstractIQHandler implements
         DataForm dataForm = queryRequest.getDataForm();
         if(dataForm != null) {
             if(dataForm.getField("with") != null) {
-                withField = dataForm.getField("with").getFirstValue();
+                withField = new JID(dataForm.getField("with").getFirstValue());
             }
             if(dataForm.getField("start") != null) {
                 startField = dataForm.getField("start").getFirstValue();
@@ -363,7 +359,7 @@ abstract class IQQueryHandler extends AbstractIQHandler implements
 	        Collection <ArchivedMessage> result = getPersistenceManager(queryRequest.getArchive()).findMessages(
 	                startDate,
 	                endDate,
-	                queryRequest.getArchive().toBareJID(),
+	                queryRequest.getArchive().asBareJID(),
 	                withField,
 	                queryRequest.getResultSet(),
                 	this.usesUniqueAndStableIDs());
@@ -435,7 +431,7 @@ abstract class IQQueryHandler extends AbstractIQHandler implements
         if(stanzaText == null || stanzaText.equals("")) {
             // Try creating a fake one from the body.
             if (archivedMessage.getBody() != null && !archivedMessage.getBody().equals("")) {
-                stanzaText = String.format("<message from=\"%s\" to=\"%s\" type=\"chat\"><body>%s</body>", archivedMessage.getWithJid(), archivedMessage.getWithJid(), archivedMessage.getBody());
+                stanzaText = String.format("<message from=\"%s\" to=\"%s\" type=\"chat\"><body>%s</body>", archivedMessage.getWith(), archivedMessage.getWith(), archivedMessage.getBody());
             } else {
                 // Don't send legacy archived messages (that have no stanza)
                 return;

@@ -1,6 +1,7 @@
 package com.reucon.openfire.plugin.archive.model;
 
 import org.jivesoftware.database.JiveID;
+import org.xmpp.packet.JID;
 
 import java.util.Date;
 
@@ -12,9 +13,9 @@ public class Participant
     private long id;
     private final Date start;
     private Date end;
-    private final String jid;
+    private final JID jid;
 
-    public Participant(Date start, String jid)
+    public Participant(Date start, JID jid)
     {
         this.start = start;
         this.jid = jid;
@@ -45,7 +46,7 @@ public class Participant
         this.end = end;
     }
 
-    public String getJid()
+    public JID getJid()
     {
         return jid;
     }

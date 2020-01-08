@@ -141,7 +141,7 @@ public class ArchiveSearch {
             }
             // Enforce using the bare JID.
             for (int i=0; i<participants.length; i++) {
-                participants[i] = new JID(participants[i].toBareJID());
+                participants[i] = participants[i].asBareJID();
             }
             this.participants = Arrays.asList(participants);
         }

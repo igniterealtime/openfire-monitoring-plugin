@@ -479,7 +479,7 @@ public class ArchiveIndexer implements Startable {
                 rs = pstmt.executeQuery();
                 long conversationID = -1;
                 long date = -1;
-                Set<String> jids = null;
+                Set<JID> jids = null;
                 StringBuilder text = null;
                 // Loop through each message. Each conversation is a single document. So, as
                 // we find each conversation we save off the last chunk of content as a document.
@@ -494,11 +494,11 @@ public class ArchiveIndexer implements Startable {
                         // Reset the variables to index the next conversation.
                         conversationID = id;
                         date = rs.getLong(2);
-                        jids = new TreeSet<String>();
+                        jids = new TreeSet<JID>();
                         // Get the JID's. Each JID may be stored in full format. We convert
                         // to bare JID for indexing so that searching is possible.
-                        jids.add(new JID(rs.getString(3)).toBareJID());
-                        jids.add(new JID(rs.getString(4)).toBareJID());
+                        jids.add(new JID(rs.getString(3)).asBareJID());
+                        jids.add(new JID(rs.getString(4)).asBareJID());
                         text = new StringBuilder();
                     }
                     // Make sure that we record the earliest date of the conversation start
@@ -548,14 +548,14 @@ public class ArchiveIndexer implements Startable {
      * @throws IOException if an IOException occurs.
      */
     private void indexDocument(IndexWriter writer, long conversationID, boolean external,
-            long date, Set<String> jids, String text) throws IOException
+            long date, Set<JID> jids, String text) throws IOException
     {
         Document document = new Document();
         document.add(new StoredField("conversationID", conversationID ) );
         document.add(new StringField("external", String.valueOf(external), Field.Store.NO));
         document.add(new SortedDocValuesField("date", new BytesRef(DateTools.timeToString(date, DateTools.Resolution.DAY))));
-        for (String jid : jids) {
-            document.add(new StringField("jid", jid, Field.Store.NO));
+        for (JID jid : jids) {
+            document.add(new StringField("jid", jid.toString(), Field.Store.NO));
         }
         document.add(new TextField("text", text, Field.Store.NO));
         writer.addDocument(document);
