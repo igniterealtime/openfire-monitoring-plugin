@@ -438,9 +438,10 @@ abstract class IQQueryHandler extends AbstractIQHandler implements
             }
         }
 
+        final boolean isMuc = XMPPServer.getInstance().getMultiUserChatManager().getMultiUserChatService( queryRequest.getArchive() ) != null;
         Message messagePacket = new Message();
         messagePacket.setTo(from);
-        if ( XMPPServer.getInstance().getMultiUserChatManager().getMultiUserChatService( queryRequest.getArchive() ) != null )
+        if (isMuc)
         {
             messagePacket.setFrom( queryRequest.getArchive().asBareJID() );
         }
@@ -449,14 +450,19 @@ abstract class IQQueryHandler extends AbstractIQHandler implements
         Document stanza;
         try {
             stanza = DocumentHelper.parseText(stanzaText);
+            if ( isMuc ) {
+                // XEP-0313 specifies in section 5.1.2 MUC Archives: When sending out the archives to a requesting client, the forwarded stanza MUST NOT have a 'to' attribute.
+                final Attribute to = stanza.getRootElement().attribute("to");
+                if (to != null) {
+                    stanza.getRootElement().remove(to);
+                }
+            }
             fwd = new Forwarded(stanza.getRootElement(), archivedMessage.getTime(), null);
         } catch (DocumentException e) {
             Log.error("Failed to parse message stanza.", e);
             // If we can't parse stanza then we have no message to send to client, abort
             return;
         }
-
-        if (fwd == null) return; // Shouldn't be possible.
 
         messagePacket.addExtension(new Result(fwd, NAMESPACE, queryRequest.getQueryid(), archivedMessage.getId().toString()));
         router.route(messagePacket);
