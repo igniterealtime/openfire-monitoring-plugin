@@ -99,37 +99,40 @@ abstract class IQQueryHandler extends AbstractIQHandler implements
         if (archiveJid == null) {
             archiveJid = packet.getFrom().asBareJID();
         }
-        Log.debug("Archive requested is {}", archiveJid);
+        Log.debug("Archive requested is: {}", archiveJid);
+
+        // Parse the request.
+        QueryRequest queryRequest = new QueryRequest(packet.getChildElement(), archiveJid);
 
         // Now decide the type.
-        boolean muc = false;
+        MultiUserChatService service = null;
+        MUCRoom room = null;
         if (!XMPPServer.getInstance().isLocal(archiveJid)) {
-            Log.debug("Archive is not local (user)");
-            if (XMPPServer.getInstance().getMultiUserChatManager().getMultiUserChatService(archiveJid) == null) {
-                Log.debug("No chat service for this domain");
-                return buildErrorResponse(packet);
-            } else {
-                muc = true;
-                Log.debug("MUC");
+            Log.debug("Archive '{}' does not relate to a local user.", archiveJid);
+            service = XMPPServer.getInstance().getMultiUserChatManager().getMultiUserChatService(archiveJid);
+            if ( service != null ) {
+                room = service.getChatRoom(archiveJid.getNode());
             }
+
+            if (room == null) {
+                Log.debug("Archive '{}' does not relate to a recognized MUC service on this domain.", archiveJid);
+                return buildErrorResponse(packet, PacketError.Condition.item_not_found, "The archive '" + archiveJid + "' cannot be found or is not accessible.");
+            } else {
+                Log.debug("Archive '{}' relates to a recognized MUC room on this domain.", archiveJid);
+            }
+        } else {
+            Log.debug("Archive '{}' relates to a user account on this domain.", archiveJid);
         }
 
         JID requestor = packet.getFrom().asBareJID();
-        Log.debug("Requestor is {} for muc=={}", requestor, muc);
 
         // Auth checking.
-        if(muc) {
-            MultiUserChatService service = XMPPServer.getInstance().getMultiUserChatManager().getMultiUserChatService(archiveJid);
-            MUCRoom room = service.getChatRoom(archiveJid.getNode());
-            if (room == null) {
-                Log.debug("Unable to process query as room name '{}' is not recognized.", archiveJid);
-                return buildErrorResponse(packet);
-            }
+        if(room != null) {
             boolean pass = false;
             if (service.isSysadmin(requestor)) {
                 pass = true;
             }
-            MUCRole.Affiliation aff =  room.getAffiliation(requestor);
+            MUCRole.Affiliation aff = room.getAffiliation(requestor);
             if (aff != MUCRole.Affiliation.outcast) {
                 if (aff == MUCRole.Affiliation.owner || aff == MUCRole.Affiliation.admin) {
                     pass = true;
@@ -143,54 +146,80 @@ abstract class IQQueryHandler extends AbstractIQHandler implements
             }
             if (!pass) {
                 Log.debug("Unable to process query as requestor '{}' is forbidden to retrieve archive for room '{}'.", requestor, archiveJid);
-                return buildForbiddenResponse(packet);
+                return buildErrorResponse(packet, PacketError.Condition.forbidden, "You are currently not allowed to access the archive of room '" + room.getJID() + "'.");
+            }
+
+            // Filtering by JID should only be available to entities that would already have been allowed to know the publisher
+            // of the events (e.g. this could not be used by a visitor to a semi-anonymous MUC).
+            final MUCRole occupant = room.getOccupantByFullJID(packet.getFrom());
+            if ( !room.canAnyoneDiscoverJID() ) {
+                final FormField withValue = queryRequest.getDataForm().getField("with");
+                if ( withValue != null && withValue.getFirstValue() != null && !withValue.getFirstValue().isEmpty() ) {
+                    final JID with;
+                    try {
+                        with = new JID(withValue.getFirstValue());
+                    } catch ( IllegalArgumentException ex ) {
+                        return buildErrorResponse(packet, PacketError.Condition.bad_request, "The value of the 'with' field must be a valid JID (but is not).");
+                    }
+
+                    // Unless the requestor is a moderator, or is filtering by it's own JID, disallow the request.
+                    final boolean isModerator = occupant != null && occupant.getRole() == MUCRole.Role.moderator;
+                    final boolean isFilteringByOwnJid = with.asBareJID().equals( packet.getFrom().asBareJID() );
+                    if ( !isModerator && !isFilteringByOwnJid ) {
+                        Log.debug("Unable to process query as requestor '{}' is not a moderator of the MUC room '{}', and is filtering by JID '{}' which is not its own.", requestor, archiveJid, with);
+                        return buildErrorResponse(packet, PacketError.Condition.forbidden, "You are currently not allowed to filter the the archive of room '" + room.getJID() + "' by JID.");
+                    }
+                }
             }
 
             // Password protected room
             if (room.isPasswordProtected())  {
                 // check whether requestor is occupant in the room
-                MUCRole occupant = room.getOccupantByFullJID(packet.getFrom());
-
                 if (occupant == null) {
                     // no occupant so currently not authenticated to query archive
                     Log.debug("Unable to process query as requestor '{}' is currently not authenticated for this password protected room '{}'.", requestor, archiveJid);
-                    return buildForbiddenResponse(packet);
+                    return buildErrorResponse(packet, PacketError.Condition.forbidden, "You are currently not allowed to access the archive of room '" + room.getJID() + "'.");
                 }
             }
         } else if(!archiveJid.equals(requestor)) { // Not user's own
             // ... disallow unless admin.
             if (!XMPPServer.getInstance().getAdmins().contains(requestor)) {
                 Log.debug("Unable to process query as requestor '{}' is forbidden to retrieve personal archives other than his own. Unable to access archives of '{}'.", requestor, archiveJid);
-                return buildForbiddenResponse(packet);
+                return buildErrorResponse(packet, PacketError.Condition.forbidden, "You are not allowed to access the archive of '" + archiveJid + "'.");
             }
         }
 
         sendMidQuery(packet);
 
+        // Modify original request to force result set management to be applied.
         if ( JiveGlobals.getBooleanProperty( ArchiveProperties.FORCE_RSM, true ) ) {
-            final QName seQName = QName.get( "set", XmppResultSet.NAMESPACE);
+            final QName seQName = QName.get("set", XmppResultSet.NAMESPACE);
             if ( packet.getChildElement().element(seQName ) == null ) {
                 packet.getChildElement().addElement( seQName );
             }
         }
-        final QueryRequest queryRequest = new QueryRequest(packet.getChildElement(), archiveJid);
+        queryRequest = new QueryRequest(packet.getChildElement(), archiveJid);
 
         // OF-1200: make sure that data is flushed to the database before retrieving it.
         final MonitoringPlugin plugin = (MonitoringPlugin) XMPPServer.getInstance().getPluginManager().getPlugin(MonitoringConstants.NAME);
         final ConversationManager conversationManager = (ConversationManager)plugin.getModule( ConversationManager.class);
         final Instant targetEndDate = Instant.now(); // TODO or, the timestamp of the element referenced by 'before' from RSM, if that's set.
 
-        executorService.submit( () -> {
+        final QueryRequest finalQueryRequest = queryRequest;
+        executorService.submit(() -> {
             try
             {
                 Log.debug("Retrieving messages from archive...");
                 Duration eta;
+                Duration totalPause = Duration.ZERO;
+                Instant start = Instant.now();
                 while ( !(eta = conversationManager.availabilityETA( targetEndDate )).isZero() )
                 {
                     try
                     {
                         Log.trace( "Not all data that is being requested has been written to the database yet. Delaying request processing for {}", eta );
                         Thread.sleep( eta.toMillis() );
+                        totalPause = totalPause.plus( eta );
                     }
                     catch ( InterruptedException e )
                     {
@@ -200,21 +229,21 @@ abstract class IQQueryHandler extends AbstractIQHandler implements
                 }
                 Log.debug( "All data that has been requested has been written to the database. Proceed to process request." );
 
-                Collection<ArchivedMessage> archivedMessages = retrieveMessages(queryRequest);
+                Collection<ArchivedMessage> archivedMessages = retrieveMessages(finalQueryRequest);
                 Log.debug("Retrieved {} messages from archive.", archivedMessages.size());
 
                 for(ArchivedMessage archivedMessage : archivedMessages) {
-                    sendMessageResult(packet.getFrom(), queryRequest, archivedMessage);
+                    sendMessageResult(packet.getFrom(), finalQueryRequest, archivedMessage);
                 }
 
-                sendEndQuery(packet, packet.getFrom(), queryRequest);
-                Log.debug("Done with request.");
+                sendEndQuery(packet, packet.getFrom(), finalQueryRequest);
+                Log.debug("Done with request. The request took {} to complete, of which {} was spend waiting on data to be written to the database.", Duration.between( start, Instant.now()), totalPause );
             }
             catch ( Exception e ) {
                 Log.error( "An unexpected exception occurred while processing: {}", packet, e );
                 if (packet.isRequest()) {
                     try {
-                        router.route( buildErrorResponse( packet ) );
+                        router.route( buildErrorResponse(packet, PacketError.Condition.internal_server_error, "An unexpected exception occurred while processing a request to retrieve archived messages." ) );
                     } catch ( Exception ex ) {
                         Log.error( "An unexpected exception occurred while returning an error stanza to the originator of: {}", packet, ex );
                     }
@@ -232,26 +261,21 @@ abstract class IQQueryHandler extends AbstractIQHandler implements
     protected abstract void sendEndQuery(IQ packet, JID from, QueryRequest queryRequest);
 
     /**
-     * Create error response to send to client
-     * @param packet IQ stanza received
-     * @return IQ stanza to be sent.
+     * Create error response due to forbidden request.
+     *
+     * @param packet Received request (cannot be null).
+     * @param condition the condition (which implies the type) of the error (cannot be null).
+     * @param message A human-readable text describing the error (can be null).
+     * @return The error response (never null).
      */
-    private IQ buildErrorResponse(IQ packet) {
+    private IQ buildErrorResponse(IQ packet, PacketError.Condition condition, String message) {
         IQ reply = IQ.createResultIQ(packet);
         reply.setChildElement(packet.getChildElement().createCopy());
-        reply.setError(PacketError.Condition.internal_server_error);
-        return reply;
-    }
-
-    /**
-     * Create error response due to forbidden request
-     * @param packet Received request
-     * @return
-     */
-    private IQ buildForbiddenResponse(IQ packet) {
-        IQ reply = IQ.createResultIQ(packet);
-        reply.setChildElement(packet.getChildElement().createCopy());
-        reply.setError(PacketError.Condition.forbidden);
+        final PacketError packetError = new PacketError(condition);
+        if (message != null && !message.isEmpty()) {
+            packetError.setText(message);
+        }
+        reply.setError(packetError);
         return reply;
     }
 
