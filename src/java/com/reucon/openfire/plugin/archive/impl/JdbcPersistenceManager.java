@@ -61,16 +61,16 @@ public class JdbcPersistenceManager implements PersistenceManager {
         public static final String SELECT_CONVERSATIONS_GROUP_BY = " GROUP BY ofConversation.conversationID, ofConversation.room, ofConversation.isExternal, ofConversation.lastActivity, ofConversation.messageCount, ofConversation.startDate, ofConParticipant.bareJID, ofConParticipant.jidResource, ofConParticipant.nickname, ofConParticipant.bareJID, ofMessageArchive.toJID";
 
     // public static final String SELECT_CONVERSATIONS = "SELECT DISTINCT " + "ofConversation.conversationID, " + "ofConversation.room, "
-    // 		+ "ofConversation.isExternal, " + "ofConversation.startDate, " + "ofConversation.lastActivity, " + "ofConversation.messageCount, "
-    // 		+ "ofConParticipant.joinedDate, " + "ofConParticipant.leftDate, " + "ofConParticipant.bareJID, " + "ofConParticipant.jidResource, "
-    // 		+ "ofConParticipant.nickname, "
-    // 		+ "ofConParticipant.bareJID as fromJID, "
-        // 		+ "ofMessageArchive.toJID "
-    // 		+ "FROM ofConversation "
-    // 		+ "INNER JOIN ofConParticipant ON ofConversation.conversationID = ofConParticipant.conversationID "
-    // 		+ "INNER JOIN (SELECT conversationID, toJID FROM ofMessageArchive "
-    // 		+ "union all "
-    // 		+ "SELECT conversationID, fromJID as toJID FROM ofMessageArchive) ofMessageArchive ON ofConParticipant.conversationID = ofMessageArchive.conversationID";
+    //      + "ofConversation.isExternal, " + "ofConversation.startDate, " + "ofConversation.lastActivity, " + "ofConversation.messageCount, "
+    //      + "ofConParticipant.joinedDate, " + "ofConParticipant.leftDate, " + "ofConParticipant.bareJID, " + "ofConParticipant.jidResource, "
+    //      + "ofConParticipant.nickname, "
+    //      + "ofConParticipant.bareJID as fromJID, "
+        //      + "ofMessageArchive.toJID "
+    //      + "FROM ofConversation "
+    //      + "INNER JOIN ofConParticipant ON ofConversation.conversationID = ofConParticipant.conversationID "
+    //      + "INNER JOIN (SELECT conversationID, toJID FROM ofMessageArchive "
+    //      + "union all "
+    //      + "SELECT conversationID, fromJID as toJID FROM ofMessageArchive) ofMessageArchive ON ofConParticipant.conversationID = ofMessageArchive.conversationID";
 
     // public static final String SELECT_CONVERSATIONS =
     // "SELECT c.conversationId,c.startTime,c.endTime,c.ownerJid,c.ownerResource,c.withJid,c.withResource,"
@@ -518,6 +518,16 @@ public class JdbcPersistenceManager implements PersistenceManager {
                 if (firstIndex < 0) {
                     firstIndex = 0;
                 }
+            }
+            else if (xmppResultSet.isPagingBackwards()){
+                int messagesCount = countMessages(startDate, endDate, owner, with, whereSB.toString());
+                firstIndex = messagesCount;
+                firstIndex -= max;
+
+                if (max > messagesCount) max = messagesCount;
+                if (firstIndex < 0) firstIndex = 0;
+
+                reverse = true;
             }
             firstIndex = firstIndex != null ? firstIndex : 0;
 
