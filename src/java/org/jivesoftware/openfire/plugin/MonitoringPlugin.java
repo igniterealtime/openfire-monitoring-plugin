@@ -219,6 +219,12 @@ public class MonitoringPlugin implements Plugin {
             picoContainer.dispose();
             picoContainer = null;
         }
+        
+        xep0136Support.stop();
+        xep0313Support.stop();
+        xep0313Support1.stop();
+        xep0313Support2.stop();
+        
         instance = null;
     }
 
