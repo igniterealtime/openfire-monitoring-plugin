@@ -69,8 +69,8 @@ public class MucMamPersistenceManager implements PersistenceManager {
     }
 
     @Override
-    public Collection<ArchivedMessage> findMessages(Date startDate, Date endDate, JID owner, JID with, XmppResultSet xmppResultSet, boolean useStableID ) {
-        Log.debug( "Finding messages of owner '{}' with start date '{}', end date '{}' with '{}' and resultset '{}', useStableId '{}'.", owner, startDate, endDate, with, xmppResultSet, useStableID );
+    public Collection<ArchivedMessage> findMessages(Date startDate, Date endDate, JID owner, JID with, String query, XmppResultSet xmppResultSet, boolean useStableID ) {
+        Log.debug( "Finding messages of owner '{}' with start date '{}', end date '{}' with '{}', query: '{}' and resultset '{}', useStableId '{}'.", owner, startDate, endDate, with, query, xmppResultSet, useStableID );
         final MultiUserChatManager manager = XMPPServer.getInstance().getMultiUserChatManager();
         final MultiUserChatService service = manager.getMultiUserChatService(owner);
         final MUCRoom room = service.getChatRoom(owner.getNode());
@@ -93,12 +93,22 @@ public class MucMamPersistenceManager implements PersistenceManager {
         final Long before = parseIdentifier( xmppResultSet.getBefore(), room, useStableID );
         final int maxResults = xmppResultSet.getMax() != null ? xmppResultSet.getMax() : DEFAULT_MAX;
         final boolean isPagingBackwards = xmppResultSet.isPagingBackwards();
-        final PaginatedMucMessageQuery paginatedMucMessageQuery = new PaginatedMucMessageQuery( startDate, endDate, room, with, after, before, maxResults, isPagingBackwards );
-        Log.debug( "Request for message archive of room '{}' resulted in the following query data: {}", room.getJID(), paginatedMucMessageQuery );
 
-        final List<ArchivedMessage> msgs = getArchivedMessages( paginatedMucMessageQuery, room.getRole().getRoleAddress() );
-        final int totalCount = getTotalCount( paginatedMucMessageQuery );
-        Log.debug( "Request for message archive of room '{}' found a total of {} applicable messages in the database. Of these, {} were actually retrieved from the database.", room.getJID(), totalCount, msgs.size() );
+        final List<ArchivedMessage> msgs;
+        final int totalCount;
+        if ( query != null && !query.isEmpty() ) {
+            final PaginatedMucMessageLuceneQuery paginatedMucMessageLuceneQuery = new PaginatedMucMessageLuceneQuery( startDate, endDate, room, with, query, after, before, maxResults, isPagingBackwards );
+            Log.debug("Request for message archive of room '{}' resulted in the following query data: {}", room.getJID(), paginatedMucMessageLuceneQuery);
+            msgs = paginatedMucMessageLuceneQuery.getArchivedMessages();
+            totalCount = paginatedMucMessageLuceneQuery.getTotalCountOfLastQuery();
+        } else {
+            final PaginatedMucMessageDatabaseQuery paginatedMucMessageDatabaseQuery = new PaginatedMucMessageDatabaseQuery(startDate, endDate, room, with, after, before, maxResults, isPagingBackwards );
+            Log.debug("Request for message archive of room '{}' resulted in the following query data: {}", room.getJID(), paginatedMucMessageDatabaseQuery);
+            msgs = getArchivedMessages(paginatedMucMessageDatabaseQuery, room.getJID() );
+            totalCount = getTotalCount(paginatedMucMessageDatabaseQuery);
+        }
+
+        Log.debug( "Request for message archive of room '{}' found a total of {} applicable messages. Of these, {} were actually retrieved from the database.", room.getJID(), totalCount, msgs.size() );
 
         xmppResultSet.setCount(totalCount);
         xmppResultSet.setComplete( msgs.size() <= maxResults );
@@ -127,15 +137,57 @@ public class MucMamPersistenceManager implements PersistenceManager {
         return msgs;
     }
 
-    protected List<ArchivedMessage> getArchivedMessages( PaginatedMucMessageQuery paginatedMucMessageQuery, JID roomJID )
+    /**
+     * Retrieve a specific message from the database.
+     *
+     * @param messageId The database ID of the message.
+     * @param room The room in which the message was exchanged (cannot be null).
+     * @return The message, or null if no message was found.
+     */
+    public static ArchivedMessage getArchivedMessage( long messageId, MUCRoom room )
     {
         Connection connection = null;
         PreparedStatement pstmt = null;
         ResultSet rs = null;
-        List<ArchivedMessage>msgs = new LinkedList<>();
         try {
             connection = DbConnectionManager.getConnection();
-            pstmt = paginatedMucMessageQuery.prepareStatement( connection, false );
+            pstmt = connection.prepareStatement( "SELECT sender, nickname, logTime, subject, body, stanza, messageId FROM ofMucConversationLog WHERE messageID = ? and roomID = ?");
+            pstmt.setLong( 1, messageId );
+            pstmt.setLong( 2, room.getID());
+            rs = pstmt.executeQuery();
+            if (!rs.next()) {
+                return null;
+            }
+
+            String senderJID = rs.getString(1);
+            String nickname = rs.getString(2);
+            Date sentDate = new Date(Long.parseLong(rs.getString(3).trim()));
+            String subject = rs.getString(4);
+            String body = rs.getString(5);
+            String stanza = rs.getString(6);
+            long id = rs.getLong(7);
+
+            if ( rs.next() ) {
+                Log.warn("Database contains more than one message with ID {} from the archive of MUC room {}.", messageId, room);
+            }
+            return asArchivedMessage(room.getJID(), senderJID, nickname, sentDate, subject, body, stanza, id);
+        } catch (SQLException ex) {
+            Log.warn("SQL failure while trying to get message with ID {} from the archive of MUC room {}.", messageId, room, ex);
+            return null;
+        } finally {
+            DbConnectionManager.closeConnection(rs, pstmt, connection);
+        }
+    }
+
+    protected List<ArchivedMessage> getArchivedMessages( PaginatedMucMessageDatabaseQuery paginatedMucMessageDatabaseQuery, JID roomJID )
+    {
+        Connection connection = null;
+        PreparedStatement pstmt = null;
+        ResultSet rs = null;
+        List<ArchivedMessage> msgs = new LinkedList<>();
+        try {
+            connection = DbConnectionManager.getConnection();
+            pstmt = paginatedMucMessageDatabaseQuery.prepareStatement(connection, false );
             rs = pstmt.executeQuery();
             while (rs.next()) {
                 String senderJID = rs.getString(1);
@@ -145,55 +197,8 @@ public class MucMamPersistenceManager implements PersistenceManager {
                 String body = rs.getString(5);
                 String stanza = rs.getString(6);
                 long id = rs.getLong(7);
-                if (stanza == null) {
-                    Message message = new Message();
-                    message.setType(Message.Type.groupchat);
-                    message.setSubject(subject);
-                    message.setBody(body);
-                    // Set the sender of the message
-                    if (nickname != null && nickname.trim().length() > 0) {
-                        // Recreate the sender address based on the nickname and room's JID
-                        message.setFrom(new JID(roomJID.getNode(), roomJID.getDomain(), nickname, true));
-                    }
-                    else {
-                        // Set the room as the sender of the message
-                        message.setFrom(roomJID);
-                    }
-                    stanza = message.toString();
-                }
 
-                UUID sid;
-                try
-                {
-                    if ( !JiveGlobals.getBooleanProperty( "conversation.OF-1804.disable", false ) )
-                    {
-                        // Prior to OF-1804 (Openfire 4.4.0), the stanza was logged with a formatter applied.
-                        // This causes message formatting to be modified (notably, new lines could be altered).
-                        // This workaround restores the original body text, that was stored in a different column.
-                        final int pos1 = stanza.indexOf( "<body>" );
-                        final int pos2 = stanza.indexOf( "</body>" );
-
-                        if ( pos1 > -1 && pos2 > -1 )
-                        {
-                            // Add the body value to a proper XML element, so that the strings get XML encoded (eg: ampersand is escaped).
-                            final Element bodyEl = docFactory.createDocument().addElement("body");
-                            bodyEl.setText(body);
-                            stanza = stanza.substring( 0, pos1 ) + bodyEl.asXML() + stanza.substring( pos2 + 7 );
-                        }
-                    }
-                    final Document doc = DocumentHelper.parseText( stanza );
-                    final Message message = new Message( doc.getRootElement() );
-                    sid = StanzaIDUtil.parseUniqueAndStableStanzaID( message, roomJID.toBareJID() );
-                } catch ( Exception e ) {
-                    Log.warn( "An exception occurred while parsing message with ID {}", id, e );
-                    sid = null;
-                }
-
-                final ArchivedMessage archivedMessage = new ArchivedMessage(sentDate, ArchivedMessage.Direction.from, null, null, sid);
-                archivedMessage.setStanza(stanza);
-                archivedMessage.setId(id);
-
-                msgs.add(archivedMessage);
+                msgs.add( asArchivedMessage(roomJID, senderJID, nickname, sentDate, subject, body, stanza, id) );
             }
         } catch (SQLException e) {
             Log.error("SQL failure during MAM-MUC: ", e);
@@ -204,7 +209,58 @@ public class MucMamPersistenceManager implements PersistenceManager {
         return msgs;
     }
 
-    protected int getTotalCount( PaginatedMucMessageQuery paginatedMucMessageQuery )
+    static protected ArchivedMessage asArchivedMessage(JID roomJID, String senderJID, String nickname, Date sentDate, String subject, String body, String stanza, long id)
+    {
+        if (stanza == null) {
+            Message message = new Message();
+            message.setType(Message.Type.groupchat);
+            message.setSubject(subject);
+            message.setBody(body);
+            // Set the sender of the message
+            if (nickname != null && nickname.trim().length() > 0) {
+                // Recreate the sender address based on the nickname and room's JID
+                message.setFrom(new JID(roomJID.getNode(), roomJID.getDomain(), nickname, true));
+            }
+            else {
+                // Set the room as the sender of the message
+                message.setFrom(roomJID);
+            }
+            stanza = message.toString();
+        }
+
+        UUID sid;
+        try
+        {
+            if ( !JiveGlobals.getBooleanProperty( "conversation.OF-1804.disable", false ) )
+            {
+                // Prior to OF-1804 (Openfire 4.4.0), the stanza was logged with a formatter applied.
+                // This causes message formatting to be modified (notably, new lines could be altered).
+                // This workaround restores the original body text, that was stored in a different column.
+                final int pos1 = stanza.indexOf( "<body>" );
+                final int pos2 = stanza.indexOf( "</body>" );
+
+                if ( pos1 > -1 && pos2 > -1 )
+                {
+                    // Add the body value to a proper XML element, so that the strings get XML encoded (eg: ampersand is escaped).
+                    final Element bodyEl = docFactory.createDocument().addElement("body");
+                    bodyEl.setText(body);
+                    stanza = stanza.substring( 0, pos1 ) + bodyEl.asXML() + stanza.substring( pos2 + 7 );
+                }
+            }
+            final Document doc = DocumentHelper.parseText( stanza );
+            final Message message = new Message( doc.getRootElement() );
+            sid = StanzaIDUtil.parseUniqueAndStableStanzaID( message, roomJID.toBareJID() );
+        } catch ( Exception e ) {
+            Log.warn( "An exception occurred while parsing message with ID {}", id, e );
+            sid = null;
+        }
+
+        final ArchivedMessage archivedMessage = new ArchivedMessage(sentDate, ArchivedMessage.Direction.from, null, null, sid);
+        archivedMessage.setStanza(stanza);
+        archivedMessage.setId(id);
+        return archivedMessage;
+    }
+    protected int getTotalCount( PaginatedMucMessageDatabaseQuery paginatedMucMessageDatabaseQuery )
     {
         Connection connection = null;
         PreparedStatement pstmt = null;
@@ -213,7 +269,7 @@ public class MucMamPersistenceManager implements PersistenceManager {
         int totalCount = 0;
         try {
             connection = DbConnectionManager.getConnection();
-            pstmt = paginatedMucMessageQuery.prepareStatement( connection, true );
+            pstmt = paginatedMucMessageDatabaseQuery.prepareStatement(connection, true );
             rs = pstmt.executeQuery();
             if (rs.next()) {
                 totalCount = rs.getInt(1);

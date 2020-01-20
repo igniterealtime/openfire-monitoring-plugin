@@ -29,7 +29,7 @@ import org.xmpp.packet.JID;
  *
  * @author Guus der Kinderen, guus.der.kinderen@gmail.com
  */
-public class PaginatedMucMessageQuery
+public class PaginatedMucMessageDatabaseQuery
 {
     private final Date startDate;
     private final Date endDate;
@@ -40,7 +40,7 @@ public class PaginatedMucMessageQuery
     private final int maxResults;
     private final boolean isPagingBackwards;
 
-    public PaginatedMucMessageQuery( Date startDate, Date endDate, MUCRoom room, JID with, Long after, Long before, int maxResults, boolean isPagingBackwards )
+    public PaginatedMucMessageDatabaseQuery( Date startDate, Date endDate, MUCRoom room, JID with, Long after, Long before, int maxResults, boolean isPagingBackwards )
     {
         this.startDate = startDate == null ? new Date( 0L ) : startDate ;
         this.endDate = endDate == null ? new Date() : endDate;
