@@ -428,10 +428,12 @@ public class JdbcPersistenceManager implements PersistenceManager {
     }
 
     @Override
-    public Collection<ArchivedMessage> findMessages(Date startDate, Date endDate, JID owner, JID with, XmppResultSet xmppResultSet, boolean useStableID) {
+    public Collection<ArchivedMessage> findMessages(Date startDate, Date endDate, JID owner, JID with, String query, XmppResultSet xmppResultSet, boolean useStableID) {
 
         Log.debug( "Finding messages of owner '{}' with start date '{}', end date '{}' with '{}' and resultset '{}', useStableId '{}'.", owner, startDate, endDate, with, xmppResultSet, useStableID );
-
+        if ( query != null ) {
+            Log.warn( "Query provided in search request, but not supported by implementation. Query is ignored!" );
+        }
         final boolean isOracleDB = isOracleDB();
 
         final StringBuilder querySB;

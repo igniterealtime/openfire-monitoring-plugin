@@ -289,6 +289,7 @@ abstract class IQQueryHandler extends AbstractIQHandler implements
         JID withField = null;
         String startField = null;
         String endField = null;
+        String textField = null;
         final MonitoringPlugin plugin = (MonitoringPlugin) XMPPServer.getInstance().getPluginManager().getPlugin(MonitoringConstants.NAME);
         final ConversationManager conversationManager = (ConversationManager)plugin.getModule( ConversationManager.class);
 
@@ -303,6 +304,9 @@ abstract class IQQueryHandler extends AbstractIQHandler implements
             }
             if(dataForm.getField("end") != null) {
                 endField = dataForm.getField("end").getFirstValue();
+            }
+            if(dataForm.getField("withtext") != null) {
+                textField = String.join(" ", dataForm.getField("withtext").getValues() );
             }
         }
 
@@ -385,6 +389,7 @@ abstract class IQQueryHandler extends AbstractIQHandler implements
 	                endDate,
 	                queryRequest.getArchive().asBareJID(),
 	                withField,
+	                textField,
 	                queryRequest.getResultSet(),
                 	this.usesUniqueAndStableIDs());
 	        
@@ -505,9 +510,10 @@ abstract class IQQueryHandler extends AbstractIQHandler implements
         DataForm form = new DataForm(DataForm.Type.form);
         form.addField("FORM_TYPE", null, FormField.Type.hidden);
         form.getField("FORM_TYPE").addValue(NAMESPACE);
-        form.addField("with", null, FormField.Type.jid_single);
-        form.addField("start", null, FormField.Type.text_single);
-        form.addField("end", null, FormField.Type.text_single);
+        form.addField("with", "Author of message", FormField.Type.jid_single);
+        form.addField("start", "Message sent on or after timestamp.", FormField.Type.text_single);
+        form.addField("end", "Message sent on or before timestamp.", FormField.Type.text_single);
+        form.addField("withtext", "Free text search", FormField.Type.text_single);
 
         query.add(form.getElement());
 
