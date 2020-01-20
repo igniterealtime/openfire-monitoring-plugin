@@ -9,6 +9,7 @@
 <%@ page import="org.jivesoftware.util.ParamUtils" %>
 <%@ page import="java.util.HashMap" %>
 <%@ page import="java.util.Map" %>
+<%@ page import="com.reucon.openfire.plugin.archive.impl.MucIndexer" %>
 
 <%@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c" %>
 <%@ taglib uri="http://java.sun.com/jsp/jstl/fmt" prefix="fmt" %>
@@ -20,8 +21,10 @@
             ConversationManager.class);
 
     ArchiveIndexer archiveIndexer = (ArchiveIndexer) plugin.getModule(ArchiveIndexer.class);
+    MucIndexer mucIndexer = (MucIndexer) plugin.getModule(MucIndexer.class);
+
     ByteFormat byteFormatter = new ByteFormat();
-    String indexSize = byteFormatter.format(archiveIndexer.getIndexSize());
+    String indexSize = byteFormatter.format(archiveIndexer.getIndexSize() + mucIndexer.getIndexSize());
 %>
 
 <html>
@@ -32,17 +35,22 @@
 <script type="text/javascript">
     // Calls a getBuildProgress
     function getBuildProgress() {
-        new Ajax.Request('/plugins/monitoring/api/buildprogress', {
-            method: 'get',
-            onSuccess: function(transport) {
-                showBuildProgress(transport.responseText.evalJSON());
+        var xhr = new XMLHttpRequest();
+        xhr.open("GET", '/plugins/monitoring/api/buildprogress');
+        xhr.onload = function (e) {
+            if (xhr.readyState === 4) {
+                if (xhr.status === 200) {
+                    showBuildProgress(xhr.responseText);
+                }
             }
-        });
+        };
+        xhr.send(null);
     }
 
     function showBuildProgress(progress) {
         var rebuildElement = document.getElementById("rebuildElement");
         if (progress != null && progress != -1){
+            document.getElementById("rebuild").style.display="block";
             // Update progress item.
             rebuildElement.style.display = '';
             var rebuildProgress = document.getElementById('rebuildProgress');
@@ -53,6 +61,7 @@
             var rebuildProgress = document.getElementById('rebuildProgress');
             rebuildProgress.innerHTML = "100";
             // Effect.Fade('rebuildElement');
+            document.getElementById("rebuild").style.display="none";
         }
     }
     
@@ -205,7 +214,7 @@
     }
 
     if (rebuildIndex) {
-        if (archiveIndexer.rebuildIndex() == null) {
+        if (archiveIndexer.rebuildIndex() == null && mucIndexer.rebuildIndex() == null) {
             errors.put("rebuildIndex", "");
             errorMessage = "Archive Index rebuild failed.";
         }
@@ -263,17 +272,9 @@
     }
 %>
 
-<%
-    if (rebuildIndex) {
-%>
-<div class="success">
+<div class="success" id="rebuild" style="display: <%=rebuildIndex?"block":"none"%>">
     <fmt:message key="archive.settings.rebuild.success"/>
 </div><br/>
-
-<script type="text/javascript">
-    getBuildProgress();
-</script>
-<% } %>
 
 <% if (errors.size() > 0) { %>
 <div class="error">
@@ -406,6 +407,9 @@
     <%} %>
 </form>
 
+<script type="text/javascript">
+    getBuildProgress();
+</script>
 
 </body>
 </html>
