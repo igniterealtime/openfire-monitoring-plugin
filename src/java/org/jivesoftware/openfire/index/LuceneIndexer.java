@@ -33,7 +33,7 @@ import java.util.concurrent.TimeoutException;
 
 public abstract class LuceneIndexer implements Startable
 {
-    protected static final Logger Log = LoggerFactory.getLogger(ArchiveIndexer.class);
+    protected final Logger Log;
 
     protected TaskEngine taskEngine;
     protected RebuildFuture rebuildFuture;
@@ -43,13 +43,13 @@ public abstract class LuceneIndexer implements Startable
     private IndexSearcher searcher;
     private boolean stopped = false;
     private boolean rebuildInProgress = false;
-    private Instant lastModified = Instant.EPOCH;
     private TimerTask indexUpdater;
 
-    public LuceneIndexer(TaskEngine taskEngine, File searchDir)
+    public LuceneIndexer(TaskEngine taskEngine, File searchDir, String logName)
     {
         this.taskEngine = taskEngine;
         this.searchDir = searchDir;
+        Log = LoggerFactory.getLogger(ArchiveIndexer.class.getName() + "["+logName+"]");
     }
 
     public void start()
@@ -121,20 +121,8 @@ public abstract class LuceneIndexer implements Startable
             Log.error("An exception occurred while initializing the Lucene index that is expected to exist in: {}", searchDir, ioe);
         }
 
-        String modified = indexProperties.getProperty("lastModified");
-        if ( modified != null )
-        {
-            try
-            {
-                lastModified = Instant.ofEpochMilli(Long.parseLong(modified));
-            }
-            catch ( NumberFormatException nfe )
-            {
-                // Ignore.
-            }
-        }
         // If the index has never been updated, build it from scratch.
-        if ( lastModified.equals( Instant.EPOCH ) || indexCreated )
+        if ( getLastModified().equals( Instant.EPOCH ) || indexCreated )
         {
             taskEngine.submit(this::rebuildIndex);
         }
@@ -147,8 +135,32 @@ public abstract class LuceneIndexer implements Startable
                 updateIndex();
             }
         };
-        final int updateInterval = JiveGlobals.getIntProperty("conversation.search.updateInterval", 15);
-        taskEngine.scheduleAtFixedRate(indexUpdater, JiveConstants.MINUTE * 5, JiveConstants.MINUTE * updateInterval);
+        final int updateInterval = JiveGlobals.getIntProperty("conversation.search.updateInterval", 5);
+        taskEngine.schedule(indexUpdater, JiveConstants.MINUTE * 1, JiveConstants.MINUTE * updateInterval);
+    }
+
+    protected synchronized Instant getLastModified()
+    {
+        String modified = indexProperties.getProperty("lastModified");
+        Log.debug("Last modification date: {}", modified);
+        if ( modified != null )
+        {
+            try
+            {
+                return Instant.ofEpochMilli(Long.parseLong(modified));
+            }
+            catch ( NumberFormatException nfe )
+            {
+                Log.warn("Unable to parse 'last modification date' as number: {}", modified);
+            }
+        }
+        Log.debug("Unable to parse 'last modification date' value. Returning EPOCH.");
+        return Instant.EPOCH;
+    }
+
+    protected synchronized void setLastModified(Instant instant) {
+        Log.debug("Updating modification date to: {}", instant);
+        indexProperties.setProperty("lastModified", Long.toString(instant.toEpochMilli()));
     }
 
     public void stop()
@@ -218,8 +230,10 @@ public abstract class LuceneIndexer implements Startable
 
         // If we're currently rebuilding the index, return.
         if (rebuildInProgress) {
+            Log.debug("Not updating Lucene index, as a rebuild is in progress.");
             return;
         }
+
         Log.debug("Updating the Lucene index...");
         final Instant start = Instant.now();
 
@@ -229,11 +243,12 @@ public abstract class LuceneIndexer implements Startable
 
         try ( final IndexWriter writer = new IndexWriter(directory, iwc) )
         {
-            lastModified = doUpdateIndex( writer, lastModified );
-            indexProperties.setProperty("lastModified", Long.toString(lastModified.toEpochMilli()));
+            final Instant since = getLastModified();
+            final Instant lastModified = doUpdateIndex( writer, since );
+            setLastModified(lastModified);
 
             final Duration duration = Duration.between( start, Instant.now() );
-            Log.debug("Finished updating the Lucene index. Duration: " + duration);
+            Log.debug("Finished updating the Lucene index. Duration: {}. Last message timestamp was: {}, now is: {}", duration, since, lastModified);
         }
         catch (IOException ioe) {
             Log.error("An exception occurred while updating the Lucene index.", ioe);
@@ -278,21 +293,24 @@ public abstract class LuceneIndexer implements Startable
             try ( final IndexWriter writer = new IndexWriter(directory, iwc) )
             {
                 final Instant newest = doRebuildIndex(writer);
+                setLastModified(newest);
 
-                if ( newest.isAfter(lastModified) )
-                {
-                    lastModified = newest;
-                    indexProperties.setProperty("lastModified", Long.toString(lastModified.toEpochMilli()));
+                final Duration duration = Duration.between(start, Instant.now());
+                Log.debug("Finished rebuilding the Lucene index. Duration: {}", duration);
+
+                // Release searcher for it to be re-initialized upon next use (without this, a reference to the old index
+                // will prevent it from being removed, resulting in duplicates and increased disk usage).
+                if ( searcher != null ) {
+                    searcher.getIndexReader().close();
+                    searcher = null;
                 }
-
+            }
+            catch (Exception ioe) {
+                Log.error("An exception occurred while rebuilding the Lucene index.", ioe);
+            } finally {
                 // Done rebuilding the index, so reset state.
                 rebuildFuture = null;
                 rebuildInProgress = false;
-                final Duration duration = Duration.between(start, Instant.now());
-                Log.debug("Finished rebuilding the Lucene index. Duration: {}", duration);
-            }
-            catch (IOException ioe) {
-                Log.error("An exception occurred while rebuilding the Lucene index.", ioe);
             }
         };
         taskEngine.submit(rebuildTask);
@@ -361,7 +379,7 @@ public abstract class LuceneIndexer implements Startable
      * loaded. If an XML file for the search properties isn't already
      * created, it will attempt to make a file with default values.
      */
-    private static XMLProperties loadPropertiesFile( File searchDir ) throws IOException
+    private XMLProperties loadPropertiesFile( File searchDir ) throws IOException
     {
         File indexPropertiesFile = new File(searchDir, "indexprops.xml");
 

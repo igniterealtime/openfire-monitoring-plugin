@@ -78,10 +78,11 @@ public interface PersistenceManager
      * @param owner     bare jid of the owner of the message to find or <code>null</code> for any.
      * @param with      jid of the communication partner or <code>null</code> for any. This is either
      *                  the jid of another XMPP user or the jid of a group chat.
+     * @param query     A query string, typically representing keywords or a partial text, or <code>null</code>.
      * @param useStableID true if MAM2 or another protocol is used that depends on XEP-0359.
      * @return the messages that matched search criteria (possibly empty, never null).
      */
-    Collection<ArchivedMessage> findMessages( Date startDate, Date endDate, JID owner, JID with, XmppResultSet xmppResultSet, boolean useStableID);
+    Collection<ArchivedMessage> findMessages( Date startDate, Date endDate, JID owner, JID with, String query, XmppResultSet xmppResultSet, boolean useStableID);
 
     Collection<Conversation> getActiveConversations(int conversationTimeout);
 

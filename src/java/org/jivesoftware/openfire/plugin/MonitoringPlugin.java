@@ -20,6 +20,7 @@ import java.io.File;
 import java.io.FileFilter;
 
 import com.reucon.openfire.plugin.archive.impl.MucMamPersistenceManager;
+import com.reucon.openfire.plugin.archive.impl.MucIndexer;
 import com.reucon.openfire.plugin.archive.xep0313.Xep0313Support1;
 import com.reucon.openfire.plugin.archive.xep0313.Xep0313Support2;
 import org.jivesoftware.openfire.XMPPServer;
@@ -100,13 +101,12 @@ public class MonitoringPlugin implements Plugin {
                 getStatsViewerImplementation());
 
         // Archive classes
-        picoContainer
-                .registerComponentImplementation(ConversationManager.class);
+        picoContainer.registerComponentImplementation(ConversationManager.class);
         picoContainer.registerComponentImplementation(ArchiveInterceptor.class);
-        picoContainer
-                .registerComponentImplementation(GroupConversationInterceptor.class);
+        picoContainer.registerComponentImplementation(GroupConversationInterceptor.class);
         picoContainer.registerComponentImplementation(ArchiveSearcher.class);
         picoContainer.registerComponentImplementation(ArchiveIndexer.class);
+        picoContainer.registerComponentImplementation(MucIndexer.class);
     }
 
     private Class<? extends StatsViewer> getStatsViewerImplementation() {

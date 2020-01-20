@@ -61,7 +61,7 @@ public class ArchiveIndexer extends org.jivesoftware.openfire.index.LuceneIndexe
      * @param taskEngine a task engine instance.
      */
     public ArchiveIndexer(ConversationManager conversationManager, TaskEngine taskEngine) {
-        super(taskEngine, new File(JiveGlobals.getHomeDirectory() + File.separator + MonitoringConstants.NAME + File.separator + "search") );
+        super(taskEngine, new File(JiveGlobals.getHomeDirectory() + File.separator + MonitoringConstants.NAME + File.separator + "search"), "CONVERSATION" );
         this.conversationManager = conversationManager;
     }
 
@@ -160,6 +160,7 @@ public class ArchiveIndexer extends org.jivesoftware.openfire.index.LuceneIndexe
             con = DbConnectionManager.getConnection();
             pstmt = con.prepareStatement(ALL_CONVERSATIONS);
             rs = pstmt.executeQuery();
+
             while (rs.next()) {
                 long conversationID = rs.getLong(1);
                 externalMetaData.put(conversationID, rs.getInt(2) == 1);
