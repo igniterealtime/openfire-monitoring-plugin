@@ -4,6 +4,7 @@ import com.reucon.openfire.plugin.archive.model.ArchivedMessage;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.LongPoint;
+import org.apache.lucene.document.NumericDocValuesField;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.queryparser.classic.ParseException;
 import org.apache.lucene.queryparser.classic.QueryParser;
@@ -98,11 +99,8 @@ public class PaginatedMucMessageLuceneQuery
         builder.add(LongPoint.newExactQuery("roomID", room.getID()), BooleanClause.Occur.MUST);
 
         // Limit potential results to the requested time range. Note that these values are always non-null in this method (might be 'EPOCH' though).
-//        final TermRangeQuery dateRangeQuery = TermRangeQuery.newStringRange("logTime",
-//                                                                            DateTools.dateToString(startDate, DateTools.Resolution.MINUTE),
-//                                                                            DateTools.dateToString(endDate, DateTools.Resolution.MINUTE),
-//                                                                            true, true);
-//        builder.add(dateRangeQuery, BooleanClause.Occur.MUST);
+        final Query dateRangeQuery = NumericDocValuesField.newSlowRangeQuery("logTime", startDate.getTime(), endDate.getTime());
+        builder.add(dateRangeQuery, BooleanClause.Occur.MUST);
 
         // If defined, limit to specific senders.
         if ( sender != null ) {
@@ -130,7 +128,7 @@ public class PaginatedMucMessageLuceneQuery
 
     public Sort getSort() {
         // Always sort based on date.
-        return new Sort(new SortField("date", SortField.Type.STRING, isPagingBackwards));
+        return new Sort(new SortField("logTime", SortField.Type.LONG, isPagingBackwards));
     }
 
     @Override
