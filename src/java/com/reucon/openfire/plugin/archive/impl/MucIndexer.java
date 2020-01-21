@@ -2,7 +2,6 @@ package com.reucon.openfire.plugin.archive.impl;
 
 import org.apache.lucene.document.*;
 import org.apache.lucene.index.IndexWriter;
-import org.apache.lucene.util.BytesRef;
 import org.jivesoftware.database.DbConnectionManager;
 import org.jivesoftware.openfire.archive.ConversationManager;
 import org.jivesoftware.openfire.archive.MonitoringConstants;
@@ -168,7 +167,7 @@ public class MucIndexer extends LuceneIndexer
         if ( sender.getResource() != null ) {
             document.add(new StringField("senderResource", sender.getResource(), Field.Store.NO));
         }
-        document.add(new SortedDocValuesField("logTime", new BytesRef(DateTools.timeToString(logTime.toEpochMilli(), DateTools.Resolution.MINUTE))));
+        document.add(new NumericDocValuesField("logTime", logTime.toEpochMilli()));
         document.add(new TextField("body", body, Field.Store.NO));
         return document;
     }
