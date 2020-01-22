@@ -17,6 +17,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.xmpp.packet.JID;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
@@ -30,36 +31,32 @@ public class PaginatedMucMessageLuceneQuery
     private final MUCRoom room;
     private final JID sender;
     private final String query;
-    private final Long after;
-    private final Long before;
-    private final int maxResults;
-    private final boolean isPagingBackwards;
 
-    private long totalCountOfLastQuery = -1;
-
-    public PaginatedMucMessageLuceneQuery( final Date startDate, final Date endDate, final MUCRoom room, final JID sender, final String query, final Long after, final Long before, final int maxResults, final boolean isPagingBackwards )
+    public PaginatedMucMessageLuceneQuery( final Date startDate, final Date endDate, final MUCRoom room, final JID sender, final String query )
     {
         this.startDate = startDate == null ? new Date( 0L ) : startDate ;
         this.endDate = endDate == null ? new Date() : endDate;
         this.room = room;
         this.sender = sender;
         this.query = query;
-        this.after = after;
-        this.before = before;
-        this.maxResults = maxResults;
-        this.isPagingBackwards = isPagingBackwards;
     }
 
-    public List<ArchivedMessage> getArchivedMessages() {
-        Log.debug( "... get archived messages");
+    protected IndexSearcher getSearcher() throws IOException
+    {
+        final MonitoringPlugin plugin = (MonitoringPlugin) XMPPServer.getInstance().getPluginManager().getPlugin(MonitoringConstants.NAME);
+        final MucIndexer mucIndexer = (MucIndexer) plugin.getModule(MucIndexer.class);
+        final IndexSearcher searcher = mucIndexer.getSearcher();
+        return searcher;
+    }
+
+    public List<ArchivedMessage> getPage( final Long after, final Long before, final int maxResults, final boolean isPagingBackwards ) {
+        Log.debug( "Retrieving archived messages page. After: {}, Before: {}, maxResults: {}, isPagingBackwards: {}", after, before, maxResults, isPagingBackwards);
         final List<ArchivedMessage> result = new ArrayList<>();
         try
         {
-            final MonitoringPlugin plugin = (MonitoringPlugin) XMPPServer.getInstance().getPluginManager().getPlugin(MonitoringConstants.NAME);
-            final MucIndexer mucIndexer = (MucIndexer) plugin.getModule(MucIndexer.class);
-            final IndexSearcher searcher = mucIndexer.getSearcher();
-
-            final TopFieldDocs indexResult = searcher.search(getLuceneQuery(), maxResults, getSort());
+            final IndexSearcher searcher = getSearcher();
+            final Query query = getLuceneQueryForPage(after, before);
+            final TopFieldDocs indexResult = searcher.search(query, maxResults, getSort(isPagingBackwards));
 
             for ( final ScoreDoc scoreDoc : indexResult.scoreDocs )
             {
@@ -70,22 +67,39 @@ public class PaginatedMucMessageLuceneQuery
                     result.add( archivedMessage );
                 }
             }
-
-            // Register the total count for this query, to prevent having to query that independently.
-            totalCountOfLastQuery = indexResult.totalHits.value;
         }
         catch ( Exception e ) {
             Log.warn( "An exception occurred while trying to query the Lucene index to get messages from room {}.", room, e );
         }
+        Log.debug( "Returning {} result(s).", result.size() );
         return result;
     }
 
-    public int getTotalCountOfLastQuery()
-    {
-        return (int) totalCountOfLastQuery;
+    /**
+     * Returns the amount of messages that are in the entire, unlimited/unpaged, result set.
+     *
+     * @return A message count, or -1 if unavailable.
+     */
+    public int getTotalCount() {
+        try
+        {
+            final Query query = getLuceneQueryForAllResults();
+            final IndexSearcher searcher = getSearcher();
+            final TotalHitCountCollector collector = new TotalHitCountCollector();
+            searcher.search( query, collector );
+            final int result = collector.getTotalHits();
+            Log.debug( "Total number for unpaged query is: {}. Query: {}", result, query );
+
+            return result;
+        }
+        catch ( Exception e )
+        {
+            Log.warn( "An exception occurred while trying to get a count of messages that match a query for message from room {}.", room, e );
+            return -1;
+        }
     }
 
-    protected Query getLuceneQuery() throws ParseException
+    protected Query getLuceneQueryForAllResults() throws ParseException
     {
         final StandardAnalyzer analyzer = new StandardAnalyzer();
 
@@ -113,20 +127,30 @@ public class PaginatedMucMessageLuceneQuery
             }
         }
 
+        final BooleanQuery query = builder.build();
+        Log.debug( "Constructed all-result query: {}", query);
+        return query;
+    }
+
+    protected Query getLuceneQueryForPage( final Long after, final Long before ) throws ParseException
+    {
+        final BooleanQuery.Builder builder = new BooleanQuery.Builder();
+        builder.add(getLuceneQueryForAllResults(), BooleanClause.Occur.MUST );
+
         // Limit by 'before' and 'after', if applicable.
         if ( after != null || before != null) {
-            builder.add(LongPoint.newRangeQuery( "messageID",
-                                                 after != null ? after : Long.MIN_VALUE,
-                                                 before != null ? before : Long.MAX_VALUE
+            builder.add(NumericDocValuesField.newSlowRangeQuery( "messageIDRange",
+                                                 after != null ? Math.addExact(after, 1) : Long.MIN_VALUE,
+                                                 before != null ? Math.addExact(before, -1) : Long.MAX_VALUE
             ), BooleanClause.Occur.MUST );
         }
 
         final BooleanQuery query = builder.build();
-        Log.debug( "Constructed query: {}", query);
+        Log.debug( "Constructed page-result query: {}", query);
         return query;
     }
 
-    public Sort getSort() {
+    public Sort getSort( final boolean isPagingBackwards ) {
         // Always sort based on date.
         return new Sort(new SortField("logTime", SortField.Type.LONG, isPagingBackwards));
     }
@@ -140,11 +164,6 @@ public class PaginatedMucMessageLuceneQuery
             ", room=" + room +
             ", sender=" + sender +
             ", query='" + query + '\'' +
-            ", after=" + after +
-            ", before=" + before +
-            ", maxResults=" + maxResults +
-            ", isPagingBackwards=" + isPagingBackwards +
-            ", totalCountOfLastQuery=" + totalCountOfLastQuery +
             '}';
     }
 }

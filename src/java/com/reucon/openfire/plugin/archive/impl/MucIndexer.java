@@ -163,6 +163,7 @@ public class MucIndexer extends LuceneIndexer
         final Document document = new Document();
         document.add(new LongPoint("roomID", roomID ) );
         document.add(new StoredField("messageID", messageID ) );
+        document.add(new NumericDocValuesField("messageIDRange", messageID));
         document.add(new StringField("senderBare", sender.toBareJID(), Field.Store.NO));
         if ( sender.getResource() != null ) {
             document.add(new StringField("senderResource", sender.getResource(), Field.Store.NO));
