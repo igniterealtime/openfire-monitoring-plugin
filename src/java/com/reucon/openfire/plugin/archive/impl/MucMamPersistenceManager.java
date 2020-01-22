@@ -97,10 +97,10 @@ public class MucMamPersistenceManager implements PersistenceManager {
         final List<ArchivedMessage> msgs;
         final int totalCount;
         if ( query != null && !query.isEmpty() ) {
-            final PaginatedMucMessageLuceneQuery paginatedMucMessageLuceneQuery = new PaginatedMucMessageLuceneQuery( startDate, endDate, room, with, query, after, before, maxResults, isPagingBackwards );
+            final PaginatedMucMessageLuceneQuery paginatedMucMessageLuceneQuery = new PaginatedMucMessageLuceneQuery( startDate, endDate, room, with, query );
             Log.debug("Request for message archive of room '{}' resulted in the following query data: {}", room.getJID(), paginatedMucMessageLuceneQuery);
-            msgs = paginatedMucMessageLuceneQuery.getArchivedMessages();
-            totalCount = paginatedMucMessageLuceneQuery.getTotalCountOfLastQuery();
+            msgs = paginatedMucMessageLuceneQuery.getPage(after, before, maxResults, isPagingBackwards);
+            totalCount = paginatedMucMessageLuceneQuery.getTotalCount();
         } else {
             final PaginatedMucMessageDatabaseQuery paginatedMucMessageDatabaseQuery = new PaginatedMucMessageDatabaseQuery(startDate, endDate, room, with, after, before, maxResults, isPagingBackwards );
             Log.debug("Request for message archive of room '{}' resulted in the following query data: {}", room.getJID(), paginatedMucMessageDatabaseQuery);
@@ -111,7 +111,6 @@ public class MucMamPersistenceManager implements PersistenceManager {
         Log.debug( "Request for message archive of room '{}' found a total of {} applicable messages. Of these, {} were actually retrieved from the database.", room.getJID(), totalCount, msgs.size() );
 
         xmppResultSet.setCount(totalCount);
-        xmppResultSet.setComplete( msgs.size() <= maxResults );
 
         if (msgs.size() > 0) {
             String first = null;
@@ -126,13 +125,35 @@ public class MucMamPersistenceManager implements PersistenceManager {
                     last = lastSid.toString();
                 }
             } else {
-                first = String.valueOf( msgs.get(0) );
-                last = String.valueOf( msgs.get(msgs.size()-1));
+                first = String.valueOf( msgs.get(0).getId() );
+                last = String.valueOf( msgs.get(msgs.size()-1).getId() );
             }
             xmppResultSet.setFirst(first);
             if (msgs.size() > 1) {
                 xmppResultSet.setLast(last);
             }
+        }
+
+        // Check to see if there are more pages, by simulating a request for the next page.
+        // When paging backwards, we need to find out if there are results 'before' the first result.
+        // When paging forward, we need to find out if there are results 'after' the last result.
+        if ( !msgs.isEmpty() )
+        {
+            final Long afterForNextPage = isPagingBackwards ? null : msgs.get(msgs.size() - 1).getId();
+            final Long beforeForNextPage = isPagingBackwards ? msgs.get(0).getId() : null;
+            final List<ArchivedMessage> nextPage;
+            if ( query != null && !query.isEmpty() )
+            {
+                final PaginatedMucMessageLuceneQuery paginatedMucMessageLuceneQuery = new PaginatedMucMessageLuceneQuery(startDate, endDate, room, with, query);
+                nextPage = paginatedMucMessageLuceneQuery.getPage(afterForNextPage, beforeForNextPage, 1, isPagingBackwards);
+            }
+            else
+            {
+                final PaginatedMucMessageDatabaseQuery paginatedMucMessageDatabaseQuery = new PaginatedMucMessageDatabaseQuery(startDate, endDate, room, with, afterForNextPage, beforeForNextPage, 1, isPagingBackwards);
+                nextPage = getArchivedMessages(paginatedMucMessageDatabaseQuery, room.getJID());
+            }
+            Log.debug("Found results for 'next page': {} (based on after: {} before: {} isPagingBackwards: {})", !nextPage.isEmpty(), afterForNextPage, beforeForNextPage, isPagingBackwards);
+            xmppResultSet.setComplete(nextPage.isEmpty());
         }
         return msgs;
     }
