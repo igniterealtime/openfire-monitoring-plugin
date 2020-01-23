@@ -286,6 +286,13 @@ public abstract class LuceneIndexer implements Startable
             Log.debug("Rebuilding the Lucene index...");
             final Instant start = Instant.now();
 
+            Log.debug("Removing old data from directory: {}", searchDir);
+            try {
+                FileUtils.cleanDirectory(searchDir);
+            } catch ( IOException e ) {
+                Log.warn("An exception occured while trying to clean directory '{}' as part of a rebuild of the Lucene index that's in it.", searchDir);
+            }
+
             final Analyzer analyzer = new StandardAnalyzer();
             final IndexWriterConfig iwc = new IndexWriterConfig(analyzer);
             iwc.setOpenMode(IndexWriterConfig.OpenMode.CREATE); // force re-create (as opposed to CREATE_OR_APPEND)
