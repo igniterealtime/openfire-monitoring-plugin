@@ -14,6 +14,7 @@ import org.jivesoftware.openfire.muc.MultiUserChatManager;
 import org.jivesoftware.openfire.muc.MultiUserChatService;
 import org.jivesoftware.openfire.stanzaid.StanzaIDUtil;
 import org.jivesoftware.util.JiveGlobals;
+import org.jivesoftware.util.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.xmpp.packet.JID;
@@ -23,6 +24,7 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.time.Instant;
 import java.util.*;
 
 /**
@@ -281,6 +283,7 @@ public class MucMamPersistenceManager implements PersistenceManager {
         archivedMessage.setId(id);
         return archivedMessage;
     }
+
     protected int getTotalCount( PaginatedMucMessageDatabaseQuery paginatedMucMessageDatabaseQuery )
     {
         Connection connection = null;
@@ -396,5 +399,50 @@ public class MucMamPersistenceManager implements PersistenceManager {
     @Override
     public Conversation getConversation(Long conversationId) {
         throw new UnsupportedOperationException("MAM-MUC cannot perform this operation");
+    }
+
+    public static Instant getDateOfFirstLog( MUCRoom room )
+    {
+        Connection connection = null;
+        PreparedStatement pstmt = null;
+        ResultSet rs = null;
+
+        try {
+            connection = DbConnectionManager.getConnection();
+            pstmt = connection.prepareStatement( "SELECT MIN(logTime) FROM ofMucConversationLog WHERE roomid = ?");
+            pstmt.setLong( 1, room.getID());
+            rs = pstmt.executeQuery();
+            if (rs.next()) {
+                return new Date(Long.parseLong(rs.getString(1).trim())).toInstant();
+            }
+        } catch (SQLException e) {
+            Log.error("SQL failure while trying to find the timestamp of the earliest message for room {} in MAM-MUC: ", room, e);
+        } finally {
+            DbConnectionManager.closeConnection(rs, pstmt, connection);
+        }
+        return null;
+    }
+
+    public static Instant getDateOfLastLog( MUCRoom room )
+    {
+        Connection connection = null;
+        PreparedStatement pstmt = null;
+        ResultSet rs = null;
+
+        int totalCount = 0;
+        try {
+            connection = DbConnectionManager.getConnection();
+            pstmt = connection.prepareStatement( "SELECT MAX(logTime) FROM ofMucConversationLog WHERE roomid = ?");
+            pstmt.setLong( 1, room.getID());
+            rs = pstmt.executeQuery();
+            if (rs.next()) {
+                return new Date(Long.parseLong(rs.getString(1).trim())).toInstant();
+            }
+        } catch (SQLException e) {
+            Log.error("SQL failure while trying to find the timestamp of the latest message for room {} in MAM-MUC: ", room, e);
+        } finally {
+            DbConnectionManager.closeConnection(rs, pstmt, connection);
+        }
+        return null;
     }
 }
