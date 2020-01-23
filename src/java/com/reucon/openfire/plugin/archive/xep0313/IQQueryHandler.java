@@ -317,6 +317,18 @@ abstract class IQQueryHandler extends AbstractIQHandler implements
             if(dataForm.getField("{urn:xmpp:fulltext:0}fulltext") != null) {
                 textField = String.join(" ", dataForm.getField("{urn:xmpp:fulltext:0}fulltext").getValues() );
             }
+
+            // issue #81: Silently accept fields used for text search in M-Link and ejabberd's implementation.
+            if (textField == null || textField.isEmpty() ) {
+                if(dataForm.getField("withtext") != null) { // ejabberd
+                    textField = String.join(" ", dataForm.getField("withtext").getValues() );
+                }
+            }
+            if (textField == null || textField.isEmpty() ) {
+                if(dataForm.getField("search") != null) { // M-Link
+                    textField = String.join(" ", dataForm.getField("search").getValues() );
+                }
+            }
         }
 
        try
