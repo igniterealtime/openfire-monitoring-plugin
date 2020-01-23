@@ -520,7 +520,7 @@ public class JdbcPersistenceManager implements PersistenceManager {
                 }
             }
             else if (xmppResultSet.isPagingBackwards()){
-                int messagesCount = countMessages(startDate, endDate, owner, with, whereSB.toString());
+                int messagesCount = countMessages(startDate, endDate, ownerJid, withJid, whereSB.toString());
                 firstIndex = messagesCount;
                 firstIndex -= max;
 
