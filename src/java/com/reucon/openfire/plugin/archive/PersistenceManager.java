@@ -4,6 +4,7 @@ import com.reucon.openfire.plugin.archive.model.ArchivedMessage;
 import com.reucon.openfire.plugin.archive.model.Conversation;
 import com.reucon.openfire.plugin.archive.model.Participant;
 import com.reucon.openfire.plugin.archive.xep0059.XmppResultSet;
+import org.jivesoftware.util.NotFoundException;
 import org.xmpp.packet.JID;
 
 import java.util.Collection;
@@ -82,7 +83,7 @@ public interface PersistenceManager
      * @param useStableID true if MAM2 or another protocol is used that depends on XEP-0359.
      * @return the messages that matched search criteria (possibly empty, never null).
      */
-    Collection<ArchivedMessage> findMessages( Date startDate, Date endDate, JID owner, JID with, String query, XmppResultSet xmppResultSet, boolean useStableID);
+    Collection<ArchivedMessage> findMessages( Date startDate, Date endDate, JID owner, JID with, String query, XmppResultSet xmppResultSet, boolean useStableID) throws NotFoundException;
 
     Collection<Conversation> getActiveConversations(int conversationTimeout);
 
