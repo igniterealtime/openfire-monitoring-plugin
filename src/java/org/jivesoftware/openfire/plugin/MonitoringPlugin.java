@@ -18,11 +18,19 @@ package org.jivesoftware.openfire.plugin;
 
 import java.io.File;
 import java.io.FileFilter;
+import java.util.ArrayList;
+import java.util.List;
 
 import com.reucon.openfire.plugin.archive.impl.MucMamPersistenceManager;
 import com.reucon.openfire.plugin.archive.impl.MucIndexer;
 import com.reucon.openfire.plugin.archive.xep0313.Xep0313Support1;
 import com.reucon.openfire.plugin.archive.xep0313.Xep0313Support2;
+import org.apache.tomcat.InstanceManager;
+import org.apache.tomcat.SimpleInstanceManager;
+import org.eclipse.jetty.apache.jsp.JettyJasperInitializer;
+import org.eclipse.jetty.plus.annotation.ContainerInitializer;
+import org.eclipse.jetty.webapp.WebAppContext;
+import org.jivesoftware.admin.AuthCheckFilter;
 import org.jivesoftware.openfire.XMPPServer;
 import org.jivesoftware.openfire.archive.ArchiveIndexer;
 import org.jivesoftware.openfire.archive.ArchiveInterceptor;
@@ -32,6 +40,7 @@ import org.jivesoftware.openfire.archive.GroupConversationInterceptor;
 import org.jivesoftware.openfire.archive.MonitoringConstants;
 import org.jivesoftware.openfire.container.Plugin;
 import org.jivesoftware.openfire.container.PluginManager;
+import org.jivesoftware.openfire.http.HttpBindManager;
 import org.jivesoftware.openfire.reporting.graph.GraphEngine;
 import org.jivesoftware.openfire.reporting.stats.DefaultStatsViewer;
 import org.jivesoftware.openfire.reporting.stats.MockStatsViewer;
@@ -64,6 +73,18 @@ import org.xmpp.packet.JID;
 public class MonitoringPlugin implements Plugin {
 
     private static final int DEFAULT_CONVERSATION_TIMEOUT = 30; // minutes
+
+    /**
+     * The context root of the URL under which the public web endpoints are exposed.
+     */
+    public static final String CONTEXT_ROOT = "monitoring";
+
+    private final String[] publicResources = new String[]
+        {
+            CONTEXT_ROOT + "/*"
+        };
+
+    private WebAppContext context = null;
 
     private MutablePicoContainer picoContainer;
 
@@ -208,11 +229,15 @@ public class MonitoringPlugin implements Plugin {
             dir.mkdirs();
         }
 
+        loadPublicWeb(pluginDirectory);
+
         picoContainer.start();
     }
 
     public void destroyPlugin() {
         shuttingDown = true;
+
+        unloadPublicWeb();
 
         if (picoContainer != null) {
             picoContainer.stop();
@@ -230,5 +255,44 @@ public class MonitoringPlugin implements Plugin {
 
     public boolean isShuttingDown() {
         return shuttingDown;
+    }
+
+
+    protected void loadPublicWeb(File pluginDirectory)
+    {
+        Log.debug( "Excluding all public resources from the Authorization-Check filter." );
+        for ( final String publicResource : publicResources )
+        {
+            AuthCheckFilter.addExclude(publicResource );
+        }
+
+        Log.debug( "Adding the public web sources to the same context as the one that's providing the BOSH interface." );
+        context = new WebAppContext( null, pluginDirectory.getPath() + File.separator + "classes/", "/" + CONTEXT_ROOT );
+        context.setClassLoader( this.getClass().getClassLoader() );
+
+        Log.debug( "Ensure the JSP engine is initialized correctly (in order to be able to cope with Tomcat/Jasper precompiled JSPs)." );
+        final List<ContainerInitializer> initializers = new ArrayList<>();
+        initializers.add( new ContainerInitializer(new JettyJasperInitializer(), null ) );
+        context.setAttribute( "org.eclipse.jetty.containerInitializers", initializers );
+        context.setAttribute(InstanceManager.class.getName(), new SimpleInstanceManager() );
+        Log.debug( "Registering public web context with the embedded webserver." );
+        HttpBindManager.getInstance().addJettyHandler( context );
+    }
+
+    protected void unloadPublicWeb()
+    {
+        if ( context != null )
+        {
+            Log.debug( "Removing public web context from the embedded webserver." );
+            HttpBindManager.getInstance().removeJettyHandler( context );
+            context.destroy();
+            context = null;
+        }
+
+        for ( final String publicResource : publicResources )
+        {
+            Log.debug( "Removing Authorization-Check filter exemptions." );
+            AuthCheckFilter.removeExclude( publicResource );
+        }
     }
 }
