@@ -14,6 +14,7 @@ import org.jivesoftware.openfire.muc.MultiUserChatManager;
 import org.jivesoftware.openfire.muc.MultiUserChatService;
 import org.jivesoftware.openfire.stanzaid.StanzaIDUtil;
 import org.jivesoftware.util.JiveGlobals;
+import org.jivesoftware.util.NotFoundException;
 import org.jivesoftware.util.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -71,7 +72,8 @@ public class MucMamPersistenceManager implements PersistenceManager {
     }
 
     @Override
-    public Collection<ArchivedMessage> findMessages(Date startDate, Date endDate, JID owner, JID with, String query, XmppResultSet xmppResultSet, boolean useStableID ) {
+    public Collection<ArchivedMessage> findMessages(Date startDate, Date endDate, JID owner, JID with, String query, XmppResultSet xmppResultSet, boolean useStableID ) throws NotFoundException
+    {
         Log.debug( "Finding messages of owner '{}' with start date '{}', end date '{}' with '{}', query: '{}' and resultset '{}', useStableId '{}'.", owner, startDate, endDate, with, query, xmppResultSet, useStableID );
         final MultiUserChatManager manager = XMPPServer.getInstance().getMultiUserChatManager();
         final MultiUserChatService service = manager.getMultiUserChatService(owner);
@@ -91,8 +93,8 @@ public class MucMamPersistenceManager implements PersistenceManager {
             endDate = new Date();
         }
 
-        final Long after = parseIdentifier( xmppResultSet.getAfter(), room, useStableID );
-        final Long before = parseIdentifier( xmppResultSet.getBefore(), room, useStableID );
+        final Long after = parseAndValidate( xmppResultSet.getAfter(), room, useStableID, "after" );
+        final Long before = parseAndValidate( xmppResultSet.getBefore(), room, useStableID, "before" );
         final int maxResults = xmppResultSet.getMax() != null ? xmppResultSet.getMax() : DEFAULT_MAX;
         final boolean isPagingBackwards = xmppResultSet.isPagingBackwards();
 
@@ -158,6 +160,41 @@ public class MucMamPersistenceManager implements PersistenceManager {
             xmppResultSet.setComplete(nextPage.isEmpty());
         }
         return msgs;
+    }
+
+    /**
+     * Takes a message reference (as used in 'before' and 'after' elements of RSM) and returns the corresponding
+     * database identifier for the message. This method validates that the value refers to an existing message in the
+     * archive.
+     *
+     * When a 'null' value is passed in the value argument, a 'null' result is returned.
+     *
+     * @param value The reference to process (can be null).
+     * @param room The room that provides the context of the message archive search (cannot be null).
+     * @param useStableID Indicator if 'value' is a direct database identifier, or a UUID.
+     * @param fieldName Name of the field in which the value was transmitted (cannot be null).
+     * @return A database identifier (possibly null)
+     * @throws NotFoundException When a non-null value does not refer to an existing message for the supplied room.
+     */
+    private Long parseAndValidate( final String value, final MUCRoom room, final boolean useStableID, final String fieldName ) throws NotFoundException
+    {
+        if ( value == null || value.isEmpty() ) {
+            return null;
+        }
+
+        final Long result;
+        try {
+            result = parseIdentifier(value, room, useStableID);
+        } catch ( IllegalArgumentException e ) {
+            // When a 'before' or 'after' element is present, but is not present in the archive, XEP-0313 specifies that a item-not-found error must be returned.
+            throw new NotFoundException( "The reference '"+value+"' used in the '"+fieldName+"' RSM element is not recognized.");
+        }
+        // When a 'before' or 'after' element is present, but is not present in the archive, XEP-0313 specifies that a item-not-found error must be returned.
+        if ( result == null || getArchivedMessage( result, room ) == null ) {
+            throw new NotFoundException( "The reference '"+value+"' used in the '"+fieldName+"' RSM element is not recognized.");
+        }
+
+        return result;
     }
 
     /**

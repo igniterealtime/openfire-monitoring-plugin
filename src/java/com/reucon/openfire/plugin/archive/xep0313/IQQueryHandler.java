@@ -18,6 +18,7 @@ import org.jivesoftware.openfire.muc.MultiUserChatService;
 import org.jivesoftware.openfire.plugin.MonitoringPlugin;
 import org.jivesoftware.util.JiveGlobals;
 import org.jivesoftware.util.NamedThreadFactory;
+import org.jivesoftware.util.NotFoundException;
 import org.jivesoftware.util.XMPPDateTimeFormat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -239,6 +240,14 @@ abstract class IQQueryHandler extends AbstractIQHandler implements
                 sendEndQuery(packet, packet.getFrom(), finalQueryRequest);
                 Log.debug("Done with request. The request took {} to complete, of which {} was spend waiting on data to be written to the database.", Duration.between( start, Instant.now()), totalPause );
             }
+            catch ( NotFoundException e ) {
+                Log.debug( "Request resulted in a item-not-found condition.", e );
+                try {
+                    router.route( buildErrorResponse(packet, PacketError.Condition.item_not_found, e.getMessage() ) );
+                } catch ( Exception ex ) {
+                    Log.error( "An unexpected exception occurred while returning an error stanza to the originator of: {}", packet, ex );
+                }
+            }
             catch ( Exception e ) {
                 Log.error( "An unexpected exception occurred while processing: {}", packet, e );
                 if (packet.isRequest()) {
@@ -284,7 +293,7 @@ abstract class IQQueryHandler extends AbstractIQHandler implements
      * @param queryRequest The request (cannot be null).
      * @return A collection of messages (possibly empty, never null).
      */
-    private Collection<ArchivedMessage> retrieveMessages(QueryRequest queryRequest) {
+    private Collection<ArchivedMessage> retrieveMessages(QueryRequest queryRequest) throws NotFoundException {
 
         JID withField = null;
         String startField = null;
@@ -396,6 +405,10 @@ abstract class IQQueryHandler extends AbstractIQHandler implements
 	        Log.debug("MAM: found: "+(result!=null?String.valueOf(result.size()):"0 (result==null)")+" items");
 	        
 	        return result;
+        }
+        catch ( NotFoundException e )
+        {
+            throw e; // Retrow exceptions that should result in an IQ error response.
         }
         catch (Exception e)
         {
