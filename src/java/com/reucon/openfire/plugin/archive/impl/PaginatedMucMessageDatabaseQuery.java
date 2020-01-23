@@ -14,14 +14,21 @@
  */
 package com.reucon.openfire.plugin.archive.impl;
 
+import com.reucon.openfire.plugin.archive.model.ArchivedMessage;
+import org.jivesoftware.database.DbConnectionManager;
 import org.jivesoftware.openfire.muc.MUCRoom;
 import org.jivesoftware.util.StringUtils;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.Date;
+import java.util.LinkedList;
+import java.util.List;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.xmpp.packet.JID;
 
 /**
@@ -31,25 +38,19 @@ import org.xmpp.packet.JID;
  */
 public class PaginatedMucMessageDatabaseQuery
 {
+    private static final Logger Log = LoggerFactory.getLogger(PaginatedMucMessageDatabaseQuery.class );
+
     private final Date startDate;
     private final Date endDate;
     private final MUCRoom room;
     private final JID with;
-    private final Long after;
-    private final Long before;
-    private final int maxResults;
-    private final boolean isPagingBackwards;
 
-    public PaginatedMucMessageDatabaseQuery( Date startDate, Date endDate, MUCRoom room, JID with, Long after, Long before, int maxResults, boolean isPagingBackwards )
+    public PaginatedMucMessageDatabaseQuery( Date startDate, Date endDate, MUCRoom room, JID with )
     {
         this.startDate = startDate == null ? new Date( 0L ) : startDate ;
         this.endDate = endDate == null ? new Date() : endDate;
         this.room = room;
         this.with = with;
-        this.after = after;
-        this.before = before;
-        this.maxResults = maxResults;
-        this.isPagingBackwards = isPagingBackwards;
     }
 
     public Date getStartDate()
@@ -72,26 +73,6 @@ public class PaginatedMucMessageDatabaseQuery
         return with;
     }
 
-    public Long getAfter()
-    {
-        return after;
-    }
-
-    public Long getBefore()
-    {
-        return before;
-    }
-
-    public int getMaxResults()
-    {
-        return maxResults;
-    }
-
-    public boolean isPagingBackwards()
-    {
-        return isPagingBackwards;
-    }
-
     @Override
     public String toString()
     {
@@ -100,14 +81,71 @@ public class PaginatedMucMessageDatabaseQuery
             ", endDate=" + endDate +
             ", room=" + room +
             ", with='" + with + '\'' +
-            ", after=" + after +
-            ", before=" + before +
-            ", maxResults=" + maxResults +
-            ", isPagingBackwards=" + isPagingBackwards +
             '}';
     }
 
-    private String getStatementForMySQL()
+    protected List<ArchivedMessage> getPage( final Long after, final Long before, final int maxResults, final boolean isPagingBackwards )
+    {
+        final List<ArchivedMessage> msgs = new LinkedList<>();
+
+        // The HSQL driver that is used in Openfire 4.5.0 will disregard a 'limit 0' (instead, returning all rows. A
+        // limit on positive numbers does work). We should prevent this from occuring, if only because querying a database
+        // for no results does not make much sense in the first place. See https://github.com/igniterealtime/openfire-monitoring-plugin/issues/80
+        if ( maxResults <= 0 ) {
+            return msgs;
+        }
+
+        Connection connection = null;
+        PreparedStatement pstmt = null;
+        ResultSet rs = null;
+        try {
+            connection = DbConnectionManager.getConnection();
+            pstmt = prepareStatement(connection, after, before, maxResults, isPagingBackwards, false );
+            rs = pstmt.executeQuery();
+            while (rs.next()) {
+                String senderJID = rs.getString(1);
+                String nickname = rs.getString(2);
+                Date sentDate = new Date(Long.parseLong(rs.getString(3).trim()));
+                String subject = rs.getString(4);
+                String body = rs.getString(5);
+                String stanza = rs.getString(6);
+                long id = rs.getLong(7);
+
+                msgs.add( MucMamPersistenceManager.asArchivedMessage(room.getJID(), senderJID, nickname, sentDate, subject, body, stanza, id) );
+            }
+        } catch (SQLException e) {
+            Log.error("SQL failure during MAM-MUC: ", e);
+        } finally {
+            DbConnectionManager.closeConnection(rs, pstmt, connection);
+        }
+
+        return msgs;
+    }
+
+
+    protected int getTotalCount( final Long after, final Long before, final int maxResults, final boolean isPagingBackwards )
+    {
+        Connection connection = null;
+        PreparedStatement pstmt = null;
+        ResultSet rs = null;
+
+        int totalCount = 0;
+        try {
+            connection = DbConnectionManager.getConnection();
+            pstmt = prepareStatement(connection, after, before, maxResults, isPagingBackwards, true);
+            rs = pstmt.executeQuery();
+            if (rs.next()) {
+                totalCount = rs.getInt(1);
+            }
+        } catch (SQLException e) {
+            Log.error("SQL failure while counting messages in MAM-MUC: ", e);
+        } finally {
+            DbConnectionManager.closeConnection(rs, pstmt, connection);
+        }
+        return totalCount;
+    }
+
+    private String getStatementForMySQL(final Long after, final Long before, final int maxResults, final boolean isPagingBackwards)
     {
         String sql = "SELECT sender, nickname, logTime, subject, body, stanza, messageId ";
         sql += " FROM ( ";
@@ -135,7 +173,7 @@ public class PaginatedMucMessageDatabaseQuery
         return sql;
     }
 
-    private String getStatementForSQLServer()
+    private String getStatementForSQLServer(final Long after, final Long before, final int maxResults, final boolean isPagingBackwards)
     {
         String sql = "SELECT sender, nickname, logTime, subject, body, stanza, messageId ";
         sql += " FROM ( ";
@@ -164,22 +202,22 @@ public class PaginatedMucMessageDatabaseQuery
         return sql;
     }
 
-    private String buildQueryForMessages()
+    private String buildQueryForMessages( final Long after, final Long before, final int maxResults, final boolean isPagingBackwards )
     {
         switch (org.jivesoftware.database.DbConnectionManager.getDatabaseType())
         {
             case mysql:
-                return getStatementForMySQL();
+                return getStatementForMySQL( after, before, maxResults, isPagingBackwards );
 
             case sqlserver:
-                return getStatementForSQLServer();
+                return getStatementForSQLServer( after, before, maxResults, isPagingBackwards );
 
             default:
-                return getStatementForMySQL(); //Standardsyntax like mysql!?
+                return getStatementForMySQL( after, before, maxResults, isPagingBackwards ); //Standardsyntax like mysql!?
         }
     }
 
-    private String buildQueryForTotalCount()
+    private String buildQueryForTotalCount( final Long after, final Long before, final int maxResults, final boolean isPagingBackwards )
     {
         String sql = "SELECT count(*) FROM ofMucConversationLog ";
         sql += "WHERE messageId IS NOT NULL AND logTime > ? AND logTime <= ? AND roomID = ? AND (nickname IS NOT NULL OR subject IS NOT NULL) ";
@@ -199,9 +237,9 @@ public class PaginatedMucMessageDatabaseQuery
         return sql;
     }
 
-    public PreparedStatement prepareStatement( Connection connection, boolean forTotalCount ) throws SQLException
+    public PreparedStatement prepareStatement( final Connection connection, final Long after, final Long before, final int maxResults, final boolean isPagingBackwards, final boolean forTotalCount ) throws SQLException
     {
-        final String query = forTotalCount ? buildQueryForTotalCount() : buildQueryForMessages();
+        final String query = forTotalCount ? buildQueryForTotalCount( after, before, maxResults, isPagingBackwards ) : buildQueryForMessages( after, before, maxResults, isPagingBackwards );
         final PreparedStatement pstmt = connection.prepareStatement( query );
         pstmt.setString( 1, StringUtils.dateToMillis( startDate ) );
         pstmt.setString( 2, StringUtils.dateToMillis( endDate ) );
