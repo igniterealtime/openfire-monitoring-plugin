@@ -100,7 +100,28 @@ public class PaginatedMucMessageDatabaseQuery
         ResultSet rs = null;
         try {
             connection = DbConnectionManager.getConnection();
-            pstmt = prepareStatement(connection, after, before, maxResults, isPagingBackwards, false );
+            pstmt = connection.prepareStatement( buildQueryForMessages( after, before, maxResults, isPagingBackwards) );
+            pstmt.setString( 1, StringUtils.dateToMillis( startDate ) );
+            pstmt.setString( 2, StringUtils.dateToMillis( endDate ) );
+            pstmt.setLong( 3, room.getID() );
+            int pos = 3;
+
+            if ( with != null ) {
+                if (with.getResource() == null) {
+                    pstmt.setString( ++pos, with.toString() + "%" );
+                } else {
+                    pstmt.setString( ++pos, with.toString() );
+                }
+            }
+
+            if ( after != null ) {
+                pstmt.setLong( ++pos, after );
+            }
+
+            if ( before != null ) {
+                pstmt.setLong( ++pos, before );
+            }
+
             rs = pstmt.executeQuery();
             while (rs.next()) {
                 String senderJID = rs.getString(1);
@@ -123,7 +144,7 @@ public class PaginatedMucMessageDatabaseQuery
     }
 
 
-    protected int getTotalCount( final Long after, final Long before, final int maxResults, final boolean isPagingBackwards )
+    protected int getTotalCount()
     {
         Connection connection = null;
         PreparedStatement pstmt = null;
@@ -132,7 +153,19 @@ public class PaginatedMucMessageDatabaseQuery
         int totalCount = 0;
         try {
             connection = DbConnectionManager.getConnection();
-            pstmt = prepareStatement(connection, after, before, maxResults, isPagingBackwards, true);
+            pstmt = connection.prepareStatement( buildQueryForTotalCount() );
+            pstmt.setString( 1, StringUtils.dateToMillis( startDate ) );
+            pstmt.setString( 2, StringUtils.dateToMillis( endDate ) );
+            pstmt.setLong( 3, room.getID() );
+            int pos = 3;
+
+            if ( with != null ) {
+                if (with.getResource() == null) {
+                    pstmt.setString( ++pos, with.toString() + "%" );
+                } else {
+                    pstmt.setString( ++pos, with.toString() );
+                }
+            }
             rs = pstmt.executeQuery();
             if (rs.next()) {
                 totalCount = rs.getInt(1);
@@ -217,7 +250,7 @@ public class PaginatedMucMessageDatabaseQuery
         }
     }
 
-    private String buildQueryForTotalCount( final Long after, final Long before, final int maxResults, final boolean isPagingBackwards )
+    private String buildQueryForTotalCount()
     {
         String sql = "SELECT count(*) FROM ofMucConversationLog ";
         sql += "WHERE messageId IS NOT NULL AND logTime > ? AND logTime <= ? AND roomID = ? AND (nickname IS NOT NULL OR subject IS NOT NULL) ";
@@ -228,40 +261,6 @@ public class PaginatedMucMessageDatabaseQuery
                 sql += " AND sender = ? ";
             }
         }
-        if ( after != null ) {
-            sql += " AND messageId > ? ";
-        }
-        if ( before != null ) {
-            sql += " AND messageId < ? ";
-        }
         return sql;
-    }
-
-    public PreparedStatement prepareStatement( final Connection connection, final Long after, final Long before, final int maxResults, final boolean isPagingBackwards, final boolean forTotalCount ) throws SQLException
-    {
-        final String query = forTotalCount ? buildQueryForTotalCount( after, before, maxResults, isPagingBackwards ) : buildQueryForMessages( after, before, maxResults, isPagingBackwards );
-        final PreparedStatement pstmt = connection.prepareStatement( query );
-        pstmt.setString( 1, StringUtils.dateToMillis( startDate ) );
-        pstmt.setString( 2, StringUtils.dateToMillis( endDate ) );
-        pstmt.setLong( 3, room.getID() );
-        int pos = 3;
-
-        if ( with != null ) {
-            if (with.getResource() == null) {
-                pstmt.setString( ++pos, with.toString() + "%" );
-            } else {
-                pstmt.setString( ++pos, with.toString() );
-            }
-        }
-
-        if ( after != null ) {
-            pstmt.setLong( ++pos, after );
-        }
-
-        if ( before != null ) {
-            pstmt.setLong( ++pos, before );
-        }
-
-        return pstmt;
     }
 }
