@@ -538,7 +538,7 @@ abstract class IQQueryHandler extends AbstractIQHandler implements
         form.addField("with", "Author of message", FormField.Type.jid_single);
         form.addField("start", "Message sent on or after timestamp.", FormField.Type.text_single);
         form.addField("end", "Message sent on or before timestamp.", FormField.Type.text_single);
-        form.addField("urn:xmpp:fulltext:0}fulltext", "Free text search", FormField.Type.text_single);
+        form.addField("{urn:xmpp:fulltext:0}fulltext", "Free text search", FormField.Type.text_single);
 
         query.add(form.getElement());
 
