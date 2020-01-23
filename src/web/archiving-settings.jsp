@@ -214,7 +214,9 @@
     }
 
     if (rebuildIndex) {
-        if (archiveIndexer.rebuildIndex() == null && mucIndexer.rebuildIndex() == null) {
+        final boolean archiveRebuildStarted = archiveIndexer.rebuildIndex() != null;
+        final boolean mucRebuildStarted = mucIndexer.rebuildIndex() != null;
+        if ( !archiveRebuildStarted || !mucRebuildStarted ) {
             errors.put("rebuildIndex", "");
             errorMessage = "Archive Index rebuild failed.";
         }
