@@ -109,7 +109,7 @@ public class MucMamPersistenceManager implements PersistenceManager {
             final PaginatedMucMessageDatabaseQuery paginatedMucMessageDatabaseQuery = new PaginatedMucMessageDatabaseQuery(startDate, endDate, room, with );
             Log.debug("Request for message archive of room '{}' resulted in the following query data: {}", room.getJID(), paginatedMucMessageDatabaseQuery);
             msgs = paginatedMucMessageDatabaseQuery.getPage(after, before, maxResults, isPagingBackwards);
-            totalCount = paginatedMucMessageDatabaseQuery.getTotalCount(after, before, maxResults, isPagingBackwards);
+            totalCount = paginatedMucMessageDatabaseQuery.getTotalCount();
         }
 
         Log.debug( "Request for message archive of room '{}' found a total of {} applicable messages. Of these, {} were actually retrieved from the database.", room.getJID(), totalCount, msgs.size() );
