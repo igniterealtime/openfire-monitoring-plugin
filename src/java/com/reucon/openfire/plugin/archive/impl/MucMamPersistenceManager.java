@@ -106,10 +106,10 @@ public class MucMamPersistenceManager implements PersistenceManager {
             msgs = paginatedMucMessageLuceneQuery.getPage(after, before, maxResults, isPagingBackwards);
             totalCount = paginatedMucMessageLuceneQuery.getTotalCount();
         } else {
-            final PaginatedMucMessageDatabaseQuery paginatedMucMessageDatabaseQuery = new PaginatedMucMessageDatabaseQuery(startDate, endDate, room, with, after, before, maxResults, isPagingBackwards );
+            final PaginatedMucMessageDatabaseQuery paginatedMucMessageDatabaseQuery = new PaginatedMucMessageDatabaseQuery(startDate, endDate, room, with );
             Log.debug("Request for message archive of room '{}' resulted in the following query data: {}", room.getJID(), paginatedMucMessageDatabaseQuery);
-            msgs = getArchivedMessages(paginatedMucMessageDatabaseQuery, room.getJID() );
-            totalCount = getTotalCount(paginatedMucMessageDatabaseQuery);
+            msgs = paginatedMucMessageDatabaseQuery.getPage(after, before, maxResults, isPagingBackwards);
+            totalCount = paginatedMucMessageDatabaseQuery.getTotalCount(after, before, maxResults, isPagingBackwards);
         }
 
         Log.debug( "Request for message archive of room '{}' found a total of {} applicable messages. Of these, {} were actually retrieved from the database.", room.getJID(), totalCount, msgs.size() );
@@ -153,8 +153,8 @@ public class MucMamPersistenceManager implements PersistenceManager {
             }
             else
             {
-                final PaginatedMucMessageDatabaseQuery paginatedMucMessageDatabaseQuery = new PaginatedMucMessageDatabaseQuery(startDate, endDate, room, with, afterForNextPage, beforeForNextPage, 1, isPagingBackwards);
-                nextPage = getArchivedMessages(paginatedMucMessageDatabaseQuery, room.getJID());
+                final PaginatedMucMessageDatabaseQuery paginatedMucMessageDatabaseQuery = new PaginatedMucMessageDatabaseQuery(startDate, endDate, room, with);
+                nextPage = paginatedMucMessageDatabaseQuery.getPage(afterForNextPage, beforeForNextPage, 1, isPagingBackwards);
             }
             Log.debug("Found results for 'next page': {} (based on after: {} before: {} isPagingBackwards: {})", !nextPage.isEmpty(), afterForNextPage, beforeForNextPage, isPagingBackwards);
             xmppResultSet.setComplete(nextPage.isEmpty());
@@ -239,44 +239,6 @@ public class MucMamPersistenceManager implements PersistenceManager {
         }
     }
 
-    protected List<ArchivedMessage> getArchivedMessages( PaginatedMucMessageDatabaseQuery paginatedMucMessageDatabaseQuery, JID roomJID )
-    {
-        final List<ArchivedMessage> msgs = new LinkedList<>();
-
-        // The HSQL driver that is used in Openfire 4.5.0 will disregard a 'limit 0' (instead, returning all rows. A
-        // limit on positive numbers does work). We should prevent this from occuring, if only because querying a database
-        // for no results does not make much sense in the first place. See https://github.com/igniterealtime/openfire-monitoring-plugin/issues/80
-        if ( paginatedMucMessageDatabaseQuery.getMaxResults() <= 0 ) {
-            return msgs;
-        }
-
-        Connection connection = null;
-        PreparedStatement pstmt = null;
-        ResultSet rs = null;
-        try {
-            connection = DbConnectionManager.getConnection();
-            pstmt = paginatedMucMessageDatabaseQuery.prepareStatement(connection, false );
-            rs = pstmt.executeQuery();
-            while (rs.next()) {
-                String senderJID = rs.getString(1);
-                String nickname = rs.getString(2);
-                Date sentDate = new Date(Long.parseLong(rs.getString(3).trim()));
-                String subject = rs.getString(4);
-                String body = rs.getString(5);
-                String stanza = rs.getString(6);
-                long id = rs.getLong(7);
-
-                msgs.add( asArchivedMessage(roomJID, senderJID, nickname, sentDate, subject, body, stanza, id) );
-            }
-        } catch (SQLException e) {
-            Log.error("SQL failure during MAM-MUC: ", e);
-        } finally {
-            DbConnectionManager.closeConnection(rs, pstmt, connection);
-        }
-
-        return msgs;
-    }
-
     static protected ArchivedMessage asArchivedMessage(JID roomJID, String senderJID, String nickname, Date sentDate, String subject, String body, String stanza, long id)
     {
         if (stanza == null) {
@@ -327,28 +289,6 @@ public class MucMamPersistenceManager implements PersistenceManager {
         archivedMessage.setStanza(stanza);
         archivedMessage.setId(id);
         return archivedMessage;
-    }
-
-    protected int getTotalCount( PaginatedMucMessageDatabaseQuery paginatedMucMessageDatabaseQuery )
-    {
-        Connection connection = null;
-        PreparedStatement pstmt = null;
-        ResultSet rs = null;
-
-        int totalCount = 0;
-        try {
-            connection = DbConnectionManager.getConnection();
-            pstmt = paginatedMucMessageDatabaseQuery.prepareStatement(connection, true );
-            rs = pstmt.executeQuery();
-            if (rs.next()) {
-                totalCount = rs.getInt(1);
-            }
-        } catch (SQLException e) {
-            Log.error("SQL failure while counting messages in MAM-MUC: ", e);
-        } finally {
-            DbConnectionManager.closeConnection(rs, pstmt, connection);
-        }
-        return totalCount;
     }
 
     static Long parseIdentifier( String value, MUCRoom room, boolean useStableID )
