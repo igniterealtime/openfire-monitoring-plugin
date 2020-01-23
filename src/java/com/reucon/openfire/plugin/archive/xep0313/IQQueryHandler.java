@@ -314,8 +314,8 @@ abstract class IQQueryHandler extends AbstractIQHandler implements
             if(dataForm.getField("end") != null) {
                 endField = dataForm.getField("end").getFirstValue();
             }
-            if(dataForm.getField("withtext") != null) {
-                textField = String.join(" ", dataForm.getField("withtext").getValues() );
+            if(dataForm.getField("{urn:xmpp:fulltext:0}fulltext") != null) {
+                textField = String.join(" ", dataForm.getField("{urn:xmpp:fulltext:0}fulltext").getValues() );
             }
         }
 
@@ -526,7 +526,7 @@ abstract class IQQueryHandler extends AbstractIQHandler implements
         form.addField("with", "Author of message", FormField.Type.jid_single);
         form.addField("start", "Message sent on or after timestamp.", FormField.Type.text_single);
         form.addField("end", "Message sent on or before timestamp.", FormField.Type.text_single);
-        form.addField("withtext", "Free text search", FormField.Type.text_single);
+        form.addField("urn:xmpp:fulltext:0}fulltext", "Free text search", FormField.Type.text_single);
 
         query.add(form.getElement());
 
@@ -535,7 +535,10 @@ abstract class IQQueryHandler extends AbstractIQHandler implements
 
     @Override
     public Iterator<String> getFeatures() {
-        return Collections.singleton(NAMESPACE).iterator();
+        final List<String> result = new ArrayList<>();
+        result.add(NAMESPACE);
+        result.add("urn:xmpp:fulltext:0");
+        return result.iterator();
     }
 
     void completeFinElement(QueryRequest queryRequest, Element fin) {
