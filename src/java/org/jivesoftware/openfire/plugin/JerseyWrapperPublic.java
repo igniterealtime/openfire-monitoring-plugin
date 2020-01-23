@@ -1,21 +1,19 @@
 package org.jivesoftware.openfire.plugin;
 
-import java.util.HashMap;
-import java.util.Map;
-
-import javax.servlet.ServletConfig;
-import javax.servlet.ServletException;
-
+import com.sun.jersey.api.core.PackagesResourceConfig;
+import com.sun.jersey.spi.container.servlet.ServletContainer;
 import org.jivesoftware.openfire.plugin.service.LogAPI;
 import org.jivesoftware.openfire.plugin.service.MonitoringAPI;
 
-import com.sun.jersey.api.core.PackagesResourceConfig;
-import com.sun.jersey.spi.container.servlet.ServletContainer;
+import javax.servlet.ServletConfig;
+import javax.servlet.ServletException;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * The Class JerseyWrapper.
  */
-public class JerseyWrapper extends ServletContainer {
+public class JerseyWrapperPublic extends ServletContainer {
 
     private static final long serialVersionUID = 4807992231163442643L;
 
@@ -35,10 +33,10 @@ public class JerseyWrapper extends ServletContainer {
         config = new HashMap<String, Object>();
         config.put(RESOURCE_CONFIG_CLASS_KEY, RESOURCE_CONFIG_CLASS);
         config.put("com.sun.jersey.api.json.POJOMappingFeature", true);
-        prc = new PackagesResourceConfig(JerseyWrapper.class.getPackage().getName());
+        prc = new PackagesResourceConfig(JerseyWrapperPublic.class.getPackage().getName());
         prc.setPropertiesAndFeatures(config);
 
-        prc.getClasses().add(MonitoringAPI.class);
+        prc.getClasses().add(LogAPI.class);
 
         prc.getClasses().add(RESTExceptionMapper.class);
     }
@@ -46,7 +44,7 @@ public class JerseyWrapper extends ServletContainer {
     /**
      * Instantiates a new jersey wrapper.
      */
-    public JerseyWrapper() {
+    public JerseyWrapperPublic() {
         super(prc);
     }
 
