@@ -241,10 +241,18 @@ public class MucMamPersistenceManager implements PersistenceManager {
 
     protected List<ArchivedMessage> getArchivedMessages( PaginatedMucMessageDatabaseQuery paginatedMucMessageDatabaseQuery, JID roomJID )
     {
+        final List<ArchivedMessage> msgs = new LinkedList<>();
+
+        // The HSQL driver that is used in Openfire 4.5.0 will disregard a 'limit 0' (instead, returning all rows. A
+        // limit on positive numbers does work). We should prevent this from occuring, if only because querying a database
+        // for no results does not make much sense in the first place. See https://github.com/igniterealtime/openfire-monitoring-plugin/issues/80
+        if ( paginatedMucMessageDatabaseQuery.getMaxResults() <= 0 ) {
+            return msgs;
+        }
+
         Connection connection = null;
         PreparedStatement pstmt = null;
         ResultSet rs = null;
-        List<ArchivedMessage> msgs = new LinkedList<>();
         try {
             connection = DbConnectionManager.getConnection();
             pstmt = paginatedMucMessageDatabaseQuery.prepareStatement(connection, false );

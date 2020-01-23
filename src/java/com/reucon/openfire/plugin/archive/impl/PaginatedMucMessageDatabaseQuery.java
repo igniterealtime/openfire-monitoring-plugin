@@ -52,6 +52,46 @@ public class PaginatedMucMessageDatabaseQuery
         this.isPagingBackwards = isPagingBackwards;
     }
 
+    public Date getStartDate()
+    {
+        return startDate;
+    }
+
+    public Date getEndDate()
+    {
+        return endDate;
+    }
+
+    public MUCRoom getRoom()
+    {
+        return room;
+    }
+
+    public JID getWith()
+    {
+        return with;
+    }
+
+    public Long getAfter()
+    {
+        return after;
+    }
+
+    public Long getBefore()
+    {
+        return before;
+    }
+
+    public int getMaxResults()
+    {
+        return maxResults;
+    }
+
+    public boolean isPagingBackwards()
+    {
+        return isPagingBackwards;
+    }
+
     @Override
     public String toString()
     {
