@@ -81,6 +81,9 @@ public class StatsEngine implements Startable {
 
     public void start() {
         try {
+            // Purge RRD database rows that are empty. They cannot be recovered and introduce errors that affects others.
+            RrdSqlBackend.purgeEmptyRRDs();
+
             // Set that RRD files will be stored in the database
             RrdBackendFactory.registerAndSetAsDefaultFactory(new RrdSqlBackendFactory());
 
@@ -504,11 +507,8 @@ public class StatsEngine implements Startable {
                 }
                 return data.getValues();
             }
-            catch (IOException e) {
-                Log.error("Error initializing Rrdb", e);
-            }
-            catch (RrdException e) {
-                Log.error("Error initializing Rrdb", e);
+            catch ( Exception e) {
+                Log.error("Error initializing Rrdb from dbPath '{}' of datasource '{}'. Statistic name: {} (type: {})", getDbPath(), getDatasourceName(), getStatistic().getName(), getStatistic().getStatType(), e);
             }
             finally {
                 try {
