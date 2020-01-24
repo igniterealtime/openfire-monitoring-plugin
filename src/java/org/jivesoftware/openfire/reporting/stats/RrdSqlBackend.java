@@ -36,6 +36,7 @@ public class RrdSqlBackend extends RrdBackend {
     static final String JDBC_INSERT = "INSERT INTO ofRRDs (id, updatedDate, bytes) VALUES (?, ?, ?)";
     static final String JDBC_UPDATE = "UPDATE ofRRDs SET bytes = ?, updatedDate=? WHERE id = ?";
     static final String JDBC_DELETE = "DELETE FROM ofRRDs WHERE id = ?";
+    static final String JDBC_PURGE  = "DELETE FROM ofRRDs WHERE bytes IS NULL";
 
     // this is the place where our RRD bytes will be stored
     private byte[] buffer = null;
@@ -217,5 +218,27 @@ public class RrdSqlBackend extends RrdBackend {
             DbConnectionManager.closeConnection(rs, pstmt, con);
         }
         return false;
+    }
+
+    /**
+     * Removes all rows from that database that hold a 'null' RRD.
+     *
+     * This should only be executed before the data structures are used (not during), for example, upon startup.
+     * Behavior is unspecified when this method is called, while the data it operates on is in use.
+     */
+    public static void purgeEmptyRRDs() {
+        Connection con = null;
+        PreparedStatement pstmt = null;
+        try {
+            con = DbConnectionManager.getConnection();
+            pstmt = con.prepareStatement(JDBC_PURGE);
+            pstmt.execute();
+        }
+        catch (Exception e) {
+            Log.error("Error while purging empty RRD entries from database: " + e);
+        }
+        finally {
+            DbConnectionManager.closeConnection(pstmt, con);
+        }
     }
 }
