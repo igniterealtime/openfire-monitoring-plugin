@@ -19,6 +19,7 @@ import org.xmpp.packet.JID;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 
@@ -66,6 +67,11 @@ public class PaginatedMucMessageLuceneQuery
                 if ( archivedMessage != null ) {
                     result.add( archivedMessage );
                 }
+            }
+
+            // The order of items in the page must always be chronologically, oldest to newest, even when paging backwards.
+            if ( isPagingBackwards ) {
+                Collections.reverse( result );
             }
         }
         catch ( Exception e ) {
