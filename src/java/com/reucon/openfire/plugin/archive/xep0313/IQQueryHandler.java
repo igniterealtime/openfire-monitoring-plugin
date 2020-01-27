@@ -16,10 +16,7 @@ import org.jivesoftware.openfire.muc.MUCRole;
 import org.jivesoftware.openfire.muc.MUCRoom;
 import org.jivesoftware.openfire.muc.MultiUserChatService;
 import org.jivesoftware.openfire.plugin.MonitoringPlugin;
-import org.jivesoftware.util.JiveGlobals;
-import org.jivesoftware.util.NamedThreadFactory;
-import org.jivesoftware.util.NotFoundException;
-import org.jivesoftware.util.XMPPDateTimeFormat;
+import org.jivesoftware.util.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.xmpp.forms.DataForm;
@@ -33,8 +30,10 @@ import java.text.ParseException;
 import java.time.*;
 import java.time.Instant;
 import java.util.*;
+import java.util.LinkedList;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.stream.Collectors;
 
 /**
  * XEP-0313 IQ Query Handler
@@ -43,6 +42,14 @@ abstract class IQQueryHandler extends AbstractIQHandler implements
         ServerFeaturesProvider {
 
     private static final Logger Log = LoggerFactory.getLogger(IQQueryHandler.class);
+
+    public static final SystemProperty<Boolean> PROP_ALLOW_UNRECOGNIZED_SEARCH_FIELDS = SystemProperty.Builder.ofType( Boolean.class )
+        .setKey( "monitoring.search.allow-unrecognized-fields" )
+        .setDynamic(true)
+        .setDefaultValue(false)
+        .setPlugin("monitoring")
+        .build();
+
     protected final String NAMESPACE;
     protected ExecutorService executorService;
     protected PacketRouter router;
@@ -104,6 +111,21 @@ abstract class IQQueryHandler extends AbstractIQHandler implements
 
         // Parse the request.
         QueryRequest queryRequest = new QueryRequest(packet.getChildElement(), archiveJid);
+
+        if ( queryRequest.getDataForm() != null ) {
+            final List<String> supportedFieldNames = getSupportedFieldVariables();
+            final Set<String> unsupported = queryRequest.getDataForm().getFields().stream()
+                .filter( f -> f.getFirstValue() != null && !f.getFirstValue().isEmpty() ) // Allow unsupported, but empty fields.
+                .map(FormField::getVariable)
+                .filter(v -> !supportedFieldNames.contains(v))
+                .collect(Collectors.toSet());
+
+            Log.debug( "Found {} unsupported field names{}", unsupported.size(), unsupported.isEmpty() ? "." : ": " + String.join(", ", unsupported));
+
+            if ( !PROP_ALLOW_UNRECOGNIZED_SEARCH_FIELDS.getValue() && !unsupported.isEmpty() ) {
+                return buildErrorResponse(packet, PacketError.Condition.bad_request, "Unsupported field(s): " + String.join(", ", unsupported));
+            }
+        }
 
         // Now decide the type.
         MultiUserChatService service = null;
@@ -543,6 +565,17 @@ abstract class IQQueryHandler extends AbstractIQHandler implements
         query.add(form.getElement());
 
         return result;
+    }
+
+    /**
+     * Generates a list of field variable names that are allowed in the dataform of a query. Note that this list should
+     * contain <em>all</em> supported fields (even those that are not exposed by {@link #buildSupportedFieldsResult(IQ)}),
+     * as the value that's returned is intended to be used to generate errors on unrecognized field vars.
+     *
+     * @return A list of fields. Never null.
+     */
+    private List<String> getSupportedFieldVariables() {
+        return Arrays.asList( "FORM_TYPE", "with", "start", "end", "{urn:xmpp:fulltext:0}fulltext", "withtext", "search");
     }
 
     @Override
