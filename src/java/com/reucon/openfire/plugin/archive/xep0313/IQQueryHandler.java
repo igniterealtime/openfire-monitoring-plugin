@@ -43,12 +43,14 @@ abstract class IQQueryHandler extends AbstractIQHandler implements
 
     private static final Logger Log = LoggerFactory.getLogger(IQQueryHandler.class);
 
-    public static final SystemProperty<Boolean> PROP_ALLOW_UNRECOGNIZED_SEARCH_FIELDS = SystemProperty.Builder.ofType( Boolean.class )
-        .setKey( "monitoring.search.allow-unrecognized-fields" )
-        .setDynamic(true)
-        .setDefaultValue(false)
-        .setPlugin("monitoring")
-        .build();
+    // TODO replace this when SystemProperty instances work nice together with Plugins (probably in Openfire 4.5.1).
+//    public static final SystemProperty<Boolean> PROP_ALLOW_UNRECOGNIZED_SEARCH_FIELDS = SystemProperty.Builder.ofType( Boolean.class )
+//        .setKey( "monitoring.search.allow-unrecognized-fields" )
+//        .setDynamic(true)
+//        .setDefaultValue(false)
+//        .setPlugin("monitoring")
+//        .build();
+    public static final String PROP_ALLOW_UNRECOGNIZED_SEARCH_FIELDS = "monitoring.search.allow-unrecognized-fields";
 
     protected final String NAMESPACE;
     protected ExecutorService executorService;
@@ -122,7 +124,7 @@ abstract class IQQueryHandler extends AbstractIQHandler implements
 
             Log.debug( "Found {} unsupported field names{}", unsupported.size(), unsupported.isEmpty() ? "." : ": " + String.join(", ", unsupported));
 
-            if ( !PROP_ALLOW_UNRECOGNIZED_SEARCH_FIELDS.getValue() && !unsupported.isEmpty() ) {
+            if ( !JiveGlobals.getBooleanProperty(PROP_ALLOW_UNRECOGNIZED_SEARCH_FIELDS, false) && !unsupported.isEmpty() ) {
                 return buildErrorResponse(packet, PacketError.Condition.bad_request, "Unsupported field(s): " + String.join(", ", unsupported));
             }
         }
