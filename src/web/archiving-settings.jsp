@@ -10,10 +10,13 @@
 <%@ page import="java.util.HashMap" %>
 <%@ page import="java.util.Map" %>
 <%@ page import="com.reucon.openfire.plugin.archive.impl.MucIndexer" %>
+<%@ page import="org.jivesoftware.openfire.plugin.service.LogAPI" %>
+<%@ page import="org.jivesoftware.util.*" %>
 
 <%@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c" %>
 <%@ taglib uri="http://java.sun.com/jsp/jstl/fmt" prefix="fmt" %>
-
+<jsp:useBean id="webManager" class="org.jivesoftware.util.WebManager" />
+<% webManager.init(request, response, session, application, out ); %>
 <%
     // Get handle on the Monitoring plugin
     MonitoringPlugin plugin = (MonitoringPlugin) XMPPServer.getInstance().getPluginManager().getPlugin("monitoring");
@@ -174,6 +177,7 @@
 
 <% // Get parameters
     boolean update = request.getParameter("update") != null;
+    boolean updateLogSettings = request.getParameter("updateLogSettings") != null;
     boolean messageArchiving = conversationManager.isMessageArchivingEnabled();
     boolean roomArchiving = conversationManager.isRoomArchivingEnabled();
     boolean roomArchivingStanzas = conversationManager.isRoomArchivingStanzasEnabled();
@@ -191,7 +195,7 @@
     Map errors = new HashMap();
     String errorMessage = "";
 
-    if ((rebuildIndex || update) && (csrfCookie == null || csrfParam == null || !csrfCookie.getValue().equals(csrfParam))) {
+    if ((rebuildIndex || update || updateLogSettings) && (csrfCookie == null || csrfParam == null || !csrfCookie.getValue().equals(csrfParam))) {
         rebuildIndex = false;
         update = false;
         errorMessage = "CSRF Failure.";
@@ -265,6 +269,33 @@
             conversationManager.setMaxAge(maxAge);
             conversationManager.setMaxRetrievable(maxRetrievable);
 
+            webManager.logEvent("Changed archive settings (monitoring plugin)",
+                                "Metadata Archiving Enabled: " + metadataArchiving
+                                    + ", Message Archiving Enabled: " + messageArchiving
+                                    + ", Room Archiving Enabled: " + roomArchiving
+                                    + ", Room Archiving Stanzas Enabled: " + roomArchivingStanzas
+                                    + ", RoomsArchived: " + StringUtils.stringToCollection(roomsArchived)
+                                    + ", Idle Time: " + idleTime
+                                    + ", Max Time: " + maxTime
+                                    + ", Max Age: " + maxAge
+                                    + ", Max Retrievable: " + maxRetrievable );
+
+%>
+<div class="success">
+    <fmt:message key="archive.settings.success"/>
+</div><br>
+<%
+        }
+    }
+
+    if (updateLogSettings) {
+        boolean publicLogs = request.getParameter("publicLogs") != null;
+
+        if (errors.isEmpty()) {
+            JiveGlobals.setProperty(LogAPI.PROP_ENABLED, Boolean.toString(publicLogs));
+
+            webManager.logEvent("Changed public logs settings (monitoring plugin)",
+                                "Expose public room logs API: " + publicLogs);
 %>
 <div class="success">
     <fmt:message key="archive.settings.success"/>
@@ -367,6 +398,31 @@
     <br>
     <br>
     <% if (messageArchiving || roomArchiving) { %>
+    <br>
+
+    <table class="settingsTable" cellpadding="3" cellspacing="0" border="0" width="90%">
+        <thead>
+        <tr>
+            <th colspan="2"><fmt:message key="archive.settings.logs.title" /></th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr>
+            <td colspan="2"><p><fmt:message key="archive.settings.logs.description" /></p></td>
+        </tr>
+        <tr>
+            <td width="90%"><label class="jive-label" for="publicLogs"><fmt:message key="archive.settings.logs.public.enable"/>:</label><br>
+                <fmt:message key="archive.settings.logs.public.enable.description"/></td>
+            <td><input type="checkbox" id="publicLogs" name="publicLogs" <%= JiveGlobals.getBooleanProperty(LogAPI.PROP_ENABLED, false) ? "checked" : "" %> /></td>
+        </tr>
+        </tbody>
+    </table>
+
+    <input type="submit" name="updateLogSettings" value="<fmt:message key="archive.settings.update.settings" />">
+    <input type="submit" name="cancel" value="<fmt:message key="archive.settings.cancel" />">
+
+    <br>
+    <br>
     <br>
 
     <table class="settingsTable" cellpadding="3" cellspacing="0" border="0" width="90%">
