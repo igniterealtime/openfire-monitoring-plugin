@@ -50,6 +50,7 @@ import org.jivesoftware.openfire.reporting.stats.StatsViewer;
 import org.jivesoftware.openfire.reporting.util.TaskEngine;
 import org.jivesoftware.util.JiveGlobals;
 import org.jivesoftware.util.JiveProperties;
+import org.jivesoftware.util.SystemProperty;
 import org.picocontainer.MutablePicoContainer;
 import org.picocontainer.defaults.DefaultPicoContainer;
 
