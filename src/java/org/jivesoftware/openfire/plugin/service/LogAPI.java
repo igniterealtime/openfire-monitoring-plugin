@@ -35,7 +35,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.stream.Collectors;
 
-@Path("api/logs")
+@Path("logs")
 @Produces( MediaType.APPLICATION_JSON)
 public class LogAPI
 {
