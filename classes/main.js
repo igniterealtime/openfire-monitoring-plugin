@@ -46,7 +46,7 @@ function initializeMainTable() {
   clearLogsView();
   const thead = document.createElement("thead");
   const row = document.createElement("tr");
-  row.appendChild(createTh("Time"));
+  row.appendChild(createTh("Time (UTC)"));
   row.appendChild(createTh("Nickname"));
   row.appendChild(createTh("Message"));
   thead.appendChild(row);
@@ -55,8 +55,15 @@ function initializeMainTable() {
   const tbody = document.createElement("tbody");
   for (var i = 0; i < logs.length; i++) {
     const timestampDate = new Date(logs[i].timestamp);
+    const timeString =
+      ("0" + timestampDate.getUTCHours()).slice(-2) +
+      ":" +
+      ("0" + timestampDate.getUTCMinutes()).slice(-2) +
+      ":" +
+      ("0" + timestampDate.getUTCSeconds()).slice(-2);
+
     let dataRow = document.createElement("tr");
-    dataRow.appendChild(createTd(timestampDate.toLocaleTimeString()));
+    dataRow.appendChild(createTd(timeString));
     dataRow.appendChild(createTd(logs[i].nickname));
     dataRow.appendChild(createTd(logs[i].message));
     tbody.appendChild(dataRow);
