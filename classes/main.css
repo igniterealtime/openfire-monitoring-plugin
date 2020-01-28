@@ -44,6 +44,9 @@ tr:nth-child(even) {
 tr td {
   white-space: nowrap;
 }
+tr th {
+  white-space: nowrap;
+}
 tr td:last-child {
   white-space: normal;
 }
