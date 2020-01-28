@@ -22,7 +22,33 @@
         <sourceDirectory>src/java</sourceDirectory>
         <plugins>
             <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-assembly-plugin</artifactId>
+                <version>2.6</version>
+                <dependencies>
+                    <dependency>
+                        <groupId>org.igniterealtime.openfire.plugins</groupId>
+                        <artifactId>openfire-plugin-assembly-descriptor</artifactId>
+                        <version>${openfire.version}</version>
+                    </dependency>
+                </dependencies>
+                <executions>
+                    <execution>
+                        <id>make-assembly</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>single</goal>
+                        </goals>
+                        <configuration>
+                            <appendAssemblyId>false</appendAssemblyId>
+                            <finalName>${project.artifactId}</finalName>
+                            <attach>false</attach>
+                            <descriptorRefs>
+                                <descriptorRef>openfire-plugin-assembly</descriptorRef>
+                            </descriptorRefs>
+                        </configuration>
+                    </execution>
+                </executions>
             </plugin>
             <!-- Compiles the Openfire Admin Console JSP pages. -->
             <plugin>
