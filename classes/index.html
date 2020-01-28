@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Openfire Monitoring</title>
+    <link rel="stylesheet" type="text/css" href="main.css" />
+    <!--[if lt IE 9]>
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/html5shiv/3.7.3/html5shiv.js"></script>
+    <![endif]-->
+  </head>
+
+  <body>
+    <div class="inner">
+      <header><img src='images/logo-openfire.png' alt='openfire' />
+        <h1>Monitoring Service</h1>
+      </header>
+      <aside>
+        <form>
+          <div class="control">
+            <label for="room">Choose a room:</label>
+            <select id="room">
+              <option value=""></option>
+            </select>
+          </div>
+          <div class="control">
+            <label id='dateLabel' for="date" style="display: none;">Choose a date:</label>
+            <div id="date"></div>
+          </div>
+        </form>
+      </aside>
+      <main>
+        <div id="table-wrapper">
+          <table id="logs"></table>
+        </div>
+      </main>
+    </div>
+    <script src="main.js"></script>
+  </body>
+</html>
