@@ -12,6 +12,7 @@
 <%@ page import="com.reucon.openfire.plugin.archive.impl.MucIndexer" %>
 <%@ page import="org.jivesoftware.openfire.plugin.service.LogAPI" %>
 <%@ page import="org.jivesoftware.util.*" %>
+<%@ page import="org.jivesoftware.openfire.http.HttpBindManager" %>
 
 <%@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c" %>
 <%@ taglib uri="http://java.sun.com/jsp/jstl/fmt" prefix="fmt" %>
@@ -400,6 +401,24 @@
     <% if (messageArchiving || roomArchiving) { %>
     <br>
 
+    <% if ( ! HttpBindManager.getInstance().isHttpBindEnabled() ) { %>
+
+    <div class="jive-warning">
+        <table cellpadding="0" cellspacing="0" border="0">
+            <tbody>
+            <tr><td class="jive-icon"><img src="images/warning-16x16.gif" width="16" height="16" border="0" alt=""></td>
+                <td class="jive-icon-label">
+                    <fmt:message key="warning.httpbinding.disabled">
+                        <fmt:param value="<a href=\"../../http-bind.jsp\">"/>
+                        <fmt:param value="</a>"/>
+                    </fmt:message>
+                </td></tr>
+            </tbody>
+        </table>
+    </div><br>
+
+    <%  } %>
+
     <table class="settingsTable" cellpadding="3" cellspacing="0" border="0" width="90%">
         <thead>
         <tr>
@@ -408,7 +427,25 @@
         </thead>
         <tbody>
         <tr>
-            <td colspan="2"><p><fmt:message key="archive.settings.logs.description" /></p></td>
+            <td colspan="2">
+                <p><fmt:message key="archive.settings.logs.description" /></p>
+                <p>
+                <% if ( HttpBindManager.getInstance().isHttpBindActive() ) {
+                    final String unsecuredAddress = "http://" + XMPPServer.getInstance().getServerInfo().getHostname() + ":" + HttpBindManager.getInstance().getHttpBindUnsecurePort() + "/" + MonitoringPlugin.CONTEXT_ROOT + "/";
+                %>
+                <fmt:message key="archive.settings.logs.link.unsecure">
+                    <fmt:param value="<%=unsecuredAddress%>"/>
+                </fmt:message>
+                <% } %>
+                <% if ( HttpBindManager.getInstance().isHttpsBindActive() ) {
+                    final String securedAddress = "https://" + XMPPServer.getInstance().getServerInfo().getHostname() + ":" + HttpBindManager.getInstance().getHttpBindSecurePort() + "/" + MonitoringPlugin.CONTEXT_ROOT + "/";
+                %>
+                <fmt:message key="archive.settings.logs.link.secure">
+                    <fmt:param value="<%=securedAddress%>"/>
+                </fmt:message>
+                <% } %>
+                </p>
+            </td>
         </tr>
         <tr>
             <td width="90%"><label class="jive-label" for="publicLogs"><fmt:message key="archive.settings.logs.public.enable"/>:</label><br>
