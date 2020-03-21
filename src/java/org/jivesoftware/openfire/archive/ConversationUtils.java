@@ -243,28 +243,50 @@ public class ConversationUtils {
                     from = message.getToJID().getResource();
                 }
                 String body = message.getBody();
+                String prefix;
+                if (!message.isRoomEvent()) {
+                    prefix = "[" + time + "] " + from + ":  ";
+                    Font font = colorMap.get(message.getFromJID().toString());
+                    if (font == null) {
+                        font = colorMap.get(message.getFromJID().toBareJID());
+                    }
+                    if (font == null) {
+                        font = FontFactory.getFont(FontFactory.HELVETICA, 12f, Font.BOLD, Color.BLACK);
+                    }
+                    messageParagraph = new Paragraph(new Chunk(prefix, font));
+                }
+                else {
+                    prefix = "[" + time + "] ";
+                    messageParagraph = new Paragraph(new Chunk(prefix, roomEvent));
+                }
                 if (body!=null)
                 {
-                    String prefix;
-                    if (!message.isRoomEvent()) {
-                        prefix = "[" + time + "] " + from + ":  ";
-                        Font font = colorMap.get(message.getFromJID().toString());
-                        if (font == null) {
-                            font = colorMap.get(message.getFromJID().toBareJID());
-                        }
-                        if (font == null) {
-                            font = FontFactory.getFont(FontFactory.HELVETICA, 12f, Font.BOLD, Color.BLACK);
-                        }
-                        messageParagraph = new Paragraph(new Chunk(prefix, font));
-                    }
-                    else {
-                        prefix = "[" + time + "] ";
-                        messageParagraph = new Paragraph(new Chunk(prefix, roomEvent));
-                    }
                     messageParagraph.add(body);
-                    messageParagraph.add(" ");
-                    document.add(messageParagraph);
                 }
+                else
+                {
+                    ChatMarker.TYPE chatmarker = ChatMarker.searchForXep0333(message.getStanza());
+                    switch (chatmarker)
+                    {
+                        case NONE:
+                                messageParagraph.add("--unknown message--");
+                            break;
+                        case MARKABLE:
+                                messageParagraph.add("--message markable--");
+                            break;
+                        case RECEIVED:
+                                messageParagraph.add("--message received--");
+                            break;
+                        case DISPLAYED:
+                                messageParagraph.add("--message displayed--");
+                            break;
+                        case ACKNOWLEGED:
+                                messageParagraph.add("--message acknowleged--");
+                            break;
+                    }
+                }
+                messageParagraph.add(" ");
+                document.add(messageParagraph);
             }
 
             document.close();
@@ -332,24 +354,44 @@ public class ConversationUtils {
             from = StringUtils.escapeHTMLTags(from);
             String cssLabel = cssLabels.get(message.getFromJID().toBareJID());
             String body = StringUtils.escapeHTMLTags(message.getBody());
-            if (body!=null)
+
+            if (body==null)
             {
-                builder.append("<tr valign=top>");
-                if (!message.isRoomEvent()) {
-                    builder.append("<td width=1% nowrap class=" + cssLabel + ">").append("[")
-                        .append(time).append("]").append("</td>");
-                    builder.append("<td width=1% class=" + cssLabel + ">").append(from).append(": ")
-                        .append("</td>");
-                    builder.append("<td class=conversation-body>").append(body).append("</td");
+                ChatMarker.TYPE chatmarker = ChatMarker.searchForXep0333(message.getStanza());
+                switch (chatmarker)
+                {
+                    case NONE:
+                            body="--unknown message--";
+                        break;
+                    case MARKABLE:
+                            body="--message markable--";
+                        break;
+                    case RECEIVED:
+                            body="--message received--";
+                        break;
+                    case DISPLAYED:
+                            body="--message displayed--";
+                        break;
+                    case ACKNOWLEGED:
+                            body="--message acknowleged--";
+                        break;
                 }
-                else {
-                    builder.append("<td width=1% nowrap class=conversation-label3>").append("[")
-                        .append(time).append("]").append("</td>");
-                    builder.append("<td colspan=2 class=conversation-label3><i>").append(body)
-                        .append("</i></td");
-                }
-                builder.append("</tr>");
             }
+            builder.append("<tr valign=top>");
+            if (!message.isRoomEvent()) {
+                builder.append("<td width=1% nowrap class=" + cssLabel + ">").append("[")
+                    .append(time).append("]").append("</td>");
+                builder.append("<td width=1% class=" + cssLabel + ">").append(from).append(": ")
+                    .append("</td>");
+                builder.append("<td class=conversation-body>").append(body).append("</td");
+            }
+            else {
+                builder.append("<td width=1% nowrap class=conversation-label3>").append("[")
+                    .append(time).append("]").append("</td>");
+                builder.append("<td colspan=2 class=conversation-label3><i>").append(body)
+                    .append("</i></td");
+            }
+            builder.append("</tr>");
         }
 
         if (conversation.getMessages().size() == 0) {
