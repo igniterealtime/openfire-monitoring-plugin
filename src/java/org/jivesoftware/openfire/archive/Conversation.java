@@ -82,7 +82,7 @@ public class Conversation implements Externalizable {
             + "FROM ofConversation WHERE conversationID=?";
     private static final String LOAD_PARTICIPANTS = "SELECT bareJID, jidResource, nickname, joinedDate, leftDate FROM ofConParticipant "
             + "WHERE conversationID=? ORDER BY joinedDate";
-    private static final String LOAD_MESSAGES = "SELECT fromJID, fromJIDResource, toJID, toJIDResource, sentDate, body FROM ofMessageArchive WHERE conversationID=? "
+    private static final String LOAD_MESSAGES = "SELECT fromJID, fromJIDResource, toJID, toJIDResource, sentDate, body, stanza FROM ofMessageArchive WHERE conversationID=? "
             + "ORDER BY sentDate";
 
     private transient ConversationManager conversationManager;
@@ -316,7 +316,8 @@ public class Conversation implements Externalizable {
                 }
                 Date date = new Date(rs.getLong(5));
                 String body = DbConnectionManager.getLargeTextField(rs, 6);
-                messages.add(new ArchivedMessage(conversationID, fromJID, toJID, date, body, false));
+                String stanza = DbConnectionManager.getLargeTextField(rs, 7);
+                messages.add(new ArchivedMessage(conversationID, fromJID, toJID, date, body,stanza, false));
             }
         } catch (SQLException sqle) {
             Log.error(sqle.getMessage(), sqle);

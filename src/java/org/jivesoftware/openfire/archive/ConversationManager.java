@@ -105,6 +105,8 @@ public class ConversationManager implements Startable, ComponentEventListener{
      */
     private boolean roomArchivingEnabled;
     private boolean roomArchivingStanzasEnabled;
+
+    private boolean chatmarkerArchivingEnabled;
     /**
      * List of room names to archive. When list is empty then all rooms are archived (if roomArchivingEnabled is enabled).
      */
@@ -144,6 +146,7 @@ public class ConversationManager implements Startable, ComponentEventListener{
             Log.warn("Metadata archiving must be enabled when message archiving is enabled. Overriding setting.");
             metadataArchivingEnabled = true;
         }
+        chatmarkerArchivingEnabled = JiveGlobals.getBooleanProperty("conversation.chatmarkerArchiving", false);
         roomArchivingEnabled = JiveGlobals.getBooleanProperty("conversation.roomArchiving", false);
         roomArchivingStanzasEnabled = JiveGlobals.getBooleanProperty("conversation.roomArchivingStanzas", false);
         roomsArchived = StringUtils.stringToCollection(JiveGlobals.getProperty("conversation.roomsArchived", ""));
@@ -268,6 +271,15 @@ public class ConversationManager implements Startable, ComponentEventListener{
         };
         StatisticsManager.getInstance().addStatistic(CONVERSATIONS_KEY, conversationStat);
         InternalComponentManager.getInstance().addListener(this);
+    }
+
+    public boolean isChatmarkerArchivingEnabled() {
+        return chatmarkerArchivingEnabled;
+    }
+
+    public void setChatmarkerArchivingEnabled(boolean chatmarkerArchivingEnabled) {
+        this.chatmarkerArchivingEnabled = chatmarkerArchivingEnabled;
+        JiveGlobals.setProperty("conversation.chatmarkerArchiving", Boolean.toString(chatmarkerArchivingEnabled));
     }
 
     public void stop() {
@@ -642,6 +654,13 @@ public class ConversationManager implements Startable, ComponentEventListener{
     void processMessage(JID sender, JID receiver, String body, String stanza, Date date) {
         Log.trace("Processing message from date {}...", date );
         String conversationKey = getConversationKey(sender, receiver);
+        ChatMarker.TYPE chatmarker=ChatMarker.TYPE.NONE;
+
+        if (body==null&&(chatmarker=ChatMarker.searchForXep0333(stanza))==ChatMarker.TYPE.NONE)
+        {
+            return;
+        }
+
         synchronized (conversationKey.intern()) {
             Conversation conversation = conversations.get(conversationKey);
             // Create a new conversation if necessary.
@@ -692,7 +711,7 @@ public class ConversationManager implements Startable, ComponentEventListener{
                 conversationArchiver.archive(conversation);
             }
             if (messageArchivingEnabled) {
-                if (body != null) {
+                if (body != null||(body==null&&chatmarkerArchivingEnabled&&chatmarker!=ChatMarker.TYPE.NONE)) {
                     /* OF-677 - Workaround to prevent null messages being archived */
                     messageArchiver.archive(new ArchivedMessage(conversation.getConversationID(), sender, receiver, date, body, stanza, false) );
                 }
@@ -722,6 +741,14 @@ public class ConversationManager implements Startable, ComponentEventListener{
     void processRoomMessage(JID roomJID, JID sender, String nickname, String body, String stanza, Date date) {
         Log.trace("Processing room {} message from date {}.", roomJID, date );
         String conversationKey = getRoomConversationKey(roomJID);
+
+        ChatMarker.TYPE chatmarker=ChatMarker.TYPE.NONE;
+
+        if (body==null&&(chatmarker=ChatMarker.searchForXep0333(stanza))==ChatMarker.TYPE.NONE)
+        {
+            return;
+        }
+
         synchronized (conversationKey.intern()) {
             Conversation conversation = conversations.get(conversationKey);
             // Create a new conversation if necessary.
@@ -756,7 +783,7 @@ public class ConversationManager implements Startable, ComponentEventListener{
             }
             if (roomArchivingEnabled && (roomsArchived.isEmpty() || roomsArchived.contains(roomJID.getNode()))) {
                 JID jid = new JID(roomJID + "/" + nickname);
-                if (body != null) {
+                if (body != null||(body==null&&chatmarkerArchivingEnabled&&chatmarker!=ChatMarker.TYPE.NONE)) {
                     /* OF-677 - Workaround to prevent null messages being archived */
                     messageArchiver.archive( new ArchivedMessage(conversation.getConversationID(), sender, jid, date, body, roomArchivingStanzasEnabled ? stanza : "", false));
                 }

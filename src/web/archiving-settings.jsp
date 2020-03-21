@@ -181,6 +181,7 @@
     boolean updateLogSettings = request.getParameter("updateLogSettings") != null;
     boolean messageArchiving = conversationManager.isMessageArchivingEnabled();
     boolean roomArchiving = conversationManager.isRoomArchivingEnabled();
+    boolean chatmarkerArchiving = conversationManager.isChatmarkerArchivingEnabled();
     boolean roomArchivingStanzas = conversationManager.isRoomArchivingStanzasEnabled();
     int idleTime = ParamUtils.getIntParameter(request, "idleTime", conversationManager.getIdleTime());
     int maxTime = ParamUtils.getIntParameter(request, "maxTime", conversationManager.getMaxTime());
@@ -233,6 +234,7 @@
         boolean metadataArchiving = request.getParameter("metadataArchiving") != null;
         messageArchiving = request.getParameter("messageArchiving") != null;
         roomArchiving = request.getParameter("roomArchiving") != null;
+        chatmarkerArchiving = request.getParameter("chatmarkerArchiving") != null;
         roomArchivingStanzas = request.getParameter("roomArchivingStanzas") != null;
         String roomsArchived = request.getParameter("roomsArchived");
 
@@ -260,6 +262,7 @@
         // If no errors, continue:
         if (errors.size() == 0) {
             conversationManager.setMetadataArchivingEnabled(metadataArchiving);
+            conversationManager.setChatmarkerArchivingEnabled(chatmarkerArchiving);
             conversationManager.setMessageArchivingEnabled(messageArchiving);
             conversationManager.setRoomArchivingEnabled(roomArchiving);
             conversationManager.setRoomArchivingStanzasEnabled(roomArchivingStanzas);
@@ -273,6 +276,7 @@
             webManager.logEvent("Changed archive settings (monitoring plugin)",
                                 "Metadata Archiving Enabled: " + metadataArchiving
                                     + ", Message Archiving Enabled: " + messageArchiving
+                                    + ", Chatmarker Archiving Enabled: " + chatmarkerArchiving
                                     + ", Room Archiving Enabled: " + roomArchiving
                                     + ", Room Archiving Stanzas Enabled: " + roomArchivingStanzas
                                     + ", RoomsArchived: " + StringUtils.stringToCollection(roomsArchived)
@@ -345,6 +349,10 @@
                     <tr>
                         <td><fmt:message key="archive.settings.one_to_one"/></td>
                         <td><input type="checkbox" name="messageArchiving" <%= conversationManager.isMessageArchivingEnabled() ? "checked" : ""%> /></td>
+                    </tr>
+                     <tr>
+                        <td><fmt:message key="archive.settings.chatmarker"/></td>
+                        <td><input type="checkbox" name="chatmarkerArchiving" <%= conversationManager.isChatmarkerArchivingEnabled() ? "checked" : ""%> /></td>
                     </tr>
                     <tr>
                         <td><fmt:message key="archive.settings.group_chats"/></td>

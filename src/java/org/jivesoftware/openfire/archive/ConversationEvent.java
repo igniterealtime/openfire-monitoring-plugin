@@ -38,6 +38,7 @@ public class ConversationEvent implements Externalizable {
     private Date date;
     private String body;
     private String stanza;
+    private ChatMarker.TYPE marker;
 
     private JID sender;
     private JID receiver;
@@ -141,6 +142,17 @@ public class ConversationEvent implements Externalizable {
         event.sender = sender;
         event.receiver = receiver;
         event.body = body;
+        event.date = date;
+        return event;
+    }
+
+    public static ConversationEvent chatmarkerMessageReceived(JID sender, JID receiver, ChatMarker.TYPE marker, String stanza, Date date) {
+        ConversationEvent event = new ConversationEvent();
+        event.type = Type.chatMessageReceived;
+        event.sender = sender;
+        event.receiver = receiver;
+        event.marker = marker;
+        event.stanza = stanza;
         event.date = date;
         return event;
     }

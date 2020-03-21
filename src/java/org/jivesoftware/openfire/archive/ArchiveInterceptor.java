@@ -21,6 +21,7 @@ import org.jivesoftware.openfire.interceptor.InterceptorManager;
 import org.jivesoftware.openfire.interceptor.PacketInterceptor;
 import org.jivesoftware.openfire.interceptor.PacketRejectedException;
 import org.jivesoftware.openfire.session.Session;
+import org.jivesoftware.util.JiveGlobals;
 import org.picocontainer.Startable;
 import org.xmpp.packet.JID;
 import org.xmpp.packet.Message;
@@ -64,7 +65,7 @@ public class ArchiveInterceptor implements PacketInterceptor, Startable {
             // Ignore any messages that don't have a body so that we skip events.
             // Note: XHTML messages should always include a body so we should be ok. It's
             // possible that we may need special XHTML filtering in the future, however.
-            if (message.getBody() != null) {
+            if (message.getBody() != null||(message.getBody()==null&&JiveGlobals.getBooleanProperty("conversation.chatmarkerArchiving", false))) {
                 // Only process messages that are between two users, group chat rooms, or gateways.
                 if (conversationManager.isConversation(message)) {
                     // Process this event in the senior cluster member or local JVM when not in a cluster
@@ -75,10 +76,25 @@ public class ArchiveInterceptor implements PacketInterceptor, Startable {
                         JID sender = message.getFrom();
                         JID receiver = message.getTo();
                         ConversationEventsQueue eventsQueue = conversationManager.getConversationEventsQueue();
-                        eventsQueue.addChatEvent(conversationManager.getConversationKey(sender, receiver),
-                                ConversationEvent.chatMessageReceived(sender, receiver,
-                                        conversationManager.isMessageArchivingEnabled() ? message.getBody() : null,
-                                        new Date()));
+                        if (message.getBody()!=null)
+                        {
+                            eventsQueue.addChatEvent(conversationManager.getConversationKey(sender, receiver),
+                                    ConversationEvent.chatMessageReceived(sender, receiver,
+                                            conversationManager.isMessageArchivingEnabled() ? message.getBody() : null,
+                                            new Date()));
+                        }
+                        else
+                        {
+                            String stanza = message.toXML();
+                            ChatMarker.TYPE markertype = ChatMarker.searchForXep0333(stanza);
+
+                            if (markertype!=ChatMarker.TYPE.NONE)
+                            {
+                                eventsQueue.addChatEvent(conversationManager.getConversationKey(sender, receiver),
+                                        ConversationEvent.chatmarkerMessageReceived(sender, receiver,markertype,stanza,
+                                                new Date()));
+                            }
+                        }
                     }
                 }
             }
