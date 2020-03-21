@@ -8,6 +8,7 @@ import com.reucon.openfire.plugin.archive.model.ArchivedMessage;
 import com.reucon.openfire.plugin.archive.model.Conversation;
 import com.reucon.openfire.plugin.archive.model.Participant;
 import org.jivesoftware.openfire.XMPPServer;
+import org.jivesoftware.openfire.archive.ChatMarker;
 import org.jivesoftware.openfire.session.Session;
 import org.xmpp.packet.JID;
 import org.xmpp.packet.Message;
@@ -42,11 +43,15 @@ public class ArchiveManagerImpl implements ArchiveManager
         final Conversation conversation;
         final JID owner;
         final JID with;
+        ChatMarker.TYPE chatmarker = ChatMarker.searchForXep0333(message.toXML());
 
         // TODO support groupchat
         if (message.getType() != Message.Type.chat && message.getType() != Message.Type.normal)
         {
-            return;
+            if (chatmarker==ChatMarker.TYPE.NONE)
+            {
+                return;
+            }
         }
 
         if (server.isLocal(message.getFrom()) && incoming)
@@ -69,7 +74,7 @@ public class ArchiveManagerImpl implements ArchiveManager
         }
 
         archivedMessage = ArchiveFactory.createArchivedMessage(session, message, direction, owner, with);
-        if (archivedMessage.isEmpty())
+        if (chatmarker==ChatMarker.TYPE.NONE&&archivedMessage.isEmpty())
         {
             return;
         }

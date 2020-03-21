@@ -21,6 +21,7 @@ import org.jivesoftware.openfire.cluster.ClusterManager;
 import org.jivesoftware.openfire.muc.MUCEventDispatcher;
 import org.jivesoftware.openfire.muc.MUCEventListener;
 import org.jivesoftware.openfire.muc.MUCRoom;
+import org.jivesoftware.util.JiveGlobals;
 import org.picocontainer.Startable;
 import org.xmpp.packet.JID;
 import org.xmpp.packet.Message;
@@ -123,16 +124,31 @@ public class GroupConversationInterceptor implements MUCEventListener, Startable
     }
 
     public void privateMessageRecieved(JID toJID, JID fromJID, Message message) {
-        if(message.getBody() != null) {
+        if (message.getBody() != null||(message.getBody()==null&&JiveGlobals.getBooleanProperty("conversation.chatmarkerArchiving", false))) {
              if (ClusterManager.isSeniorClusterMember()) {
                  conversationManager.processMessage(fromJID, toJID, message.getBody(), message.toXML(), new Date());
              }
              else {
                  ConversationEventsQueue eventsQueue = conversationManager.getConversationEventsQueue();
-                 eventsQueue.addChatEvent(conversationManager.getConversationKey(fromJID, toJID),
+                 if (message.getBody()!=null)
+                 {
+                     eventsQueue.addChatEvent(conversationManager.getConversationKey(fromJID, toJID),
                          ConversationEvent.chatMessageReceived(toJID, fromJID,
                                  conversationManager.isMessageArchivingEnabled() ? message.getBody() : null,
                                  new Date()));
+                 }
+                 else
+                 {
+                     String stanza = message.toXML();
+                     ChatMarker.TYPE markertype = ChatMarker.searchForXep0333(stanza);
+
+                     if (markertype!=ChatMarker.TYPE.NONE)
+                     {
+                         eventsQueue.addChatEvent(conversationManager.getConversationKey(fromJID, toJID),
+                                 ConversationEvent.chatmarkerMessageReceived(toJID, fromJID,markertype,stanza,
+                                         new Date()));
+                     }
+                 }
              }
          }
     }
