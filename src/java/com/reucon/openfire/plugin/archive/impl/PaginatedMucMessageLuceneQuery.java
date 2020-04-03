@@ -112,7 +112,7 @@ public class PaginatedMucMessageLuceneQuery
         final BooleanQuery.Builder builder = new BooleanQuery.Builder();
 
         // Create the query based on the search terms.
-        final Query textQuery = new QueryParser("body", analyzer).parse(query);
+        final Query textQuery = new QueryParser("body", analyzer).parse( QueryParser.escape(query) );
         builder.add(textQuery, BooleanClause.Occur.MUST );
 
         // Limit to the chat room.
