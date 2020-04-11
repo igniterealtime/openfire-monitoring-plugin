@@ -116,35 +116,39 @@ public class MucMamPersistenceManager implements PersistenceManager {
 
         xmppResultSet.setCount(totalCount);
 
-        if (msgs.size() > 0) {
-            String first = null;
-            String last = null;
+        if ( !msgs.isEmpty() ) {
+            final ArchivedMessage firstMessage = msgs.get(0);
+            final ArchivedMessage lastMessage = msgs.get(msgs.size()-1);
+            final String first;
+            final String last;
             if ( useStableID ) {
-                final UUID firstSid = msgs.get( 0 ).getStableId();
+                final UUID firstSid = firstMessage.getStableId();
                 if ( firstSid != null ) {
                     first = firstSid.toString();
+                } else {
+                    // Issue #98: Fall-back to using the database-identifier. Although not a stable-id, it at least gives the client the option to paginate.
+                    first = firstMessage.getId().toString();
                 }
-                final UUID lastSid = msgs.get(msgs.size()-1).getStableId();
+                final UUID lastSid = lastMessage.getStableId();
                 if ( lastSid != null ) {
                     last = lastSid.toString();
+                } else {
+                    last = lastMessage.getId().toString();
                 }
             } else {
-                first = String.valueOf( msgs.get(0).getId() );
-                last = String.valueOf( msgs.get(msgs.size()-1).getId() );
+                first = String.valueOf(firstMessage.getId() );
+                last = String.valueOf(lastMessage.getId() );
             }
             xmppResultSet.setFirst(first);
             if (msgs.size() > 1) {
                 xmppResultSet.setLast(last);
             }
-        }
 
-        // Check to see if there are more pages, by simulating a request for the next page.
-        // When paging backwards, we need to find out if there are results 'before' the first result.
-        // When paging forward, we need to find out if there are results 'after' the last result.
-        if ( !msgs.isEmpty() )
-        {
-            final Long afterForNextPage = isPagingBackwards ? null : msgs.get(msgs.size() - 1).getId();
-            final Long beforeForNextPage = isPagingBackwards ? msgs.get(0).getId() : null;
+            // Check to see if there are more pages, by simulating a request for the next page.
+            // When paging backwards, we need to find out if there are results 'before' the first result.
+            // When paging forward, we need to find out if there are results 'after' the last result.
+            final Long afterForNextPage = isPagingBackwards ? null : lastMessage.getId();
+            final Long beforeForNextPage = isPagingBackwards ? firstMessage.getId() : null;
             final List<ArchivedMessage> nextPage;
             if ( query != null && !query.isEmpty() )
             {
