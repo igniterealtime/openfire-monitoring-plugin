@@ -594,12 +594,12 @@ public class JdbcPersistenceManager implements PersistenceManager {
                 final long id = rs.getLong( "messageID" );
                 final Date time = millisToDate(rs.getLong("sentDate"));
 
-                UUID sid = null;
+                String sid = null;
                 if ( stanza != null && !stanza.isEmpty() ) {
                     try {
                         final Document doc = DocumentHelper.parseText( stanza );
                         final Message message = new Message( doc.getRootElement() );
-                        sid = StanzaIDUtil.parseUniqueAndStableStanzaID( message, owner.toBareJID() );
+                        sid = StanzaIDUtil.findFirstUniqueAndStableStanzaID( message, owner.toBareJID() );
                     } catch ( Exception e ) {
                         Log.warn( "An exception occurred while parsing message with ID {}", id, e );
                         sid = null;
@@ -990,12 +990,12 @@ public class JdbcPersistenceManager implements PersistenceManager {
             with = new JID(rs.getString("fromJID"));
         }
 
-        UUID sid = null;
+        String sid = null;
         if ( stanza != null && !stanza.isEmpty() ) {
             try {
                 final Document doc = DocumentHelper.parseText( stanza );
                 final Message m = new Message( doc.getRootElement() );
-                sid = StanzaIDUtil.parseUniqueAndStableStanzaID( m, new JID( bareJid ).toBareJID() );
+                sid = StanzaIDUtil.findFirstUniqueAndStableStanzaID( m, new JID( bareJid ).toBareJID() );
             } catch ( Exception e ) {
                 Log.warn( "An exception occurred while parsing message with ID {}", id, e );
                 sid = null;
