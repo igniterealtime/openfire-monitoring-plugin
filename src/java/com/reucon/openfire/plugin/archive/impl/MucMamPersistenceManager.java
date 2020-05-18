@@ -15,7 +15,6 @@ import org.jivesoftware.openfire.muc.MultiUserChatService;
 import org.jivesoftware.openfire.stanzaid.StanzaIDUtil;
 import org.jivesoftware.util.JiveGlobals;
 import org.jivesoftware.util.NotFoundException;
-import org.jivesoftware.util.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.xmpp.packet.JID;
@@ -122,16 +121,16 @@ public class MucMamPersistenceManager implements PersistenceManager {
             final String first;
             final String last;
             if ( useStableID ) {
-                final UUID firstSid = firstMessage.getStableId();
-                if ( firstSid != null ) {
-                    first = firstSid.toString();
+                final String firstSid = firstMessage.getStableId();
+                if ( firstSid != null && !firstSid.isEmpty() ) {
+                    first = firstSid;
                 } else {
                     // Issue #98: Fall-back to using the database-identifier. Although not a stable-id, it at least gives the client the option to paginate.
                     first = firstMessage.getId().toString();
                 }
-                final UUID lastSid = lastMessage.getStableId();
-                if ( lastSid != null ) {
-                    last = lastSid.toString();
+                final String lastSid = lastMessage.getStableId();
+                if ( lastSid != null && !lastSid.isEmpty()) {
+                    last = lastSid;
                 } else {
                     last = lastMessage.getId().toString();
                 }
@@ -175,7 +174,7 @@ public class MucMamPersistenceManager implements PersistenceManager {
      *
      * @param value The reference to process (can be null).
      * @param room The room that provides the context of the message archive search (cannot be null).
-     * @param useStableID Indicator if 'value' is a direct database identifier, or a UUID.
+     * @param useStableID Indicator if 'value' is a direct database identifier, or a stable and unique identifiers, as specified in XEP-0359.
      * @param fieldName Name of the field in which the value was transmitted (cannot be null).
      * @return A database identifier (possibly null)
      * @throws NotFoundException When a non-null value does not refer to an existing message for the supplied room.
@@ -262,7 +261,7 @@ public class MucMamPersistenceManager implements PersistenceManager {
             stanza = message.toString();
         }
 
-        UUID sid;
+        String sid;
         try
         {
             if ( !JiveGlobals.getBooleanProperty( "conversation.OF-1804.disable", false ) )
@@ -283,7 +282,7 @@ public class MucMamPersistenceManager implements PersistenceManager {
             }
             final Document doc = DocumentHelper.parseText( stanza );
             final Message message = new Message( doc.getRootElement() );
-            sid = StanzaIDUtil.parseUniqueAndStableStanzaID( message, roomJID.toBareJID() );
+            sid = StanzaIDUtil.findFirstUniqueAndStableStanzaID( message, roomJID.toBareJID() );
         } catch ( Exception e ) {
             Log.warn( "An exception occurred while parsing message with ID {}", id, e );
             sid = null;
@@ -300,41 +299,50 @@ public class MucMamPersistenceManager implements PersistenceManager {
         if ( value == null ) {
             return null;
         }
+
+        // If this implementation can be expected to use XEP-0359 identifiers, try evaluating the value as a SSID first.
         if ( useStableID ) {
-            return getMessageIdForStableId( room, value );
+            final Long result = getMessageIdForStableId( room, value );
+            if ( result != null ) {
+                return result;
+            }
         }
 
-        return Long.parseLong( value );
+        // When not using XEP-0359 (eg: pre-MAM2) or if that didn't yield a result, see if we're processing old-style database identifiers.
+        final Long result = getMessageIdForLegacyDatabaseIdentifierFormat( value );
+        if ( result != null )
+        {
+            Log.debug( "Fallback mechanism: parse value as old database identifier: '{}'", value );
+            return result;
+        }
+
+        // XEP-0359 nor old-style database ID format. Giving up.
+        throw new IllegalArgumentException( "Unable to parse value '" + value + "' as a database identifier." );
+    }
+
+    public static Long getMessageIdForLegacyDatabaseIdentifierFormat( final String value ) {
+        try {
+            // TODO getMessageIdForStableId (the alternative to this method) ensures that a matching row is present. Do we need this method to be able to give the same guarantee (at the expense of an additional database query).
+            return Long.parseLong( value );
+        } catch ( NumberFormatException e ) {
+            return null;
+        }
     }
 
     static Long getMessageIdForStableId( final MUCRoom room, final String value )
     {
         Log.debug( "Looking for ID of the message with stable/unique stanza ID {}", value );
 
-        final UUID uuid;
-        try {
-            uuid = UUID.fromString( value );
-        } catch ( IllegalArgumentException e ) {
-            Log.debug( "Client presented a value that's not a UUID: '{}'", value );
-
-            try {
-                Log.debug( "Fallback mechanism: parse value as old database identifier: '{}'", value );
-                return Long.parseLong( value );
-            } catch ( NumberFormatException e1 ) {
-                Log.debug( "Fallback failed: value cannot be parsed as the old database identifier." );
-                throw e; // throwing the original exception, as we'd originally expected an UUID here.
-            }
-        }
         Connection connection = null;
         PreparedStatement pstmt = null;
         ResultSet rs = null;
         try
         {
-
             connection = DbConnectionManager.getConnection();
-            pstmt = connection.prepareStatement( "SELECT messageId, stanza FROM ofMucConversationLog WHERE messageId IS NOT NULL AND roomID=? AND stanza LIKE ?" );
+            pstmt = connection.prepareStatement( "SELECT messageId, stanza FROM ofMucConversationLog WHERE messageId IS NOT NULL AND roomID=? AND stanza LIKE ? AND stanza LIKE ?" );
             pstmt.setLong( 1, room.getID() );
-            pstmt.setString( 2, "%"+uuid.toString()+"%" );
+            pstmt.setString( 2, "%"+value+"%" );
+            pstmt.setString( 3, "%urn:xmpp:sid:%" ); // only match stanzas if some kind of XEP-0359 namespace is used.
 
             rs = pstmt.executeQuery();
             while ( rs.next() ) {
@@ -345,9 +353,9 @@ public class MucMamPersistenceManager implements PersistenceManager {
                 {
                     final Document doc = DocumentHelper.parseText( stanza );
                     final Message message = new Message( doc.getRootElement() );
-                    final UUID sid = StanzaIDUtil.parseUniqueAndStableStanzaID( message, room.getJID().toBareJID() );
+                    final String sid = StanzaIDUtil.findFirstUniqueAndStableStanzaID( message, room.getJID().toBareJID() );
                     if ( sid != null ) {
-                        Log.debug( "Found stable/unique stanza ID {} in message with ID {}.", uuid, messageId );
+                        Log.debug( "Found stable/unique stanza ID {} in message with ID {}.", value, messageId );
                         return messageId;
                     }
                 }

@@ -32,9 +32,9 @@ public class ArchivedMessage {
     private Conversation conversation;
     private JID with;
     private String stanza;
-    private UUID stableId;
+    private String stableId;
 
-    public ArchivedMessage( Date time, Direction direction, String type, JID with, UUID stableId) {
+    public ArchivedMessage( Date time, Direction direction, String type, JID with, String stableId ) {
         this.time = time;
         this.direction = direction;
         this.type = type;
@@ -108,12 +108,17 @@ public class ArchivedMessage {
         return with;
     }
 
-    public UUID getStableId()
+    public String getStableId()
     {
         return stableId;
     }
 
     public void setStableId( final UUID stableId )
+    {
+        this.stableId = stableId.toString();
+    }
+
+    public void setStableId( final String stableId )
     {
         this.stableId = stableId;
     }
