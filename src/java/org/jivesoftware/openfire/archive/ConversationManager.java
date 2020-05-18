@@ -962,31 +962,17 @@ public class ConversationManager implements Startable, ComponentEventListener{
     {
         Log.debug( "Looking for ID of the message with stable/unique stanza ID {}", value );
 
-        final UUID uuid;
-        try {
-            uuid = UUID.fromString( value );
-        } catch ( IllegalArgumentException e ) {
-            Log.debug( "Client presented a value that's not a UUID: '{}'", value );
-
-            try {
-                Log.debug( "Fallback mechanism: parse value as old database identifier: '{}'", value );
-                return Long.parseLong( value );
-            } catch ( NumberFormatException e1 ) {
-                Log.debug( "Fallback failed: value cannot be parsed as the old database identifier." );
-                throw e; // throwing the original exception, as we'd originally expected an UUID here.
-            }
-        }
-
         Connection connection = null;
         PreparedStatement pstmt = null;
         ResultSet rs = null;
         try
         {
             connection = DbConnectionManager.getConnection();
-            pstmt = connection.prepareStatement( "SELECT messageId, stanza FROM ofMessageArchive WHERE messageId IS NOT NULL AND (fromJID = ? OR toJID = ?) AND stanza LIKE ?" );
+            pstmt = connection.prepareStatement( "SELECT messageId, stanza FROM ofMessageArchive WHERE messageId IS NOT NULL AND (fromJID = ? OR toJID = ?) AND stanza LIKE ? AND stanza LIKE ?" );
             pstmt.setString( 1, owner.toBareJID() );
             pstmt.setString( 2, owner.toBareJID() );
-            pstmt.setString( 3, "%"+uuid.toString()+"%" );
+            pstmt.setString( 3, "%"+value+"%" );
+            pstmt.setString( 4, "%urn:xmpp:sid:%" ); // only match stanzas if some kind of XEP-0359 namespace is used.
 
             rs = pstmt.executeQuery();
             while ( rs.next() ) {
@@ -997,9 +983,9 @@ public class ConversationManager implements Startable, ComponentEventListener{
                 {
                     final Document doc = DocumentHelper.parseText( stanza );
                     final Message message = new Message( doc.getRootElement() );
-                    final UUID sid = StanzaIDUtil.parseUniqueAndStableStanzaID( message, owner.toBareJID() );
+                    final String sid = StanzaIDUtil.findFirstUniqueAndStableStanzaID( message, owner.toBareJID() );
                     if ( sid != null ) {
-                        Log.debug( "Found stable/unique stanza ID {} in message with ID {}.", uuid, messageId );
+                        Log.debug( "Found stable/unique stanza ID {} in message with ID {}.", value, messageId );
                         return messageId;
                     }
                 }
@@ -1019,7 +1005,14 @@ public class ConversationManager implements Startable, ComponentEventListener{
         }
 
         Log.debug( "Unable to find ID of the message with stable/unique stanza ID {}", value );
-        return null;
+
+        try {
+            Log.debug( "Fallback mechanism: parse value as old database identifier: '{}'", value );
+            return Long.parseLong( value );
+        } catch ( NumberFormatException e1 ) {
+            Log.debug( "Fallback failed: value cannot be parsed as the old database identifier." );
+            throw new IllegalArgumentException( "Unable to parse value '" + value + "' as a database identifier." );
+        }
     }
 
     /**
