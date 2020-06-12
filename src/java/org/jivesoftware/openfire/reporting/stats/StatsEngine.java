@@ -367,6 +367,7 @@ public class StatsEngine implements Startable {
                     if(newTime <= db.getLastArchiveUpdateTime()) {
                         Log.warn("Sample time of " + newTime +  " for statistic " + key + " is " +
                                 "invalid.");
+                        continue;
                     }
                     Sample sample = db.createSample(newTime);
 
