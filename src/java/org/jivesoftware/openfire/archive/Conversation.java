@@ -606,6 +606,7 @@ public class Conversation implements Externalizable {
     }
 
     public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
+      Log.debug("readExternal");
         MonitoringPlugin plugin = (MonitoringPlugin) XMPPServer.getInstance().getPluginManager().getPlugin(MonitoringConstants.NAME);
         conversationManager = (ConversationManager) plugin.getModule(ConversationManager.class);
 

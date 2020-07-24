@@ -518,17 +518,16 @@ public class ConversationManager implements Startable, ComponentEventListener{
                     return conversation;
                 }
             }
-            // Otherwise, it might be an archived conversation, so attempt to load it.
-            return new Conversation(this, conversationID);
         } else {
             // Get this info from the senior cluster member when running in a cluster
             Conversation conversation = (Conversation) CacheFactory.doSynchronousClusterTask(new GetConversationTask(conversationID), ClusterManager
                     .getSeniorClusterMember().toByteArray());
-            if (conversation == null) {
-                throw new NotFoundException("Conversation not found: " + conversationID);
+            if (conversation != null) {
+              return conversation;
             }
-            return conversation;
         }
+        // Otherwise, it might be an archived conversation, so attempt to load it.
+        return new Conversation(this, conversationID);
     }
 
     /**
@@ -537,6 +536,7 @@ public class ConversationManager implements Startable, ComponentEventListener{
      * @return the active conversations.
      */
     public Collection<Conversation> getConversations() {
+      Log.debug("getConversations");
         if (ClusterManager.isSeniorClusterMember()) {
             List<Conversation> conversationList = new ArrayList<Conversation>(conversations.values());
             // Sort the conversations by creation date.
@@ -548,8 +548,12 @@ public class ConversationManager implements Startable, ComponentEventListener{
             return conversationList;
         } else {
             // Get this info from the senior cluster member when running in a cluster
-            return (Collection<Conversation>) CacheFactory.doSynchronousClusterTask(new GetConversationsTask(), ClusterManager
+            Collection<Conversation> ret = (Collection<Conversation>) CacheFactory.doSynchronousClusterTask(new GetConversationsTask(), ClusterManager
                     .getSeniorClusterMember().toByteArray());
+            if ( ret == null )
+              return Collections.emptyList();
+            
+            return ret;
         }
     }
 
