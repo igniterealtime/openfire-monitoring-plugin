@@ -214,6 +214,11 @@ abstract class IQQueryHandler extends AbstractIQHandler implements
             }
         }
 
+        if (queryRequest.getResultSet() != null && queryRequest.getResultSet().getIndex() != null) {
+            Log.debug("Unable to process query for a result page that is being retrieved 'out of order'. This feature is not supported.");
+            return buildErrorResponse(packet, PacketError.Condition.feature_not_implemented, "Retrieving pages 'out of order' is not supported.");
+        }
+
         sendMidQuery(packet);
 
         // Modify original request to force result set management to be applied.
