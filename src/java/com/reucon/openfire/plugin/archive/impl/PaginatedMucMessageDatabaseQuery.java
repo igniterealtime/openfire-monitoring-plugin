@@ -86,10 +86,11 @@ public class PaginatedMucMessageDatabaseQuery
 
     protected List<ArchivedMessage> getPage( final Long after, final Long before, final int maxResults, final boolean isPagingBackwards )
     {
+        Log.trace( "Getting page of archived messages. After: {}, Before: {}, Max results: {}, Paging backwards: {}", after, before, maxResults, isPagingBackwards );
         final List<ArchivedMessage> msgs = new LinkedList<>();
 
         // The HSQL driver that is used in Openfire 4.5.0 will disregard a 'limit 0' (instead, returning all rows. A
-        // limit on positive numbers does work). We should prevent this from occuring, if only because querying a database
+        // limit on positive numbers does work). We should prevent this from occurring, if only because querying a database
         // for no results does not make much sense in the first place. See https://github.com/igniterealtime/openfire-monitoring-plugin/issues/80
         if ( maxResults <= 0 ) {
             return msgs;
