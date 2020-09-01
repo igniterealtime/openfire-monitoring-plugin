@@ -11,9 +11,11 @@ import org.dom4j.Document;
 import org.dom4j.DocumentHelper;
 import org.jivesoftware.database.DbConnectionManager;
 import org.jivesoftware.openfire.archive.ConversationManager;
+import org.jivesoftware.openfire.muc.MUCRoom;
 import org.jivesoftware.openfire.stanzaid.StanzaIDUtil;
 import org.jivesoftware.util.JiveConstants;
 import org.jivesoftware.util.JiveGlobals;
+import org.jivesoftware.util.NotFoundException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.xmpp.packet.JID;
@@ -43,10 +45,6 @@ public class JdbcPersistenceManager implements PersistenceManager {
             + "INNER JOIN ofMessageArchive ON ofConParticipant.conversationID = ofMessageArchive.conversationID "
             + "WHERE ofConversation.conversationID = ? AND ofConParticipant.bareJID = ? ORDER BY ofMessageArchive.sentDate";
 
-    // public static final String SELECT_MESSAGES_BY_CONVERSATION =
-    // "SELECT messageId,time,direction,type,subject,body "
-    // + "FROM archiveMessages WHERE conversationId = ? ORDER BY time";
-
     public static final String SELECT_CONVERSATIONS = "SELECT "
             + "ofConversation.conversationID, " + " ofConversation.room, " + "ofConversation.isExternal, "+ "ofConversation.lastActivity, "
             + "ofConversation.messageCount, " + "ofConversation.startDate, " + "ofConParticipant.bareJID, " + "ofConParticipant.jidResource,"
@@ -58,52 +56,21 @@ public class JdbcPersistenceManager implements PersistenceManager {
 
         public static final String SELECT_CONVERSATIONS_GROUP_BY = " GROUP BY ofConversation.conversationID, ofConversation.room, ofConversation.isExternal, ofConversation.lastActivity, ofConversation.messageCount, ofConversation.startDate, ofConParticipant.bareJID, ofConParticipant.jidResource, ofConParticipant.nickname, ofConParticipant.bareJID, ofMessageArchive.toJID";
 
-    // public static final String SELECT_CONVERSATIONS = "SELECT DISTINCT " + "ofConversation.conversationID, " + "ofConversation.room, "
-    //      + "ofConversation.isExternal, " + "ofConversation.startDate, " + "ofConversation.lastActivity, " + "ofConversation.messageCount, "
-    //      + "ofConParticipant.joinedDate, " + "ofConParticipant.leftDate, " + "ofConParticipant.bareJID, " + "ofConParticipant.jidResource, "
-    //      + "ofConParticipant.nickname, "
-    //      + "ofConParticipant.bareJID as fromJID, "
-        //      + "ofMessageArchive.toJID "
-    //      + "FROM ofConversation "
-    //      + "INNER JOIN ofConParticipant ON ofConversation.conversationID = ofConParticipant.conversationID "
-    //      + "INNER JOIN (SELECT conversationID, toJID FROM ofMessageArchive "
-    //      + "union all "
-    //      + "SELECT conversationID, fromJID as toJID FROM ofMessageArchive) ofMessageArchive ON ofConParticipant.conversationID = ofMessageArchive.conversationID";
-
-    // public static final String SELECT_CONVERSATIONS =
-    // "SELECT c.conversationId,c.startTime,c.endTime,c.ownerJid,c.ownerResource,c.withJid,c.withResource,"
-    // + " c.subject,c.thread " + "FROM archiveConversations AS c";
-
     public static final String COUNT_CONVERSATIONS = "SELECT COUNT(DISTINCT ofConversation.conversationID) FROM ofConversation "
             + "INNER JOIN ofConParticipant ON ofConversation.conversationID = ofConParticipant.conversationID "
             + "INNER JOIN (SELECT conversationID, toJID FROM ofMessageArchive "
             + "union all "
             + "SELECT conversationID, fromJID as toJID FROM ofMessageArchive) ofMessageArchive ON ofConParticipant.conversationID = ofMessageArchive.conversationID";
 
-    // public static final String COUNT_CONVERSATIONS =
-    // "SELECT count(*) FROM archiveConversations AS c";
-
     public static final String CONVERSATION_ID = "ofConversation.conversationID";
-    // public static final String CONVERSATION_ID = "c.conversationId";
 
     public static final String CONVERSATION_START_TIME = "ofConversation.startDate";
-    // public static final String CONVERSATION_START_TIME = "c.startTime";
 
     public static final String CONVERSATION_END_TIME = "ofConversation.lastActivity";
-    // public static final String CONVERSATION_END_TIME = "c.endTime";
 
     public static final String CONVERSATION_OWNER_JID = "ofConParticipant.bareJID";
-    // public static final String CONVERSATION_OWNER_JID = "c.ownerJid";
 
     public static final String CONVERSATION_WITH_JID = "ofMessageArchive.toJID";
-    // public static final String CONVERSATION_WITH_JID = "c.withJid";
-    public static final String MESSAGE_ID = "ofMessageArchive.messageID";
-
-    public static final String MESSAGE_SENT_DATE = "ofMessageArchive.sentDate";
-
-    public static final String MESSAGE_TO_JID = "ofMessageArchive.toJID";
-
-    public static final String MESSAGE_FROM_JID = "ofMessageArchive.fromJID";
 
     public static final String SELECT_ACTIVE_CONVERSATIONS = "SELECT DISTINCT " + "ofConversation.conversationID, " + "ofConversation.room, "
             + "ofConversation.isExternal, " + "ofConversation.startDate, " + "ofConversation.lastActivity, " + "ofConversation.messageCount, "
@@ -153,41 +120,12 @@ public class JdbcPersistenceManager implements PersistenceManager {
                 + "and MAR.sentDate = SUBSET.sentDate "
                 + "and MAR.fromJID = SUBSET.fromJID "
                 + "and MAR.toJID = SUBSET.toJID";
-    // public static final String SELECT_ACTIVE_CONVERSATIONS =
-    // "SELECT c.conversationId,c.startTime,c.endTime,c.ownerJid,c.ownerResource,withJid,c.withResource,"
-    // + " c.subject,c.thread "
-    // + "FROM archiveConversations AS c WHERE c.endTime > ?";
 
     public static final String SELECT_PARTICIPANTS_BY_CONVERSATION = "SELECT DISTINCT " + "ofConversation.conversationID, "
             + "ofConversation.startDate, " + "ofConversation.lastActivity, " + "ofConParticipant.bareJID " + "FROM ofConversation "
             + "INNER JOIN ofConParticipant ON ofConversation.conversationID = ofConParticipant.conversationID "
             + "INNER JOIN ofMessageArchive ON ofConParticipant.conversationID = ofMessageArchive.conversationID "
             + "WHERE ofConversation.conversationID = ? ORDER BY ofConversation.startDate";
-
-    // public static final String SELECT_PARTICIPANTS_BY_CONVERSATION =
-    // "SELECT participantId,startTime,endTime,jid FROM archiveParticipants WHERE conversationId =? ORDER BY startTime";
-     public static final String SELECT_MESSAGES = "SELECT DISTINCT " + "ofMessageArchive.fromJID, "
-            + "ofMessageArchive.toJID, " + "ofMessageArchive.sentDate, " + "ofMessageArchive.stanza, "
-            + "ofMessageArchive.messageID, " + "ofConParticipant.bareJID "
-            + "FROM ofMessageArchive "
-            + "INNER JOIN ofConParticipant ON ofMessageArchive.conversationID = ofConParticipant.conversationID "
-            + "WHERE (ofMessageArchive.stanza IS NOT NULL OR ofMessageArchive.body IS NOT NULL) ";
-
-    public static final String SELECT_MESSAGE_ORACLE = "SELECT "
-            + "ofMessageArchive.fromJID, "
-            + "ofMessageArchive.toJID, "
-            + "ofMessageArchive.sentDate, "
-            + "ofMessageArchive.stanza, "
-            + "ofMessageArchive.messageID "
-            + "FROM ofMessageArchive WHERE 1 = 1";
-    public static final String SELECT_CONVERSATIONS_BY_OWNER = "SELECT DISTINCT ofConParticipant.conversationID FROM ofConParticipant WHERE "
-            + CONVERSATION_OWNER_JID
-            + " = ?";
-
-     public static final String COUNT_MESSAGES = "SELECT COUNT(DISTINCT ofMessageArchive.messageID) "
-            + "FROM ofMessageArchive "
-            + "INNER JOIN ofConParticipant ON ofMessageArchive.conversationID = ofConParticipant.conversationID "
-            + "WHERE (ofMessageArchive.stanza IS NOT NULL OR ofMessageArchive.body IS NOT NULL) ";
 
     @Override
     public boolean createMessage(ArchivedMessage message) {
@@ -431,9 +369,123 @@ public class JdbcPersistenceManager implements PersistenceManager {
     public Collection<ArchivedMessage> findMessages(Date startDate, Date endDate, JID owner, JID with, String query, XmppResultSet xmppResultSet, boolean useStableID) {
 
         Log.debug( "Finding messages of owner '{}' with start date '{}', end date '{}' with '{}' and resultset '{}', useStableId '{}'.", owner, startDate, endDate, with, xmppResultSet, useStableID );
-        if ( query != null ) {
-            Log.warn( "Query provided in search request, but not supported by implementation. Query is ignored!" );
+
+        if (startDate == null) {
+            Log.debug( "Request for message archive of user '{}' did not specify a start date. Using EPOCH.", owner );
+            startDate = new Date(0L);
         }
+        if (endDate == null) {
+            Log.debug( "Request for message archive of user '{}' did not specify an end date. Using the current timestamp.", owner );
+            endDate = new Date();
+        }
+
+        // Limit history, if so configured.
+        startDate = getAuditedStartDate(startDate);
+
+        final Long after;
+        final Long before;
+        // TODO re-enable search-by-index.
+        /* if (xmppResultSet.getIndex() != null) {
+            firstIndex = xmppResultSet.getIndex();
+        } */
+        if (xmppResultSet.getAfter() != null) {
+            if ( useStableID ) {
+                after = ConversationManager.getMessageIdForStableId( owner, xmppResultSet.getAfter() );
+            } else {
+                after = Long.parseLong( xmppResultSet.getAfter() );
+            }
+        } else {
+            after = null;
+        }
+        if (xmppResultSet.getBefore() != null) {
+            if ( useStableID ) {
+                before = ConversationManager.getMessageIdForStableId( owner, xmppResultSet.getBefore() );
+            } else {
+                before = Long.parseLong( xmppResultSet.getBefore() );
+            }
+        } else {
+            before = null;
+        }
+
+        final int maxResults = xmppResultSet.getMax() != null ? xmppResultSet.getMax() : DEFAULT_MAX;
+        final boolean isPagingBackwards = xmppResultSet.isPagingBackwards();
+
+        final List<ArchivedMessage> msgs;
+        final int totalCount;
+        if ( query != null && !query.isEmpty() ) {
+            throw new UnsupportedOperationException("Pending implementation");
+            // FIXME
+//            final PaginatedMessageLuceneQuery paginatedMessageLuceneQuery = new PaginatedMessageLuceneQuery( startDate, endDate, owner, with, query );
+//            Log.debug("Request for message archive of user '{}' resulted in the following query data: {}", owner, paginatedMessageLuceneQuery);
+//            msgs = paginatedMessageLuceneQuery.getPage(after, before, maxResults, isPagingBackwards);
+//            totalCount = paginatedMessageLuceneQuery.getTotalCount();
+        } else {
+            final PaginatedMessageDatabaseQuery paginatedMessageDatabaseQuery = new PaginatedMessageDatabaseQuery(startDate, endDate, owner, with );
+            Log.debug("Request for message archive of user '{}' resulted in the following query data: {}", owner, paginatedMessageDatabaseQuery);
+            msgs = paginatedMessageDatabaseQuery.getPage(after, before, maxResults, isPagingBackwards);
+            totalCount = paginatedMessageDatabaseQuery.getTotalCount();
+        }
+
+        Log.debug( "Request for message archive of owner '{}' found a total of {} applicable messages. Of these, {} were actually retrieved from the database.", owner, totalCount, msgs.size() );
+
+        xmppResultSet.setCount(totalCount);
+
+        if ( !msgs.isEmpty() ) {
+            final ArchivedMessage firstMessage = msgs.get(0);
+            final ArchivedMessage lastMessage = msgs.get(msgs.size()-1);
+            final String first;
+            final String last;
+            if ( useStableID ) {
+                final String firstSid = firstMessage.getStableId();
+                if ( firstSid != null && !firstSid.isEmpty() ) {
+                    first = firstSid;
+                } else {
+                    // Issue #98: Fall-back to using the database-identifier. Although not a stable-id, it at least gives the client the option to paginate.
+                    first = firstMessage.getId().toString();
+                }
+                final String lastSid = lastMessage.getStableId();
+                if ( lastSid != null && !lastSid.isEmpty()) {
+                    last = lastSid;
+                } else {
+                    last = lastMessage.getId().toString();
+                }
+            } else {
+                first = String.valueOf(firstMessage.getId() );
+                last = String.valueOf(lastMessage.getId() );
+            }
+            xmppResultSet.setFirst(first);
+            if (msgs.size() > 1) {
+                xmppResultSet.setLast(last);
+            }
+
+            // Check to see if there are more pages, by simulating a request for the next page.
+            // When paging backwards, we need to find out if there are results 'before' the first result.
+            // When paging forward, we need to find out if there are results 'after' the last result.
+            final Long afterForNextPage = isPagingBackwards ? null : lastMessage.getId();
+            final Long beforeForNextPage = isPagingBackwards ? firstMessage.getId() : null;
+            final List<ArchivedMessage> nextPage;
+            if ( query != null && !query.isEmpty() )
+            {
+                throw new UnsupportedOperationException("Pending implementation");
+                // FIXME
+                //final PaginatedMessageLuceneQuery paginatedMessageLuceneQuery = new PaginatedMessageLuceneQuery(startDate, endDate, owner, with, query);
+                //nextPage = paginatedMessageLuceneQuery.getPage(afterForNextPage, beforeForNextPage, 1, isPagingBackwards);
+            }
+            else
+            {
+                final PaginatedMessageDatabaseQuery paginatedMessageDatabaseQuery = new PaginatedMessageDatabaseQuery(startDate, endDate, owner, with );
+                nextPage = paginatedMessageDatabaseQuery.getPage(afterForNextPage, beforeForNextPage, 1, isPagingBackwards);
+            }
+            Log.debug("Found results for 'next page': {} (based on after: {} before: {} isPagingBackwards: {})", !nextPage.isEmpty(), afterForNextPage, beforeForNextPage, isPagingBackwards);
+            xmppResultSet.setComplete(nextPage.isEmpty());
+        }
+        return msgs;
+
+
+
+
+/*
+
         final boolean isOracleDB = isOracleDB();
 
         final StringBuilder querySB;
@@ -624,6 +676,8 @@ public class JdbcPersistenceManager implements PersistenceManager {
         }
 
         return archivedMessages.values();
+
+ */
     }
 
     private boolean isOracleDB()
@@ -631,93 +685,93 @@ public class JdbcPersistenceManager implements PersistenceManager {
         return DbConnectionManager.getDatabaseType() == DbConnectionManager.DatabaseType.oracle;
     }
 
-    private Integer countMessages(Date startDate, Date endDate,
-            JID owner, JID with, String whereClause) {
+//    private Integer countMessages(Date startDate, Date endDate,
+//            JID owner, JID with, String whereClause) {
+//
+//        StringBuilder querySB;
+//
+//        querySB = new StringBuilder(COUNT_MESSAGES);
+//        if (whereClause != null && whereClause.length() != 0) {
+//            querySB.append(" AND ").append(whereClause);
+//        }
+//
+//        Connection con = null;
+//        PreparedStatement pstmt = null;
+//        ResultSet rs = null;
+//        try {
+//            con = DbConnectionManager.getConnection();
+//            pstmt = con.prepareStatement(querySB.toString());
+//            bindMessageParameters(startDate, endDate, owner, with, pstmt);
+//            rs = pstmt.executeQuery();
+//            if (rs.next()) {
+//                return rs.getInt(1);
+//            } else {
+//                return 0;
+//            }
+//        } catch (SQLException sqle) {
+//            Log.error("Error counting conversations", sqle);
+//            return 0;
+//        } finally {
+//            DbConnectionManager.closeConnection(rs, pstmt, con);
+//        }
+//    }
 
-        StringBuilder querySB;
+//    private Integer countMessagesBefore(Date startDate, Date endDate,
+//            JID owner, JID with, Long before, String whereClause) {
+//
+//        StringBuilder querySB;
+//
+//        querySB = new StringBuilder(COUNT_MESSAGES);
+//        querySB.append(" AND ");
+//        if (whereClause != null && whereClause.length() != 0) {
+//            querySB.append(whereClause);
+//            querySB.append(" AND ");
+//        }
+//        querySB.append(MESSAGE_ID).append(" < ?");
+//
+//        Connection con = null;
+//        PreparedStatement pstmt = null;
+//        ResultSet rs = null;
+//        try {
+//            int parameterIndex;
+//            con = DbConnectionManager.getConnection();
+//            pstmt = con.prepareStatement(querySB.toString());
+//            parameterIndex = bindMessageParameters(startDate, endDate, owner, with, pstmt);
+//            pstmt.setLong(parameterIndex, before);
+//            rs = pstmt.executeQuery();
+//            if (rs.next()) {
+//                return rs.getInt(1);
+//            } else {
+//                return 0;
+//            }
+//        } catch (SQLException sqle) {
+//            Log.error("Error counting conversations", sqle);
+//            return 0;
+//        } finally {
+//            DbConnectionManager.closeConnection(rs, pstmt, con);
+//        }
+//    }
 
-        querySB = new StringBuilder(COUNT_MESSAGES);
-        if (whereClause != null && whereClause.length() != 0) {
-            querySB.append(" AND ").append(whereClause);
-        }
-
-        Connection con = null;
-        PreparedStatement pstmt = null;
-        ResultSet rs = null;
-        try {
-            con = DbConnectionManager.getConnection();
-            pstmt = con.prepareStatement(querySB.toString());
-            bindMessageParameters(startDate, endDate, owner, with, pstmt);
-            rs = pstmt.executeQuery();
-            if (rs.next()) {
-                return rs.getInt(1);
-            } else {
-                return 0;
-            }
-        } catch (SQLException sqle) {
-            Log.error("Error counting conversations", sqle);
-            return 0;
-        } finally {
-            DbConnectionManager.closeConnection(rs, pstmt, con);
-        }
-    }
-
-    private Integer countMessagesBefore(Date startDate, Date endDate,
-            JID owner, JID with, Long before, String whereClause) {
-
-        StringBuilder querySB;
-
-        querySB = new StringBuilder(COUNT_MESSAGES);
-        querySB.append(" AND ");
-        if (whereClause != null && whereClause.length() != 0) {
-            querySB.append(whereClause);
-            querySB.append(" AND ");
-        }
-        querySB.append(MESSAGE_ID).append(" < ?");
-
-        Connection con = null;
-        PreparedStatement pstmt = null;
-        ResultSet rs = null;
-        try {
-            int parameterIndex;
-            con = DbConnectionManager.getConnection();
-            pstmt = con.prepareStatement(querySB.toString());
-            parameterIndex = bindMessageParameters(startDate, endDate, owner, with, pstmt);
-            pstmt.setLong(parameterIndex, before);
-            rs = pstmt.executeQuery();
-            if (rs.next()) {
-                return rs.getInt(1);
-            } else {
-                return 0;
-            }
-        } catch (SQLException sqle) {
-            Log.error("Error counting conversations", sqle);
-            return 0;
-        } finally {
-            DbConnectionManager.closeConnection(rs, pstmt, con);
-        }
-    }
-
-    private int bindMessageParameters(Date startDate, Date endDate,
-            JID owner, JID with, PreparedStatement pstmt) throws SQLException {
-        int parameterIndex = 1;
-
-        if (startDate != null) {
-            pstmt.setLong(parameterIndex++, dateToMillis(startDate));
-        }
-        if (endDate != null) {
-            pstmt.setLong(parameterIndex++, dateToMillis(endDate));
-        }
-        if (owner != null) {
-            pstmt.setString(parameterIndex++, owner.toBareJID());
-        }
-        if (with != null) {
-            // Add twice due to OR operator
-            pstmt.setString(parameterIndex++, with.toString());
-            pstmt.setString(parameterIndex++, with.toString());
-        }
-        return parameterIndex;
-    }
+//    private int bindMessageParameters(Date startDate, Date endDate,
+//            JID owner, JID with, PreparedStatement pstmt) throws SQLException {
+//        int parameterIndex = 1;
+//
+//        if (startDate != null) {
+//            pstmt.setLong(parameterIndex++, dateToMillis(startDate));
+//        }
+//        if (endDate != null) {
+//            pstmt.setLong(parameterIndex++, dateToMillis(endDate));
+//        }
+//        if (owner != null) {
+//            pstmt.setString(parameterIndex++, owner.toBareJID());
+//        }
+//        if (with != null) {
+//            // Add twice due to OR operator
+//            pstmt.setString(parameterIndex++, with.toString());
+//            pstmt.setString(parameterIndex++, with.toString());
+//        }
+//        return parameterIndex;
+//    }
 
     @Override
     public Collection<Conversation> getActiveConversations(int conversationTimeout) {
@@ -1016,29 +1070,29 @@ public class JdbcPersistenceManager implements PersistenceManager {
     private Date millisToDate(Long millis) {
         return millis == null ? null : new Date(millis);
     }
-
-    /**
-     * Determines whether a result page is the last of a set.
-     *
-     * @param firstItemIndex index (in whole set) of first item in page.
-     * @param resultCount total number of results in set.
-     * @param pageSize number of results in a page.
-     * @param reverse whether paging is being performed in reverse (back to front)
-     * @return whether results are from last page.
-     */
-    private boolean isLastPage(int firstItemIndex, int resultCount, int pageSize, boolean reverse) {
-
-        if(reverse) {
-            // Index of first item in last page always 0 when reverse
-            if(firstItemIndex == 0) {
-                return true;
-            }
-        } else {
-            if((firstItemIndex + pageSize) >= resultCount) {
-                return true;
-            }
-        }
-
-        return false;
-    }
+//
+//    /**
+//     * Determines whether a result page is the last of a set.
+//     *
+//     * @param firstItemIndex index (in whole set) of first item in page.
+//     * @param resultCount total number of results in set.
+//     * @param pageSize number of results in a page.
+//     * @param reverse whether paging is being performed in reverse (back to front)
+//     * @return whether results are from last page.
+//     */
+//    private boolean isLastPage(int firstItemIndex, int resultCount, int pageSize, boolean reverse) {
+//
+//        if(reverse) {
+//            // Index of first item in last page always 0 when reverse
+//            if(firstItemIndex == 0) {
+//                return true;
+//            }
+//        } else {
+//            if((firstItemIndex + pageSize) >= resultCount) {
+//                return true;
+//            }
+//        }
+//
+//        return false;
+//    }
 }
