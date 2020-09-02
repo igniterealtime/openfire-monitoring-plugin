@@ -418,13 +418,21 @@ public class JdbcPersistenceManager implements PersistenceManager {
         if ( query != null && !query.isEmpty() ) {
             final PaginatedMessageLuceneQuery paginatedMessageLuceneQuery = new PaginatedMessageLuceneQuery( startDate, endDate, owner, with, query );
             Log.debug("Request for message archive of user '{}' resulted in the following query data: {}", owner, paginatedMessageLuceneQuery);
-            msgs = paginatedMessageLuceneQuery.getPage(after, before, maxResults, isPagingBackwards);
             totalCount = paginatedMessageLuceneQuery.getTotalCount();
+            if ( totalCount == 0 ) {
+                msgs = Collections.emptyList();
+            } else {
+                msgs = paginatedMessageLuceneQuery.getPage(after, before, maxResults, isPagingBackwards);
+            }
         } else {
             final PaginatedMessageDatabaseQuery paginatedMessageDatabaseQuery = new PaginatedMessageDatabaseQuery(startDate, endDate, owner, with );
             Log.debug("Request for message archive of user '{}' resulted in the following query data: {}", owner, paginatedMessageDatabaseQuery);
-            msgs = paginatedMessageDatabaseQuery.getPage(after, before, maxResults, isPagingBackwards);
             totalCount = paginatedMessageDatabaseQuery.getTotalCount();
+            if ( totalCount == 0 ) {
+                msgs = Collections.emptyList();
+            } else {
+                msgs = paginatedMessageDatabaseQuery.getPage(after, before, maxResults, isPagingBackwards);
+            }
         }
 
         Log.debug( "Request for message archive of owner '{}' found a total of {} applicable messages. Of these, {} were actually retrieved from the database.", owner, totalCount, msgs.size() );

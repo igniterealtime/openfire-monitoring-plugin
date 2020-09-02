@@ -102,13 +102,21 @@ public class MucMamPersistenceManager implements PersistenceManager {
         if ( query != null && !query.isEmpty() ) {
             final PaginatedMucMessageLuceneQuery paginatedMucMessageLuceneQuery = new PaginatedMucMessageLuceneQuery( startDate, endDate, room, with, query );
             Log.debug("Request for message archive of room '{}' resulted in the following query data: {}", room.getJID(), paginatedMucMessageLuceneQuery);
-            msgs = paginatedMucMessageLuceneQuery.getPage(after, before, maxResults, isPagingBackwards);
             totalCount = paginatedMucMessageLuceneQuery.getTotalCount();
+            if ( totalCount == 0 ) {
+                msgs = Collections.emptyList();
+            } else {
+                msgs = paginatedMucMessageLuceneQuery.getPage(after, before, maxResults, isPagingBackwards);
+            }
         } else {
             final PaginatedMucMessageDatabaseQuery paginatedMucMessageDatabaseQuery = new PaginatedMucMessageDatabaseQuery(startDate, endDate, room, with );
             Log.debug("Request for message archive of room '{}' resulted in the following query data: {}", room.getJID(), paginatedMucMessageDatabaseQuery);
-            msgs = paginatedMucMessageDatabaseQuery.getPage(after, before, maxResults, isPagingBackwards);
             totalCount = paginatedMucMessageDatabaseQuery.getTotalCount();
+            if ( totalCount == 0 ) {
+                msgs = Collections.emptyList();
+            } else {
+                msgs = paginatedMucMessageDatabaseQuery.getPage(after, before, maxResults, isPagingBackwards);
+            }
         }
 
         Log.debug( "Request for message archive of room '{}' found a total of {} applicable messages. Of these, {} were actually retrieved from the database.", room.getJID(), totalCount, msgs.size() );
