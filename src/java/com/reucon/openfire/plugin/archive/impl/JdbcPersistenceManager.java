@@ -1,11 +1,10 @@
 package com.reucon.openfire.plugin.archive.impl;
 
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Statement;
+import java.sql.*;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.*;
+import java.util.Date;
 
 import org.dom4j.Document;
 import org.dom4j.DocumentFactory;
@@ -13,6 +12,7 @@ import org.dom4j.DocumentHelper;
 import org.dom4j.Element;
 import org.jivesoftware.database.DbConnectionManager;
 import org.jivesoftware.openfire.archive.ConversationManager;
+import org.jivesoftware.openfire.cluster.ClusterManager;
 import org.jivesoftware.openfire.muc.MUCRoom;
 import org.jivesoftware.openfire.stanzaid.StanzaIDUtil;
 import org.jivesoftware.util.JiveConstants;
@@ -487,298 +487,12 @@ public class JdbcPersistenceManager implements PersistenceManager {
             xmppResultSet.setComplete(nextPage.isEmpty());
         }
         return msgs;
-
-
-
-
-/*
-
-        final boolean isOracleDB = isOracleDB();
-
-        final StringBuilder querySB;
-        final StringBuilder whereSB;
-        final StringBuilder limitSB;
-
-        final TreeMap<Long, ArchivedMessage> archivedMessages = new TreeMap<Long, ArchivedMessage>();
-
-        querySB = new StringBuilder( isOracleDB ? SELECT_MESSAGE_ORACLE : SELECT_MESSAGES );
-        whereSB = new StringBuilder();
-        limitSB = new StringBuilder();
-
-        // Ignore legacy messages
-        appendWhere(whereSB, MESSAGE_ID, " IS NOT NULL ");
-
-        startDate = getAuditedStartDate(startDate);
-        if (startDate != null) {
-            appendWhere(whereSB, MESSAGE_SENT_DATE, " >= ?");
-        }
-        if (endDate != null) {
-            appendWhere(whereSB, MESSAGE_SENT_DATE, " <= ?");
-        }
-        if (owner != null) {
-            if( isOracleDB ) {
-                appendWhere( whereSB, "ofMessageArchive.conversationID in ( ", SELECT_CONVERSATIONS_BY_OWNER, " )" );
-            }
-            else {
-                appendWhere(whereSB, CONVERSATION_OWNER_JID, " = ?");
-            }
-        }
-        if(with != null) {
-            appendWhere(whereSB, "( ", MESSAGE_TO_JID, " = ? OR ", MESSAGE_FROM_JID, " = ? )");
-        }
-        if (whereSB.length() != 0) {
-            querySB.append(" AND ").append(whereSB);
-        }
-
-        if (DbConnectionManager.getDatabaseType() == DbConnectionManager.DatabaseType.sqlserver) {
-            querySB.insert(0,"SELECT * FROM (SELECT *, ROW_NUMBER() OVER (ORDER BY "+MESSAGE_SENT_DATE+") AS RowNum FROM ( ");
-            querySB.append(") ofMessageArchive ) t2 WHERE RowNum");
-        }
-        else {
-            querySB.append(" ORDER BY ").append(MESSAGE_SENT_DATE);
-        }
-
-        if (xmppResultSet != null) {
-            Integer firstIndex = null;
-            int max = xmppResultSet.getMax() != null ? xmppResultSet.getMax() : DEFAULT_MAX;
-            int count = countMessages(startDate, endDate, owner, with, whereSB.toString());
-            boolean reverse = false;
-
-            xmppResultSet.setCount(count);
-            if (xmppResultSet.getIndex() != null) {
-                firstIndex = xmppResultSet.getIndex();
-            } else if (xmppResultSet.getAfter() != null) {
-                final Long needle;
-                if ( useStableID ) {
-                    needle = ConversationManager.getMessageIdForStableId( owner, xmppResultSet.getAfter() );
-                } else {
-                    needle = Long.parseLong( xmppResultSet.getAfter() );
-                }
-                firstIndex = countMessagesBefore(startDate, endDate, owner, with, needle, whereSB.toString());
-                firstIndex += 1;
-            } else if (xmppResultSet.getBefore() != null) {
-                final Long needle;
-                if ( useStableID ) {
-                    needle = ConversationManager.getMessageIdForStableId( owner, xmppResultSet.getBefore() );
-                } else {
-                    needle = Long.parseLong( xmppResultSet.getBefore() );
-                }
-
-                int messagesBeforeCount = countMessagesBefore(startDate, endDate, owner, with, needle, whereSB.toString());
-                firstIndex = messagesBeforeCount;
-                firstIndex -= max;
-
-                // Reduce result limit to number of results before (if less than a page remaining)
-                if(messagesBeforeCount < max) {
-                    max = messagesBeforeCount;
-                }
-
-                reverse = true;
-                if (firstIndex < 0) {
-                    firstIndex = 0;
-                }
-            }
-            else if (xmppResultSet.isPagingBackwards()){
-                int messagesCount = countMessages(startDate, endDate, owner, with, whereSB.toString());
-                firstIndex = messagesCount;
-                firstIndex -= max;
-
-                if (max > messagesCount) max = messagesCount;
-                if (firstIndex < 0) firstIndex = 0;
-
-                reverse = true;
-            }
-            firstIndex = firstIndex != null ? firstIndex : 0;
-
-            if (DbConnectionManager.getDatabaseType() == DbConnectionManager.DatabaseType.sqlserver) {
-                limitSB.append(" BETWEEN ").append(firstIndex+1);
-                limitSB.append(" AND ").append(firstIndex+max);
-            }
-            else if( isOracleDB() ) {
-                try {
-                    final Statement statement = DbConnectionManager.getConnection().createStatement();
-                    final ResultSet resultSet = statement.executeQuery( "select VERSION from PRODUCT_COMPONENT_VERSION P where P.PRODUCT like 'Oracle Database%'" );
-                    resultSet.next();
-                    final String versionString = resultSet.getString( "VERSION" );
-                    final String[] versionParts = versionString.split( "\\." );
-                    final int majorVersion = Integer.parseInt( versionParts[ 0 ] );
-                    final int minorVersion = Integer.parseInt( versionParts[ 1 ] );
-
-                    if( ( majorVersion == 12 && minorVersion >= 1 ) || majorVersion > 12 ) {
-                        limitSB.append(" LIMIT ").append(max);
-                        limitSB.append(" OFFSET ").append(firstIndex);
-                    }
-                    else {
-                        querySB.insert( 0, "SELECT * FROM ( " );
-                        limitSB.append( " ) WHERE rownum BETWEEN " )
-                        .append( firstIndex + 1 )
-                        .append( " AND " )
-                        .append( firstIndex + max );
-                    }
-                } catch( SQLException e ) {
-                    Log.warn( "Unable to determine oracle database version using fallback", e );
-                    querySB.insert( 0, "SELECT * FROM ( " );
-                    limitSB.append( " ) WHERE rownum BETWEEN " )
-                    .append( firstIndex + 1 )
-                    .append( " AND " )
-                    .append( firstIndex + max );
-                }
-            }
-            else {
-                limitSB.append(" LIMIT ").append(max);
-                limitSB.append(" OFFSET ").append(firstIndex);
-            }
-            xmppResultSet.setFirstIndex(firstIndex);
-
-            if(isLastPage(firstIndex, count, max, reverse)) {
-                xmppResultSet.setComplete(true);
-            }
-        }
-
-        querySB.append(limitSB);
-
-        Connection con = null;
-        PreparedStatement pstmt = null;
-        ResultSet rs = null;
-        try {
-            con = DbConnectionManager.getConnection();
-            pstmt = con.prepareStatement(querySB.toString());
-            bindMessageParameters(startDate, endDate, owner, with, pstmt);
-
-            rs = pstmt.executeQuery();
-            Log.debug("findMessages: SELECT_MESSAGES: " + pstmt.toString());
-            while(rs.next()) {
-                // TODO Can we replace this with #extractMessage?
-                final String stanza = rs.getString( "stanza" );
-                final long id = rs.getLong( "messageID" );
-                final Date time = millisToDate(rs.getLong("sentDate"));
-
-                String sid = null;
-                if ( stanza != null && !stanza.isEmpty() ) {
-                    try {
-                        final Document doc = DocumentHelper.parseText( stanza );
-                        final Message message = new Message( doc.getRootElement() );
-                        sid = StanzaIDUtil.findFirstUniqueAndStableStanzaID( message, owner.toBareJID() );
-                    } catch ( Exception e ) {
-                        Log.warn( "An exception occurred while parsing message with ID {}", id, e );
-                        sid = null;
-                    }
-                }
-
-                ArchivedMessage archivedMessage = new ArchivedMessage(time, null, null, null, sid);
-                archivedMessage.setId(id);
-                archivedMessage.setStanza(stanza);
-
-                archivedMessages.put(archivedMessage.getId(), archivedMessage);
-            }
-        } catch(SQLException sqle) {
-            Log.error("Error selecting conversations", sqle);
-        } finally {
-            DbConnectionManager.closeConnection(rs, pstmt, con);
-        }
-
-        if (xmppResultSet != null && archivedMessages.size() > 0) {
-            xmppResultSet.setFirst(String.valueOf( archivedMessages.firstKey() ));
-            xmppResultSet.setLast(String.valueOf( archivedMessages.lastKey() ));
-        }
-
-        return archivedMessages.values();
-
- */
     }
 
     private boolean isOracleDB()
     {
         return DbConnectionManager.getDatabaseType() == DbConnectionManager.DatabaseType.oracle;
     }
-
-//    private Integer countMessages(Date startDate, Date endDate,
-//            JID owner, JID with, String whereClause) {
-//
-//        StringBuilder querySB;
-//
-//        querySB = new StringBuilder(COUNT_MESSAGES);
-//        if (whereClause != null && whereClause.length() != 0) {
-//            querySB.append(" AND ").append(whereClause);
-//        }
-//
-//        Connection con = null;
-//        PreparedStatement pstmt = null;
-//        ResultSet rs = null;
-//        try {
-//            con = DbConnectionManager.getConnection();
-//            pstmt = con.prepareStatement(querySB.toString());
-//            bindMessageParameters(startDate, endDate, owner, with, pstmt);
-//            rs = pstmt.executeQuery();
-//            if (rs.next()) {
-//                return rs.getInt(1);
-//            } else {
-//                return 0;
-//            }
-//        } catch (SQLException sqle) {
-//            Log.error("Error counting conversations", sqle);
-//            return 0;
-//        } finally {
-//            DbConnectionManager.closeConnection(rs, pstmt, con);
-//        }
-//    }
-
-//    private Integer countMessagesBefore(Date startDate, Date endDate,
-//            JID owner, JID with, Long before, String whereClause) {
-//
-//        StringBuilder querySB;
-//
-//        querySB = new StringBuilder(COUNT_MESSAGES);
-//        querySB.append(" AND ");
-//        if (whereClause != null && whereClause.length() != 0) {
-//            querySB.append(whereClause);
-//            querySB.append(" AND ");
-//        }
-//        querySB.append(MESSAGE_ID).append(" < ?");
-//
-//        Connection con = null;
-//        PreparedStatement pstmt = null;
-//        ResultSet rs = null;
-//        try {
-//            int parameterIndex;
-//            con = DbConnectionManager.getConnection();
-//            pstmt = con.prepareStatement(querySB.toString());
-//            parameterIndex = bindMessageParameters(startDate, endDate, owner, with, pstmt);
-//            pstmt.setLong(parameterIndex, before);
-//            rs = pstmt.executeQuery();
-//            if (rs.next()) {
-//                return rs.getInt(1);
-//            } else {
-//                return 0;
-//            }
-//        } catch (SQLException sqle) {
-//            Log.error("Error counting conversations", sqle);
-//            return 0;
-//        } finally {
-//            DbConnectionManager.closeConnection(rs, pstmt, con);
-//        }
-//    }
-
-//    private int bindMessageParameters(Date startDate, Date endDate,
-//            JID owner, JID with, PreparedStatement pstmt) throws SQLException {
-//        int parameterIndex = 1;
-//
-//        if (startDate != null) {
-//            pstmt.setLong(parameterIndex++, dateToMillis(startDate));
-//        }
-//        if (endDate != null) {
-//            pstmt.setLong(parameterIndex++, dateToMillis(endDate));
-//        }
-//        if (owner != null) {
-//            pstmt.setString(parameterIndex++, owner.toBareJID());
-//        }
-//        if (with != null) {
-//            // Add twice due to OR operator
-//            pstmt.setString(parameterIndex++, with.toString());
-//            pstmt.setString(parameterIndex++, with.toString());
-//        }
-//        return parameterIndex;
-//    }
 
     @Override
     public Collection<Conversation> getActiveConversations(int conversationTimeout) {
@@ -1183,29 +897,4 @@ public class JdbcPersistenceManager implements PersistenceManager {
     private Date millisToDate(Long millis) {
         return millis == null ? null : new Date(millis);
     }
-//
-//    /**
-//     * Determines whether a result page is the last of a set.
-//     *
-//     * @param firstItemIndex index (in whole set) of first item in page.
-//     * @param resultCount total number of results in set.
-//     * @param pageSize number of results in a page.
-//     * @param reverse whether paging is being performed in reverse (back to front)
-//     * @return whether results are from last page.
-//     */
-//    private boolean isLastPage(int firstItemIndex, int resultCount, int pageSize, boolean reverse) {
-//
-//        if(reverse) {
-//            // Index of first item in last page always 0 when reverse
-//            if(firstItemIndex == 0) {
-//                return true;
-//            }
-//        } else {
-//            if((firstItemIndex + pageSize) >= resultCount) {
-//                return true;
-//            }
-//        }
-//
-//        return false;
-//    }
 }
