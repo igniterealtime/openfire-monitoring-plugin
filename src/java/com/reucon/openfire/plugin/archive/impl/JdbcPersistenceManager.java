@@ -8,7 +8,9 @@ import java.sql.Statement;
 import java.util.*;
 
 import org.dom4j.Document;
+import org.dom4j.DocumentFactory;
 import org.dom4j.DocumentHelper;
+import org.dom4j.Element;
 import org.jivesoftware.database.DbConnectionManager;
 import org.jivesoftware.openfire.archive.ConversationManager;
 import org.jivesoftware.openfire.muc.MUCRoom;
@@ -34,6 +36,7 @@ import org.xmpp.packet.Message;
  */
 public class JdbcPersistenceManager implements PersistenceManager {
     private static final Logger Log = LoggerFactory.getLogger( JdbcPersistenceManager.class );
+    protected static final DocumentFactory docFactory = DocumentFactory.getInstance();
     public static final int DEFAULT_MAX = 1000;
 
     public static final String SELECT_MESSAGES_BY_CONVERSATION = "SELECT DISTINCT " + "ofConversation.conversationID, " + "ofConversation.room, "
@@ -413,12 +416,10 @@ public class JdbcPersistenceManager implements PersistenceManager {
         final List<ArchivedMessage> msgs;
         final int totalCount;
         if ( query != null && !query.isEmpty() ) {
-            throw new UnsupportedOperationException("Pending implementation");
-            // FIXME
-//            final PaginatedMessageLuceneQuery paginatedMessageLuceneQuery = new PaginatedMessageLuceneQuery( startDate, endDate, owner, with, query );
-//            Log.debug("Request for message archive of user '{}' resulted in the following query data: {}", owner, paginatedMessageLuceneQuery);
-//            msgs = paginatedMessageLuceneQuery.getPage(after, before, maxResults, isPagingBackwards);
-//            totalCount = paginatedMessageLuceneQuery.getTotalCount();
+            final PaginatedMessageLuceneQuery paginatedMessageLuceneQuery = new PaginatedMessageLuceneQuery( startDate, endDate, owner, with, query );
+            Log.debug("Request for message archive of user '{}' resulted in the following query data: {}", owner, paginatedMessageLuceneQuery);
+            msgs = paginatedMessageLuceneQuery.getPage(after, before, maxResults, isPagingBackwards);
+            totalCount = paginatedMessageLuceneQuery.getTotalCount();
         } else {
             final PaginatedMessageDatabaseQuery paginatedMessageDatabaseQuery = new PaginatedMessageDatabaseQuery(startDate, endDate, owner, with );
             Log.debug("Request for message archive of user '{}' resulted in the following query data: {}", owner, paginatedMessageDatabaseQuery);
@@ -466,10 +467,8 @@ public class JdbcPersistenceManager implements PersistenceManager {
             final List<ArchivedMessage> nextPage;
             if ( query != null && !query.isEmpty() )
             {
-                throw new UnsupportedOperationException("Pending implementation");
-                // FIXME
-                //final PaginatedMessageLuceneQuery paginatedMessageLuceneQuery = new PaginatedMessageLuceneQuery(startDate, endDate, owner, with, query);
-                //nextPage = paginatedMessageLuceneQuery.getPage(afterForNextPage, beforeForNextPage, 1, isPagingBackwards);
+                final PaginatedMessageLuceneQuery paginatedMessageLuceneQuery = new PaginatedMessageLuceneQuery(startDate, endDate, owner, with, query);
+                nextPage = paginatedMessageLuceneQuery.getPage(afterForNextPage, beforeForNextPage, 1, isPagingBackwards);
             }
             else
             {
@@ -1061,6 +1060,112 @@ public class JdbcPersistenceManager implements PersistenceManager {
         // message.setSubject(subject);
         message.setBody(body);
         return message;
+    }
+
+    /**
+     * Retrieve a specific message from the database.
+     *
+     * @param messageId The database ID of the message.
+     * @param owner The owner of the archive in which the message was stored (cannot be null).
+     * @return The message, or null if no message was found.
+     */
+    public static ArchivedMessage getArchivedMessage( long messageId, JID owner )
+    {
+        Connection connection = null;
+        PreparedStatement pstmt = null;
+        ResultSet rs = null;
+        try {
+            connection = DbConnectionManager.getConnection();
+            final String query = "SELECT DISTINCT ofMessageArchive.fromJID, ofMessageArchive.toJID, ofMessageArchive.sentDate, ofMessageArchive.body, ofMessageArchive.stanza, ofMessageArchive.messageID "
+                + "FROM ofMessageArchive "
+                + "INNER JOIN ofConParticipant ON ofMessageArchive.conversationID = ofConParticipant.conversationID "
+                + "WHERE (ofMessageArchive.stanza IS NOT NULL OR ofMessageArchive.body IS NOT NULL) "
+                + "AND ofMessageArchive.messageID = ? AND ofConParticipant.bareJID = ?";
+
+            pstmt = connection.prepareStatement( query );
+            pstmt.setLong( 1, messageId );
+            pstmt.setString( 2, owner.toBareJID() );
+            rs = pstmt.executeQuery();
+            if (!rs.next()) {
+                return null;
+            }
+
+            String fromJID = rs.getString(1);
+            String toJID = rs.getString(2);
+            Date sentDate = new Date(rs.getLong(3));
+            String body = rs.getString(4);
+            String stanza = rs.getString(5);
+            if ( stanza != null && stanza.isEmpty()) {
+                stanza = null;
+            }
+            long id = rs.getLong(6);
+
+            if ( rs.next() ) {
+                Log.warn("Database contains more than one message with ID {} from the archive of {}.", messageId, owner);
+            }
+            return asArchivedMessage(owner, new JID(fromJID), new JID(toJID), sentDate, body, stanza, id);
+        } catch (SQLException ex) {
+            Log.warn("SQL failure while trying to get message with ID {} from the archive of {}.", messageId, owner, ex);
+            return null;
+        } finally {
+            DbConnectionManager.closeConnection(rs, pstmt, connection);
+        }
+    }
+
+    static protected ArchivedMessage asArchivedMessage(JID owner, JID fromJID, JID toJID, Date sentDate, String body, String stanza, long id)
+    {
+        if (stanza == null) {
+            Message message = new Message();
+            message.setFrom(fromJID);
+            message.setTo(toJID);
+            message.setType(Message.Type.normal);
+            message.setBody(body);
+            stanza = message.toString();
+        }
+
+        Message.Type type;
+        String sid;
+        try
+        {
+            if ( !JiveGlobals.getBooleanProperty( "conversation.OF-1804.disable", false ) )
+            {
+                // Prior to OF-1804 (Openfire 4.4.0), the stanza was logged with a formatter applied.
+                // This causes message formatting to be modified (notably, new lines could be altered).
+                // This workaround restores the original body text, that was stored in a different column.
+                final int pos1 = stanza.indexOf( "<body>" );
+                final int pos2 = stanza.indexOf( "</body>" );
+
+                if ( pos1 > -1 && pos2 > -1 )
+                {
+                    // Add the body value to a proper XML element, so that the strings get XML encoded (eg: ampersand is escaped).
+                    final Element bodyEl = docFactory.createDocument().addElement("body");
+                    bodyEl.setText(body);
+                    stanza = stanza.substring( 0, pos1 ) + bodyEl.asXML() + stanza.substring( pos2 + 7 );
+                }
+            }
+            final Document doc = DocumentHelper.parseText( stanza );
+            final Message message = new Message( doc.getRootElement() );
+            type = message.getType();
+            sid = StanzaIDUtil.findFirstUniqueAndStableStanzaID( message, owner.toBareJID() );
+        } catch ( Exception e ) {
+            Log.warn( "An exception occurred while parsing message with ID {}", id, e );
+            sid = null;
+            type = null;
+        }
+
+        final ArchivedMessage.Direction direction;
+        final JID with;
+        if (owner.asBareJID().equals(toJID.asBareJID())) {
+            direction = Direction.from;
+            with = fromJID;
+        } else {
+            direction = Direction.to;
+            with = toJID;
+        }
+        final ArchivedMessage archivedMessage = new ArchivedMessage(sentDate, direction, type == null ? null : type.toString(), with, sid);
+        archivedMessage.setStanza(stanza);
+        archivedMessage.setId(id);
+        return archivedMessage;
     }
 
     private Long dateToMillis(Date date) {

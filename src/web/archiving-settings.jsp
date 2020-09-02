@@ -13,6 +13,7 @@
 <%@ page import="org.jivesoftware.openfire.plugin.service.LogAPI" %>
 <%@ page import="org.jivesoftware.util.*" %>
 <%@ page import="org.jivesoftware.openfire.http.HttpBindManager" %>
+<%@ page import="com.reucon.openfire.plugin.archive.impl.MessageIndexer" %>
 
 <%@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c" %>
 <%@ taglib uri="http://java.sun.com/jsp/jstl/fmt" prefix="fmt" %>
@@ -26,9 +27,10 @@
 
     ArchiveIndexer archiveIndexer = (ArchiveIndexer) plugin.getModule(ArchiveIndexer.class);
     MucIndexer mucIndexer = (MucIndexer) plugin.getModule(MucIndexer.class);
+    MessageIndexer messageIndexer = (MessageIndexer) plugin.getModule(MessageIndexer.class);
 
     ByteFormat byteFormatter = new ByteFormat();
-    String indexSize = byteFormatter.format(archiveIndexer.getIndexSize() + mucIndexer.getIndexSize());
+    String indexSize = byteFormatter.format(archiveIndexer.getIndexSize() + mucIndexer.getIndexSize() + messageIndexer.getIndexSize());
 %>
 
 <html>
@@ -221,7 +223,8 @@
     if (rebuildIndex) {
         final boolean archiveRebuildStarted = archiveIndexer.rebuildIndex() != null;
         final boolean mucRebuildStarted = mucIndexer.rebuildIndex() != null;
-        if ( !archiveRebuildStarted || !mucRebuildStarted ) {
+        final boolean messageRebuildStarted = messageIndexer.rebuildIndex() != null;
+        if ( !archiveRebuildStarted || !mucRebuildStarted || !messageRebuildStarted) {
             errors.put("rebuildIndex", "");
             errorMessage = "Archive Index rebuild failed.";
         }

@@ -18,6 +18,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.Date;
 
 /**
@@ -87,11 +88,13 @@ public class MucIndexer extends LuceneIndexer
         try {
             // This retrieves _all_ table content, and operates on the entire result set. For large data sets, one would
             // expect issues caused by the entire data set being loaded into memory, before being operated on.
-            // However, with 'fetch size' hint as coded below, This didn't appear to cause any issues on
+            // However, with 'fetch size' hint as coded below, this didn't appear to cause any issues on
             // our Igniterealtime.org domain. This domain had over 300,000 messages at the time, had a Java heap that
             // was not larger than 1GB, and uses PostgreSQL 11.5. At the time of the test, it was running Openfire 4.5.0.
             // The entire process took under 8 seconds.
-            con = DbConnectionManager.getConnection();
+            // Preventing the driver to collect all results at once depends on auto-commit from being disabled, at
+            // least for postgres. Getting a 'transaction' connection will ensure this (if supported).
+            con = DbConnectionManager.getTransactionConnection();
 
             if ( since.equals( Instant.EPOCH ) ) {
                 pstmt = con.prepareStatement(ALL_MUC_MESSAGES);
@@ -104,6 +107,7 @@ public class MucIndexer extends LuceneIndexer
             rs = pstmt.executeQuery();
 
             long progress = 0;
+            Instant lastProgressReport = Instant.now();
             while (rs.next()) {
                 final long roomID = rs.getLong("roomID");
                 final long messageID = rs.getLong("messageID");
@@ -131,8 +135,10 @@ public class MucIndexer extends LuceneIndexer
                 }
 
                 // When there are _many_ messages to be processed, log an occasional progress indicator, to let admins know that things are still churning.
-                if (++progress % 10000 == 0) {
+                ++progress;
+                if ( lastProgressReport.isBefore( Instant.now().minus(10, ChronoUnit.SECONDS)) ) {
                     Log.debug( "... processed {} messages so far.", progress);
+                    lastProgressReport = Instant.now();
                 }
             }
             Log.debug( "... finished the entire result set. Processed {} messages in total.", progress );
@@ -141,10 +147,11 @@ public class MucIndexer extends LuceneIndexer
             Log.error("An exception occurred while trying to fetch all MUC messages from the database to rebuild the Lucene index.", sqle);
         }
         catch (IOException ex) {
-            Log.error("An exception occurred while trying to write  the Lucene index.", ex);
+            Log.error("An exception occurred while trying to write the Lucene index.", ex);
         }
         finally {
-            DbConnectionManager.closeConnection(rs, pstmt, con);
+            DbConnectionManager.closeResultSet(rs);
+            DbConnectionManager.closeTransactionConnection(pstmt, con, false); // Only read queries are performed. No need to roll back, even on exceptions.
         }
         return latest;
     }
