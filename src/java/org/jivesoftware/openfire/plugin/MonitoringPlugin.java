@@ -21,8 +21,7 @@ import java.io.FileFilter;
 import java.util.ArrayList;
 import java.util.List;
 
-import com.reucon.openfire.plugin.archive.impl.MucMamPersistenceManager;
-import com.reucon.openfire.plugin.archive.impl.MucIndexer;
+import com.reucon.openfire.plugin.archive.impl.*;
 import com.reucon.openfire.plugin.archive.xep0313.Xep0313Support1;
 import com.reucon.openfire.plugin.archive.xep0313.Xep0313Support2;
 import org.apache.tomcat.InstanceManager;
@@ -58,8 +57,6 @@ import com.reucon.openfire.plugin.archive.ArchiveManager;
 import com.reucon.openfire.plugin.archive.ArchiveProperties;
 import com.reucon.openfire.plugin.archive.IndexManager;
 import com.reucon.openfire.plugin.archive.PersistenceManager;
-import com.reucon.openfire.plugin.archive.impl.ArchiveManagerImpl;
-import com.reucon.openfire.plugin.archive.impl.JdbcPersistenceManager;
 import com.reucon.openfire.plugin.archive.xep0136.Xep0136Support;
 import com.reucon.openfire.plugin.archive.xep0313.Xep0313Support;
 import org.slf4j.Logger;
@@ -129,6 +126,7 @@ public class MonitoringPlugin implements Plugin {
         picoContainer.registerComponentImplementation(ArchiveSearcher.class);
         picoContainer.registerComponentImplementation(ArchiveIndexer.class);
         picoContainer.registerComponentImplementation(MucIndexer.class);
+        picoContainer.registerComponentImplementation(MessageIndexer.class);
     }
 
     private Class<? extends StatsViewer> getStatsViewerImplementation() {
