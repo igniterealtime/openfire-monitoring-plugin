@@ -567,18 +567,7 @@ abstract class IQQueryHandler extends AbstractIQHandler implements
         form.addField("with", "Author of message", FormField.Type.jid_single);
         form.addField("start", "Message sent on or after timestamp.", FormField.Type.text_single);
         form.addField("end", "Message sent on or before timestamp.", FormField.Type.text_single);
-
-        final boolean isMuc;
-        if (packet.getTo() == null ) {
-            isMuc = false;
-        } else {
-            isMuc = XMPPServer.getInstance().getMultiUserChatManager().getMultiUserChatService(packet.getTo()) != null;
-        }
-
-        // Issue #94: one-on-one chat archives do not support full text search. Only advertise that feature for MUC archves.
-        if (isMuc) {
-            form.addField("{urn:xmpp:fulltext:0}fulltext", "Free text search", FormField.Type.text_single);
-        }
+        form.addField("{urn:xmpp:fulltext:0}fulltext", "Free text search", FormField.Type.text_single);
 
         query.add(form.getElement());
 
