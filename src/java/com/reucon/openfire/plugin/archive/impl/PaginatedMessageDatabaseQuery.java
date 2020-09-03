@@ -19,7 +19,6 @@ import org.dom4j.Document;
 import org.dom4j.DocumentHelper;
 import org.jivesoftware.database.DbConnectionManager;
 import org.jivesoftware.openfire.stanzaid.StanzaIDUtil;
-import org.jivesoftware.util.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.xmpp.packet.JID;
@@ -104,7 +103,6 @@ public class PaginatedMessageDatabaseQuery
         try {
             connection = DbConnectionManager.getConnection();
             final String query = buildQueryForMessages(after, before, maxResults, isPagingBackwards);
-            Log.info( "Constructed query: {}", query );
             pstmt = connection.prepareStatement( query );
             pstmt.setLong( 1, dateToMillis( startDate ) );
             pstmt.setLong( 2, dateToMillis( endDate ) );
@@ -113,11 +111,13 @@ public class PaginatedMessageDatabaseQuery
 
             if ( with != null ) {
                 if (with.getResource() == null) {
-                    pstmt.setString( ++pos, with.toString() + "%" );
-                    pstmt.setString( ++pos, with.toString() + "%" );
+                    pstmt.setString( ++pos, with.toString() );
+                    pstmt.setString( ++pos, with.toString() );
                 } else {
-                    pstmt.setString( ++pos, with.toString() );
-                    pstmt.setString( ++pos, with.toString() );
+                    pstmt.setString( ++pos, with.toBareJID() );
+                    pstmt.setString( ++pos, with.getResource() );
+                    pstmt.setString( ++pos, with.toBareJID() );
+                    pstmt.setString( ++pos, with.getResource() );
                 }
             }
 
@@ -129,6 +129,7 @@ public class PaginatedMessageDatabaseQuery
                 pstmt.setLong( ++pos, before );
             }
 
+            Log.trace( "Constructed query: {}", query );
             rs = pstmt.executeQuery();
             while (rs.next()) {
                 // TODO Can we replace this with #extractMessage?
@@ -188,13 +189,17 @@ public class PaginatedMessageDatabaseQuery
 
             if ( with != null ) {
                 if (with.getResource() == null) {
-                    pstmt.setString( ++pos, with.toString() + "%" );
-                    pstmt.setString( ++pos, with.toString() + "%" );
+                    pstmt.setString( ++pos, with.toString() );
+                    pstmt.setString( ++pos, with.toString() );
                 } else {
-                    pstmt.setString( ++pos, with.toString() );
-                    pstmt.setString( ++pos, with.toString() );
+                    pstmt.setString( ++pos, with.toBareJID() );
+                    pstmt.setString( ++pos, with.getResource() );
+                    pstmt.setString( ++pos, with.toBareJID() );
+                    pstmt.setString( ++pos, with.getResource() );
                 }
             }
+
+            Log.trace( "Constructed query: {}", pstmt );
             rs = pstmt.executeQuery();
             if (rs.next()) {
                 totalCount = rs.getInt(1);
@@ -209,8 +214,8 @@ public class PaginatedMessageDatabaseQuery
 
     private String getStatement(final Long after, final Long before, final int maxResults, final boolean isPagingBackwards)
     {
-        String sql = "SELECT fromJID, toJID, sentDate, stanza, messageID, bareJID FROM ("
-            + "SELECT DISTINCT ofMessageArchive.fromJID, ofMessageArchive.toJID, ofMessageArchive.sentDate, ofMessageArchive.stanza, ofMessageArchive.messageID, ofConParticipant.bareJID "
+        String sql = "SELECT fromJID, fromJIDResource, toJID, toJIDResource, sentDate, stanza, messageID, bareJID FROM ("
+            + "SELECT DISTINCT ofMessageArchive.fromJID, ofMessageArchive.fromJIDResource, ofMessageArchive.toJID, ofMessageArchive.toJIDResource, ofMessageArchive.sentDate, ofMessageArchive.stanza, ofMessageArchive.messageID, ofConParticipant.bareJID "
             + "FROM ofMessageArchive "
             + "INNER JOIN ofConParticipant ON ofMessageArchive.conversationID = ofConParticipant.conversationID "
             + "WHERE (ofMessageArchive.stanza IS NOT NULL OR ofMessageArchive.body IS NOT NULL) ";
@@ -224,11 +229,10 @@ public class PaginatedMessageDatabaseQuery
         if( with != null )
         {
             // XEP-0313 specifies: If (and only if) the supplied JID is a bare JID (i.e. no resource is present), then the server SHOULD return messages if their bare to/from address for a user archive, or from address otherwise, would match it.
-            // TODO using a 'LIKE' query is unlikely to perform well on large data sets. Fix this with an additional column or index (which could also utilize Lucene, perhaps).
             if (with.getResource() == null) {
-                sql += " AND ( ofMessageArchive.toJID LIKE ? OR ofMessageArchive.fromJID LIKE ? )";
-            } else {
                 sql += " AND ( ofMessageArchive.toJID = ? OR ofMessageArchive.fromJID = ? )";
+            } else {
+                sql += " AND ( (ofMessageArchive.toJID = ? AND ofMessageArchive.toJIDResource = ? ) OR (ofMessageArchive.fromJID = ? AND ofMessageArchive.fromJIDResource = ? ) )";
             }
         }
 
@@ -249,8 +253,8 @@ public class PaginatedMessageDatabaseQuery
 
     private String getStatementForSqlServer(final Long after, final Long before, final int maxResults, final boolean isPagingBackwards)
     {
-        String sql = "SELECT fromJID, toJID, sentDate, stanza, messageID, bareJID FROM ("
-            + "SELECT DISTINCT TOP("+maxResults+") ofMessageArchive.fromJID, ofMessageArchive.toJID, ofMessageArchive.sentDate, ofMessageArchive.stanza, ofMessageArchive.messageID, ofConParticipant.bareJID "
+        String sql = "SELECT fromJID, fromJIDResource, toJID, toJIDResource, sentDate, stanza, messageID, bareJID FROM ("
+            + "SELECT DISTINCT TOP("+maxResults+") ofMessageArchive.fromJID, ofMessageArchive.fromJIDResource, ofMessageArchive.toJID, ofMessageArchive.toJIDResource, ofMessageArchive.sentDate, ofMessageArchive.stanza, ofMessageArchive.messageID, ofConParticipant.bareJID "
             + "FROM ofMessageArchive "
             + "INNER JOIN ofConParticipant ON ofMessageArchive.conversationID = ofConParticipant.conversationID "
             + "WHERE (ofMessageArchive.stanza IS NOT NULL OR ofMessageArchive.body IS NOT NULL) ";
@@ -264,11 +268,10 @@ public class PaginatedMessageDatabaseQuery
         if( with != null )
         {
             // XEP-0313 specifies: If (and only if) the supplied JID is a bare JID (i.e. no resource is present), then the server SHOULD return messages if their bare to/from address for a user archive, or from address otherwise, would match it.
-            // TODO using a 'LIKE' query is unlikely to perform well on large data sets. Fix this with an additional column or index (which could also utilize Lucene, perhaps).
             if (with.getResource() == null) {
-                sql += " AND ( ofMessageArchive.toJID LIKE ? OR ofMessageArchive.fromJID LIKE ? )";
-            } else {
                 sql += " AND ( ofMessageArchive.toJID = ? OR ofMessageArchive.fromJID = ? )";
+            } else {
+                sql += " AND ( (ofMessageArchive.toJID = ? AND ofMessageArchive.toJIDResource = ? ) OR (ofMessageArchive.fromJID = ? AND ofMessageArchive.fromJIDResource = ? ) )";
             }
         }
 
@@ -311,7 +314,12 @@ public class PaginatedMessageDatabaseQuery
             + "AND ofConParticipant.bareJID = ? ";
 
         if (with != null) {
-            sql += " AND ( ofMessageArchive.toJID = ? OR ofMessageArchive.fromJID = ? )";
+            // XEP-0313 specifies: If (and only if) the supplied JID is a bare JID (i.e. no resource is present), then the server SHOULD return messages if their bare to/from address for a user archive, or from address otherwise, would match it.
+            if (with.getResource() == null) {
+                sql += " AND ( ofMessageArchive.toJID = ? OR ofMessageArchive.fromJID = ? )";
+            } else {
+                sql += " AND ( (ofMessageArchive.toJID = ? AND ofMessageArchive.toJIDResource = ? ) OR (ofMessageArchive.fromJID = ? AND ofMessageArchive.fromJIDResource = ? ) )";
+            }
         }
 
         return sql;
