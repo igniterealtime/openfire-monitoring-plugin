@@ -485,6 +485,9 @@ public class JdbcPersistenceManager implements PersistenceManager {
             }
             Log.debug("Found results for 'next page': {} (based on after: {} before: {} isPagingBackwards: {})", !nextPage.isEmpty(), afterForNextPage, beforeForNextPage, isPagingBackwards);
             xmppResultSet.setComplete(nextPage.isEmpty());
+        } else {
+            // Issue #112: When there are no results, then the request is definitely 'complete'.
+            xmppResultSet.setComplete(true);
         }
         return msgs;
     }
