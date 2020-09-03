@@ -39,31 +39,31 @@ public class JdbcPersistenceManager implements PersistenceManager {
     protected static final DocumentFactory docFactory = DocumentFactory.getInstance();
     public static final int DEFAULT_MAX = 1000;
 
-    public static final String SELECT_MESSAGES_BY_CONVERSATION = "SELECT DISTINCT " + "ofConversation.conversationID, " + "ofConversation.room, "
-            + "ofConversation.isExternal, " + "ofConversation.startDate, " + "ofConversation.lastActivity, " + "ofConversation.messageCount, "
-            + "ofConParticipant.joinedDate, " + "ofConParticipant.leftDate, " + "ofConParticipant.bareJID, " + "ofConParticipant.jidResource, "
-            + "ofConParticipant.nickname, " + "ofMessageArchive.fromJID, " + "ofMessageArchive.toJID, " + "ofMessageArchive.sentDate, "
-            + "ofMessageArchive.body " + "FROM ofConversation "
+    public static final String SELECT_MESSAGES_BY_CONVERSATION = "SELECT DISTINCT ofConversation.conversationID, ofConversation.room, "
+            + "ofConversation.isExternal, ofConversation.startDate, ofConversation.lastActivity, ofConversation.messageCount, "
+            + "ofConParticipant.joinedDate, ofConParticipant.leftDate, ofConParticipant.bareJID, ofConParticipant.jidResource, "
+            + "ofConParticipant.nickname, ofMessageArchive.fromJID, ofMessageArchive.fromJIDResource, ofMessageArchive.toJID, "
+            + "ofMessageArchive.toJIDResource, ofMessageArchive.sentDate, ofMessageArchive.body FROM ofConversation "
             + "INNER JOIN ofConParticipant ON ofConversation.conversationID = ofConParticipant.conversationID "
             + "INNER JOIN ofMessageArchive ON ofConParticipant.conversationID = ofMessageArchive.conversationID "
             + "WHERE ofConversation.conversationID = ? AND ofConParticipant.bareJID = ? ORDER BY ofMessageArchive.sentDate";
 
     public static final String SELECT_CONVERSATIONS = "SELECT "
-            + "ofConversation.conversationID, " + " ofConversation.room, " + "ofConversation.isExternal, "+ "ofConversation.lastActivity, "
-            + "ofConversation.messageCount, " + "ofConversation.startDate, " + "ofConParticipant.bareJID, " + "ofConParticipant.jidResource,"
-            + "ofConParticipant.nickname, " + "ofConParticipant.bareJID AS fromJID, " + "ofMessageArchive.toJID, "
-            + "min(ofConParticipant.joinedDate) AS joinedDate, " + "max(ofConParticipant.leftDate) as leftDate "
+            + "ofConversation.conversationID, ofConversation.room, ofConversation.isExternal, ofConversation.lastActivity, "
+            + "ofConversation.messageCount, ofConversation.startDate, ofConParticipant.bareJID, ofConParticipant.jidResource, "
+            + "ofConParticipant.nickname, ofConParticipant.bareJID AS fromJID, ofConParticipant.jidResource AS fromJIDResource, ofMessageArchive.toJID, ofMessageArchive.toJIDResource"
+            + "min(ofConParticipant.joinedDate) AS joinedDate, max(ofConParticipant.leftDate) as leftDate "
             + "FROM ofConversation "
             + "INNER JOIN ofConParticipant ON ofConversation.conversationID = ofConParticipant.conversationID "
-            + "INNER JOIN (SELECT conversationID, toJID FROM ofMessageArchive union all SELECT conversationID, fromJID as toJID FROM ofMessageArchive) ofMessageArchive ON ofConParticipant.conversationID = ofMessageArchive.conversationID ";
+            + "INNER JOIN (SELECT conversationID, toJID, toJIDResource FROM ofMessageArchive union all SELECT conversationID, fromJID as toJID, fromJIDResource as toJIDResource FROM ofMessageArchive) ofMessageArchive ON ofConParticipant.conversationID = ofMessageArchive.conversationID ";
 
-        public static final String SELECT_CONVERSATIONS_GROUP_BY = " GROUP BY ofConversation.conversationID, ofConversation.room, ofConversation.isExternal, ofConversation.lastActivity, ofConversation.messageCount, ofConversation.startDate, ofConParticipant.bareJID, ofConParticipant.jidResource, ofConParticipant.nickname, ofConParticipant.bareJID, ofMessageArchive.toJID";
+    public static final String SELECT_CONVERSATIONS_GROUP_BY = " GROUP BY ofConversation.conversationID, ofConversation.room, ofConversation.isExternal, ofConversation.lastActivity, ofConversation.messageCount, ofConversation.startDate, ofConParticipant.bareJID, ofConParticipant.jidResource, ofConParticipant.nickname, ofConParticipant.bareJID, ofMessageArchive.toJID";
 
     public static final String COUNT_CONVERSATIONS = "SELECT COUNT(DISTINCT ofConversation.conversationID) FROM ofConversation "
             + "INNER JOIN ofConParticipant ON ofConversation.conversationID = ofConParticipant.conversationID "
-            + "INNER JOIN (SELECT conversationID, toJID FROM ofMessageArchive "
+            + "INNER JOIN (SELECT conversationID, toJID, toJIDResource FROM ofMessageArchive "
             + "union all "
-            + "SELECT conversationID, fromJID as toJID FROM ofMessageArchive) ofMessageArchive ON ofConParticipant.conversationID = ofMessageArchive.conversationID";
+            + "SELECT conversationID, fromJID as toJID, fromJIDResource as toJIDResource FROM ofMessageArchive) ofMessageArchive ON ofConParticipant.conversationID = ofMessageArchive.conversationID";
 
     public static final String CONVERSATION_ID = "ofConversation.conversationID";
 
@@ -75,11 +75,12 @@ public class JdbcPersistenceManager implements PersistenceManager {
 
     public static final String CONVERSATION_WITH_JID = "ofMessageArchive.toJID";
 
-    public static final String SELECT_ACTIVE_CONVERSATIONS = "SELECT DISTINCT " + "ofConversation.conversationID, " + "ofConversation.room, "
-            + "ofConversation.isExternal, " + "ofConversation.startDate, " + "ofConversation.lastActivity, " + "ofConversation.messageCount, "
-            + "ofConParticipant.joinedDate, " + "ofConParticipant.leftDate, " + "ofConParticipant.bareJID, " + "ofConParticipant.jidResource, "
-            + "ofConParticipant.nickname, " + "ofMessageArchive.fromJID, " + "ofMessageArchive.toJID, " + "ofMessageArchive.sentDate, "
-            + "ofMessageArchive.body " + "FROM ofConversation "
+    public static final String SELECT_ACTIVE_CONVERSATIONS = "SELECT DISTINCT ofConversation.conversationID, ofConversation.room, "
+            + "ofConversation.isExternal, ofConversation.startDate, ofConversation.lastActivity, ofConversation.messageCount, "
+            + "ofConParticipant.joinedDate, ofConParticipant.leftDate, ofConParticipant.bareJID, ofConParticipant.jidResource, "
+            + "ofConParticipant.nickname, ofMessageArchive.fromJID, ofMessageArchive.fromJIDResource, ofMessageArchive.toJID, "
+            + "ofMessageArchive.toJIDResource, ofMessageArchive.sentDate, "
+            + "ofMessageArchive.body FROM ofConversation "
             + "INNER JOIN ofConParticipant ON ofConversation.conversationID = ofConParticipant.conversationID "
             + "INNER JOIN ofMessageArchive ON ofConParticipant.conversationID = ofMessageArchive.conversationID "
             + "WHERE ofConversation.lastActivity > ?";
@@ -96,7 +97,9 @@ public class JdbcPersistenceManager implements PersistenceManager {
                 + "SUBSET.jidResource,"
                 + "SUBSET.nickname,"
                 + "SUBSET.fromJID,"
+                + "SUBSET.fromJIDResource,"
                 + "SUBSET.toJID,"
+                + "SUBSET.toJIDResource,"
                 + "SUBSET.sentDate,"
                 + "MAR.body from ("
                 + "SELECT DISTINCT ofConversation.conversationID as conversationID,"
@@ -111,7 +114,9 @@ public class JdbcPersistenceManager implements PersistenceManager {
                 + "ofConParticipant.jidResource as jidResource,"
                 + "ofConParticipant.nickname as nickname,"
                 + "ofMessageArchive.fromJID as fromJID,"
+                + "ofMessageArchive.fromJIDResource as fromJIDResource,"
                 + "ofMessageArchive.toJID as toJID,"
+                + "ofMessageArchive.toJIDResource as toJIDResource,"
                 + "ofMessageArchive.sentDate as sentDate,"
                 + "ofMessageArchive.MESSAGEID as msgId "
                 + "FROM ofConversation "
@@ -122,10 +127,12 @@ public class JdbcPersistenceManager implements PersistenceManager {
                 + "where MAR.MESSAGEID = SUBSET.msgId "
                 + "and MAR.sentDate = SUBSET.sentDate "
                 + "and MAR.fromJID = SUBSET.fromJID "
-                + "and MAR.toJID = SUBSET.toJID";
+                + "and MAR.fromJIDResource = SUBSET.fromJIDResource "
+                + "and MAR.toJID = SUBSET.toJID "
+                + "and MAR.toJIDResource = SUBSET.toJIDResource";
 
-    public static final String SELECT_PARTICIPANTS_BY_CONVERSATION = "SELECT DISTINCT " + "ofConversation.conversationID, "
-            + "ofConversation.startDate, " + "ofConversation.lastActivity, " + "ofConParticipant.bareJID " + "FROM ofConversation "
+    public static final String SELECT_PARTICIPANTS_BY_CONVERSATION = "SELECT DISTINCT ofConversation.conversationID, "
+            + "ofConversation.startDate, ofConversation.lastActivity, ofConParticipant.bareJID FROM ofConversation "
             + "INNER JOIN ofConParticipant ON ofConversation.conversationID = ofConParticipant.conversationID "
             + "INNER JOIN ofMessageArchive ON ofConParticipant.conversationID = ofMessageArchive.conversationID "
             + "WHERE ofConversation.conversationID = ? ORDER BY ofConversation.startDate";
@@ -677,16 +684,18 @@ public class JdbcPersistenceManager implements PersistenceManager {
     private JID getWithJidConversations(ResultSet rs) throws SQLException {
         String bareJid = rs.getString("bareJID");
         String fromJid = rs.getString("fromJID");
+        String fromJIDResource = rs.getString("fromJIDResource");
         String toJid = rs.getString("toJID");
+        String toJIDResource = rs.getString("toJIDResource");
         String room = rs.getString("room");
         String result = null;
         if (bareJid != null && fromJid != null && toJid != null) {
             if (room != null && !room.equals("")) {
                 result = room;
-            } else if (fromJid.contains(bareJid)) {
-                result = toJid;
+            } else if (fromJid.contains(bareJid)) { // older versions of the database put the full jid in 'fromJID'. Using 'contains' (instead of 'equals') will also match those.
+                result = toJid + ( toJIDResource == null || toJIDResource.isEmpty() ? "" : "/" + toJIDResource );
             } else {
-                result = fromJid;
+                result = fromJid + ( fromJIDResource == null || fromJIDResource.isEmpty() ? "" : "/" + fromJIDResource );
             }
         }
         return result == null ? null : new JID(result);
@@ -698,7 +707,7 @@ public class JdbcPersistenceManager implements PersistenceManager {
         String fromJid = rs.getString("fromJID");
         String toJid = rs.getString("toJID");
         if (bareJid != null && fromJid != null && toJid != null) {
-            if (bareJid.equals(fromJid)) {
+            if (fromJid.contains(bareJid)) { // older versions of the database put the full jid in 'fromJID'. Using 'contains' (instead of 'equals') will also match those.
                 /*
                  * if message from me to 'with' then it is to the 'with' participant
                  */
@@ -761,11 +770,17 @@ public class JdbcPersistenceManager implements PersistenceManager {
         String body = rs.getString("body");
         String stanza = rs.getString("stanza");
         String bareJid = rs.getString("bareJID");
+        String fromJid = rs.getString("fromJID");
+        String fromJIDResource = rs.getString("fromJIDResource");
+        String toJid = rs.getString("toJID");
+        String toJIDResource = rs.getString("toJIDResource");
         Long id = rs.getLong( "messageID" );
-        JID with = null;
+        JID with;
 
-        if (Direction.from == direction) {
-            with = new JID(rs.getString("fromJID"));
+        if (fromJid.contains(bareJid)) { // older versions of the database put the full jid in 'fromJID'. Using 'contains' (instead of 'equals') will also match those.
+            with = new JID(toJid + ( toJIDResource == null || toJIDResource.isEmpty() ? "" : "/" + toJIDResource ));
+        } else {
+            with = new JID(fromJid + ( fromJIDResource == null || fromJIDResource.isEmpty() ? "" : "/" + fromJIDResource ));
         }
 
         String sid = null;
@@ -801,7 +816,7 @@ public class JdbcPersistenceManager implements PersistenceManager {
         ResultSet rs = null;
         try {
             connection = DbConnectionManager.getConnection();
-            final String query = "SELECT DISTINCT ofMessageArchive.fromJID, ofMessageArchive.toJID, ofMessageArchive.sentDate, ofMessageArchive.body, ofMessageArchive.stanza, ofMessageArchive.messageID "
+            final String query = "SELECT DISTINCT ofMessageArchive.fromJID, ofMessageArchive.fromJIDResource, ofMessageArchive.toJID, ofMessageArchive.toJIDResource, ofMessageArchive.sentDate, ofMessageArchive.body, ofMessageArchive.stanza, ofMessageArchive.messageID "
                 + "FROM ofMessageArchive "
                 + "INNER JOIN ofConParticipant ON ofMessageArchive.conversationID = ofConParticipant.conversationID "
                 + "WHERE (ofMessageArchive.stanza IS NOT NULL OR ofMessageArchive.body IS NOT NULL) "
@@ -816,19 +831,24 @@ public class JdbcPersistenceManager implements PersistenceManager {
             }
 
             String fromJID = rs.getString(1);
-            String toJID = rs.getString(2);
-            Date sentDate = new Date(rs.getLong(3));
-            String body = rs.getString(4);
-            String stanza = rs.getString(5);
+            String fromJIDResource = rs.getString(2);
+            String toJID = rs.getString(3);
+            String toJIDResource = rs.getString(4);
+            Date sentDate = new Date(rs.getLong(5));
+            String body = rs.getString(6);
+            String stanza = rs.getString(7);
             if ( stanza != null && stanza.isEmpty()) {
                 stanza = null;
             }
-            long id = rs.getLong(6);
+            long id = rs.getLong(8);
 
             if ( rs.next() ) {
                 Log.warn("Database contains more than one message with ID {} from the archive of {}.", messageId, owner);
             }
-            return asArchivedMessage(owner, new JID(fromJID), new JID(toJID), sentDate, body, stanza, id);
+            final JID to = new JID(toJID + ( toJIDResource == null || toJIDResource.isEmpty() ? "" : "/" + toJIDResource ));
+            final JID from = new JID(fromJID + ( fromJIDResource == null || fromJIDResource.isEmpty() ? "" : "/" + fromJIDResource ));
+
+            return asArchivedMessage(owner, from, to, sentDate, body, stanza, id);
         } catch (SQLException ex) {
             Log.warn("SQL failure while trying to get message with ID {} from the archive of {}.", messageId, owner, ex);
             return null;
