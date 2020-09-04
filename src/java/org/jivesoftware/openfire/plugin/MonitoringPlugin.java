@@ -184,6 +184,9 @@ public class MonitoringPlugin implements Plugin {
         enabled = JiveGlobals.getBooleanProperty(ArchiveProperties.ENABLED,
                 false);
 
+        // Issue #113: Migrate full JIDs in the database
+        JdbcPersistenceManager.performDatabaseUpdateSplitJIDs();
+
         persistenceManager = new JdbcPersistenceManager();
         mucPersistenceManager = new MucMamPersistenceManager();
 
