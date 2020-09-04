@@ -18,6 +18,8 @@ package org.jivesoftware.openfire.reporting.util;
 
 import org.jivesoftware.util.NamedThreadFactory;
 import org.picocontainer.Disposable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.*;
 import java.util.concurrent.*;
@@ -34,6 +36,8 @@ import java.util.concurrent.atomic.AtomicInteger;
  * @author Matt Tucker
  */
 public class TaskEngine implements Disposable {
+
+    private static final Logger Log = LoggerFactory.getLogger( TaskEngine.class );
 
     private static TaskEngine instance = new TaskEngine();
 
@@ -280,11 +284,21 @@ public class TaskEngine implements Disposable {
     }
 
     public void dispose() {
-        executor.shutdownNow();
-        executor = null;
+        if (executor != null) {
+            executor.shutdown();
+            try {
+                executor.awaitTermination(5, TimeUnit.SECONDS);
+            } catch ( InterruptedException e ) {
+                Log.debug( "Interrupted graceful shutdown. Shutting down immediately." );
+            }
+            executor.shutdownNow();
+            executor = null;
+        }
 
-        timer.cancel();
-        timer = null;
+        if (timer != null) {
+            timer.cancel();
+            timer = null;
+        }
 
         instance = null;
         wrappedTasks.clear();
