@@ -82,8 +82,10 @@ public class ConversationEventsQueue {
                 }
 
                 // Send the queued events (from the temp place) to the senior cluster member
-                CacheFactory.doClusterTask(new SendConversationEventsTask(eventsToSend),
-                        ClusterManager.getSeniorClusterMember().toByteArray());
+                if (!eventsToSend.isEmpty()) {
+                    CacheFactory.doClusterTask(new SendConversationEventsTask(eventsToSend),
+                                               ClusterManager.getSeniorClusterMember().toByteArray());
+                }
             }
         };
         taskEngine.scheduleAtFixedRate(sendTask, JiveConstants.SECOND * 3, JiveConstants.SECOND * 3);
