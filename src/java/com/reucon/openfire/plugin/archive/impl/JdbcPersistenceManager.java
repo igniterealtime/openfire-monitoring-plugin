@@ -702,7 +702,7 @@ public class JdbcPersistenceManager implements PersistenceManager {
         return result == null ? null : new JID(result);
     }
 
-    private Direction getDirection(ResultSet rs) throws SQLException {
+    private static Direction getDirection(ResultSet rs) throws SQLException {
         Direction direction = null;
         String bareJid = rs.getString("bareJID");
         String fromJid = rs.getString("fromJID");
@@ -762,12 +762,8 @@ public class JdbcPersistenceManager implements PersistenceManager {
         return participants;
     }
 
-    private ArchivedMessage extractMessage(ResultSet rs) throws SQLException {
-        final ArchivedMessage message;
+    static ArchivedMessage extractMessage(ResultSet rs) throws SQLException {
         Date time = millisToDate(rs.getLong("sentDate"));
-        Direction direction = getDirection(rs);
-        String type = null;
-        String subject = null;
         String body = rs.getString("body");
         String stanza = rs.getString("stanza");
         String bareJid = rs.getString("bareJID");
@@ -776,31 +772,8 @@ public class JdbcPersistenceManager implements PersistenceManager {
         String toJid = rs.getString("toJID");
         String toJIDResource = rs.getString("toJIDResource");
         Long id = rs.getLong( "messageID" );
-        JID with;
 
-        if (fromJid.contains(bareJid)) { // older versions of the database put the full jid in 'fromJID'. Using 'contains' (instead of 'equals') will also match those.
-            with = new JID(toJid + ( toJIDResource == null || toJIDResource.isEmpty() ? "" : "/" + toJIDResource ));
-        } else {
-            with = new JID(fromJid + ( fromJIDResource == null || fromJIDResource.isEmpty() ? "" : "/" + fromJIDResource ));
-        }
-
-        String sid = null;
-        if ( stanza != null && !stanza.isEmpty() ) {
-            try {
-                final Document doc = DocumentHelper.parseText( stanza );
-                final Message m = new Message( doc.getRootElement() );
-                sid = StanzaIDUtil.findFirstUniqueAndStableStanzaID( m, new JID( bareJid ).toBareJID() );
-            } catch ( Exception e ) {
-                Log.warn( "An exception occurred while parsing message with ID {}", id, e );
-                sid = null;
-            }
-        }
-
-        message = new ArchivedMessage(time, direction, null, with, sid);
-        // message.setId(id);
-        // message.setSubject(subject);
-        message.setBody(body);
-        return message;
+        return asArchivedMessage( new JID(bareJid), fromJid, fromJIDResource, toJid, toJIDResource, time, body, stanza, id );
     }
 
     /**
@@ -846,10 +819,8 @@ public class JdbcPersistenceManager implements PersistenceManager {
             if ( rs.next() ) {
                 Log.warn("Database contains more than one message with ID {} from the archive of {}.", messageId, owner);
             }
-            final JID to = new JID(toJID + ( toJIDResource == null || toJIDResource.isEmpty() ? "" : "/" + toJIDResource ));
-            final JID from = new JID(fromJID + ( fromJIDResource == null || fromJIDResource.isEmpty() ? "" : "/" + fromJIDResource ));
 
-            return asArchivedMessage(owner, from, to, sentDate, body, stanza, id);
+            return asArchivedMessage(owner, fromJID, fromJIDResource, toJID, toJIDResource, sentDate, body, stanza, id);
         } catch (SQLException ex) {
             Log.warn("SQL failure while trying to get message with ID {} from the archive of {}.", messageId, owner, ex);
             return null;
@@ -858,7 +829,7 @@ public class JdbcPersistenceManager implements PersistenceManager {
         }
     }
 
-    static protected ArchivedMessage asArchivedMessage(JID owner, JID fromJID, JID toJID, Date sentDate, String body, String stanza, long id)
+    static protected ArchivedMessage asArchivedMessage(JID owner, String fromJID, String fromJIDResource, String toJID, String toJIDResource, Date sentDate, String body, String stanza, Long id)
     {
         if (stanza == null) {
             Message message = new Message();
@@ -899,14 +870,17 @@ public class JdbcPersistenceManager implements PersistenceManager {
             type = null;
         }
 
+        final JID from = new JID(fromJID + ( fromJIDResource == null || fromJIDResource.isEmpty() ? "" : "/" + fromJIDResource ));
+        final JID to = new JID(toJID + ( toJIDResource == null || toJIDResource.isEmpty() ? "" : "/" + toJIDResource ));
+
         final ArchivedMessage.Direction direction;
         final JID with;
-        if (owner.asBareJID().equals(toJID.asBareJID())) {
+        if (owner.asBareJID().equals(to.asBareJID())) {
             direction = Direction.from;
-            with = fromJID;
+            with = from;
         } else {
             direction = Direction.to;
-            with = toJID;
+            with = to;
         }
         final ArchivedMessage archivedMessage = new ArchivedMessage(sentDate, direction, type == null ? null : type.toString(), with, sid);
         archivedMessage.setStanza(stanza);
@@ -914,11 +888,11 @@ public class JdbcPersistenceManager implements PersistenceManager {
         return archivedMessage;
     }
 
-    private Long dateToMillis(Date date) {
+    private static Long dateToMillis(Date date) {
         return date == null ? null : date.getTime();
     }
 
-    private Date millisToDate(Long millis) {
+    private static Date millisToDate(Long millis) {
         return millis == null ? null : new Date(millis);
     }
 }
