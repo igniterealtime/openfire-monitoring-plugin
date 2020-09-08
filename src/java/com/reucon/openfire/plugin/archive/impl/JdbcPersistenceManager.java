@@ -14,7 +14,7 @@ import org.dom4j.Element;
 import org.jivesoftware.database.DbConnectionManager;
 import org.jivesoftware.openfire.archive.ConversationManager;
 import org.jivesoftware.openfire.muc.MUCRoom;
-import org.jivesoftware.openfire.stanzaid.StanzaIDUtil;
+import com.reucon.openfire.plugin.archive.util.StanzaIDUtil;
 import org.jivesoftware.util.JiveConstants;
 import org.jivesoftware.util.JiveGlobals;
 import org.jivesoftware.util.NotFoundException;

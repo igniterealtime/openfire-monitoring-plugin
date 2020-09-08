@@ -34,7 +34,7 @@ import org.jivesoftware.openfire.component.InternalComponentManager;
 import org.jivesoftware.openfire.muc.MultiUserChatService;
 import org.jivesoftware.openfire.plugin.MonitoringPlugin;
 import org.jivesoftware.openfire.reporting.util.TaskEngine;
-import org.jivesoftware.openfire.stanzaid.StanzaIDUtil;
+import com.reucon.openfire.plugin.archive.util.StanzaIDUtil;
 import org.jivesoftware.openfire.stats.Statistic;
 import org.jivesoftware.openfire.stats.StatisticsManager;
 import org.jivesoftware.util.*;

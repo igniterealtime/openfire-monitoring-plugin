@@ -12,7 +12,7 @@ import org.jivesoftware.openfire.XMPPServer;
 import org.jivesoftware.openfire.muc.MUCRoom;
 import org.jivesoftware.openfire.muc.MultiUserChatManager;
 import org.jivesoftware.openfire.muc.MultiUserChatService;
-import org.jivesoftware.openfire.stanzaid.StanzaIDUtil;
+import com.reucon.openfire.plugin.archive.util.StanzaIDUtil;
 import org.jivesoftware.util.JiveGlobals;
 import org.jivesoftware.util.NotFoundException;
 import org.slf4j.Logger;

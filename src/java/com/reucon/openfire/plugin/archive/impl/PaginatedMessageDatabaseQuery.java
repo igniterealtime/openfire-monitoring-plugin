@@ -18,7 +18,7 @@ import com.reucon.openfire.plugin.archive.model.ArchivedMessage;
 import org.dom4j.Document;
 import org.dom4j.DocumentHelper;
 import org.jivesoftware.database.DbConnectionManager;
-import org.jivesoftware.openfire.stanzaid.StanzaIDUtil;
+import com.reucon.openfire.plugin.archive.util.StanzaIDUtil;
 import org.jivesoftware.util.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
