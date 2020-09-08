@@ -15,20 +15,18 @@
 package com.reucon.openfire.plugin.archive.impl;
 
 import com.reucon.openfire.plugin.archive.model.ArchivedMessage;
-import org.dom4j.Document;
-import org.dom4j.DocumentHelper;
 import org.jivesoftware.database.DbConnectionManager;
-import org.jivesoftware.openfire.stanzaid.StanzaIDUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.xmpp.packet.JID;
-import org.xmpp.packet.Message;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.List;
 
 /**
  * Encapsulates responsibility of creating a database query that retrieves a specific subset (page) of archived messages
@@ -132,27 +130,7 @@ public class PaginatedMessageDatabaseQuery
             Log.trace( "Constructed query: {}", query );
             rs = pstmt.executeQuery();
             while (rs.next()) {
-                // TODO Can we replace this with #extractMessage?
-                final String stanza = rs.getString( "stanza" );
-                final long id = rs.getLong( "messageID" );
-                final Date time = millisToDate(rs.getLong("sentDate"));
-
-                String sid = null;
-                if ( stanza != null && !stanza.isEmpty() ) {
-                    try {
-                        final Document doc = DocumentHelper.parseText(stanza );
-                        final Message message = new Message(doc.getRootElement() );
-                        sid = StanzaIDUtil.findFirstUniqueAndStableStanzaID(message, owner.toBareJID() );
-                    } catch ( Exception e ) {
-                        Log.warn( "An exception occurred while parsing message with ID {}", id, e );
-                        sid = null;
-                    }
-                }
-
-                ArchivedMessage archivedMessage = new ArchivedMessage(time, null, null, null, sid); // TODO can more fields be populated?
-                archivedMessage.setId(id);
-                archivedMessage.setStanza(stanza);
-
+                final ArchivedMessage archivedMessage = JdbcPersistenceManager.extractMessage(rs);
                 archivedMessages.add(archivedMessage);
             }
         } catch (SQLException e) {
@@ -214,8 +192,8 @@ public class PaginatedMessageDatabaseQuery
 
     private String getStatement(final Long after, final Long before, final int maxResults, final boolean isPagingBackwards)
     {
-        String sql = "SELECT fromJID, fromJIDResource, toJID, toJIDResource, sentDate, stanza, messageID, bareJID FROM ("
-            + "SELECT DISTINCT ofMessageArchive.fromJID, ofMessageArchive.fromJIDResource, ofMessageArchive.toJID, ofMessageArchive.toJIDResource, ofMessageArchive.sentDate, ofMessageArchive.stanza, ofMessageArchive.messageID, ofConParticipant.bareJID "
+        String sql = "SELECT fromJID, fromJIDResource, toJID, toJIDResource, sentDate, body, stanza, messageID, bareJID FROM ("
+            + "SELECT DISTINCT ofMessageArchive.fromJID, ofMessageArchive.fromJIDResource, ofMessageArchive.toJID, ofMessageArchive.toJIDResource, ofMessageArchive.sentDate, ofMessageArchive.body, ofMessageArchive.stanza, ofMessageArchive.messageID, ofConParticipant.bareJID "
             + "FROM ofMessageArchive "
             + "INNER JOIN ofConParticipant ON ofMessageArchive.conversationID = ofConParticipant.conversationID "
             + "WHERE (ofMessageArchive.stanza IS NOT NULL OR ofMessageArchive.body IS NOT NULL) ";
@@ -253,8 +231,8 @@ public class PaginatedMessageDatabaseQuery
 
     private String getStatementForSqlServer(final Long after, final Long before, final int maxResults, final boolean isPagingBackwards)
     {
-        String sql = "SELECT fromJID, fromJIDResource, toJID, toJIDResource, sentDate, stanza, messageID, bareJID FROM ("
-            + "SELECT DISTINCT TOP("+maxResults+") ofMessageArchive.fromJID, ofMessageArchive.fromJIDResource, ofMessageArchive.toJID, ofMessageArchive.toJIDResource, ofMessageArchive.sentDate, ofMessageArchive.stanza, ofMessageArchive.messageID, ofConParticipant.bareJID "
+        String sql = "SELECT fromJID, fromJIDResource, toJID, toJIDResource, sentDate, body, stanza, messageID, bareJID FROM ("
+            + "SELECT DISTINCT TOP("+maxResults+") ofMessageArchive.fromJID, ofMessageArchive.fromJIDResource, ofMessageArchive.toJID, ofMessageArchive.toJIDResource, ofMessageArchive.sentDate, ofMessageArchive.body, ofMessageArchive.stanza, ofMessageArchive.messageID, ofConParticipant.bareJID "
             + "FROM ofMessageArchive "
             + "INNER JOIN ofConParticipant ON ofMessageArchive.conversationID = ofConParticipant.conversationID "
             + "WHERE (ofMessageArchive.stanza IS NOT NULL OR ofMessageArchive.body IS NOT NULL) ";
