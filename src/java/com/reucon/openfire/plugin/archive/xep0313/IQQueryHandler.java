@@ -509,12 +509,26 @@ abstract class IQQueryHandler extends AbstractIQHandler implements
      * @return
      */
     private void sendMessageResult(JID from, QueryRequest queryRequest, ArchivedMessage archivedMessage) {
-
         String stanzaText = archivedMessage.getStanza();
         if(stanzaText == null || stanzaText.equals("")) {
             // Try creating a fake one from the body.
             if (archivedMessage.getBody() != null && !archivedMessage.getBody().equals("")) {
-                stanzaText = String.format("<message from=\"%s\" to=\"%s\" type=\"chat\"><body>%s</body>", archivedMessage.getWith(), archivedMessage.getWith(), archivedMessage.getBody());
+                final JID to;
+                final JID frm;
+                if (archivedMessage.getDirection() == ArchivedMessage.Direction.to) {
+                    // message sent by the archive owner;
+                    to = archivedMessage.getWith();
+                    frm = queryRequest.getArchive();
+                } else {
+                    // message received by the archive owner;
+                    to = queryRequest.getArchive();
+                    frm = archivedMessage.getWith();
+                }
+                final boolean isMuc = (to != null &&XMPPServer.getInstance().getMultiUserChatManager().getMultiUserChatService( to ) != null)
+                    || (from != null && XMPPServer.getInstance().getMultiUserChatManager().getMultiUserChatService( from ) != null);
+
+                stanzaText = String.format("<message from=\"%s\" to=\"%s\" type=\"%s\"><body>%s</body></message>", frm, to, isMuc ? "groupchat" : "chat", archivedMessage.getBody());
+                Log.trace( "Reconstructed stanza (only a body was stored): {}", stanzaText );
             } else {
                 // Don't send legacy archived messages (that have no stanza)
                 return;
