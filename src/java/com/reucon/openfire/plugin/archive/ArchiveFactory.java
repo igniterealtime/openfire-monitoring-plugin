@@ -3,7 +3,7 @@ package com.reucon.openfire.plugin.archive;
 import java.util.Date;
 
 import org.jivesoftware.openfire.session.Session;
-import org.jivesoftware.openfire.stanzaid.StanzaIDUtil;
+import com.reucon.openfire.plugin.archive.util.StanzaIDUtil;
 import org.xmpp.packet.JID;
 import org.xmpp.packet.Message;
 
