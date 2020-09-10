@@ -147,9 +147,7 @@ public class MucMamPersistenceManager implements PersistenceManager {
                 last = String.valueOf(lastMessage.getId() );
             }
             xmppResultSet.setFirst(first);
-            if (msgs.size() > 1) {
-                xmppResultSet.setLast(last);
-            }
+            xmppResultSet.setLast(last);
 
             // Check to see if there are more pages, by simulating a request for the next page.
             // When paging backwards, we need to find out if there are results 'before' the first result.
