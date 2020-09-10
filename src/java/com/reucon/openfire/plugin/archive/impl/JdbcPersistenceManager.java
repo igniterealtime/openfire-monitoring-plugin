@@ -44,7 +44,7 @@ public class JdbcPersistenceManager implements PersistenceManager {
             + "ofConversation.isExternal, ofConversation.startDate, ofConversation.lastActivity, ofConversation.messageCount, "
             + "ofConParticipant.joinedDate, ofConParticipant.leftDate, ofConParticipant.bareJID, ofConParticipant.jidResource, "
             + "ofConParticipant.nickname, ofMessageArchive.fromJID, ofMessageArchive.fromJIDResource, ofMessageArchive.toJID, "
-            + "ofMessageArchive.toJIDResource, ofMessageArchive.sentDate, ofMessageArchive.body FROM ofConversation "
+            + "ofMessageArchive.toJIDResource, ofMessageArchive.sentDate, ofMessageArchive.body, ofMessageArchive.stanza, ofMessageArchive.messageID FROM ofConversation "
             + "INNER JOIN ofConParticipant ON ofConversation.conversationID = ofConParticipant.conversationID "
             + "INNER JOIN ofMessageArchive ON ofConParticipant.conversationID = ofMessageArchive.conversationID "
             + "WHERE ofConversation.conversationID = ? AND ofConParticipant.bareJID = ? ORDER BY ofMessageArchive.sentDate";
@@ -52,13 +52,13 @@ public class JdbcPersistenceManager implements PersistenceManager {
     public static final String SELECT_CONVERSATIONS = "SELECT "
             + "ofConversation.conversationID, ofConversation.room, ofConversation.isExternal, ofConversation.lastActivity, "
             + "ofConversation.messageCount, ofConversation.startDate, ofConParticipant.bareJID, ofConParticipant.jidResource, "
-            + "ofConParticipant.nickname, ofConParticipant.bareJID AS fromJID, ofConParticipant.jidResource AS fromJIDResource, ofMessageArchive.toJID, ofMessageArchive.toJIDResource"
+            + "ofConParticipant.nickname, ofConParticipant.bareJID AS fromJID, ofConParticipant.jidResource AS fromJIDResource, ofMessageArchive.toJID, ofMessageArchive.toJIDResource, "
             + "min(ofConParticipant.joinedDate) AS joinedDate, max(ofConParticipant.leftDate) as leftDate "
             + "FROM ofConversation "
             + "INNER JOIN ofConParticipant ON ofConversation.conversationID = ofConParticipant.conversationID "
             + "INNER JOIN (SELECT conversationID, toJID, toJIDResource FROM ofMessageArchive union all SELECT conversationID, fromJID as toJID, fromJIDResource as toJIDResource FROM ofMessageArchive) ofMessageArchive ON ofConParticipant.conversationID = ofMessageArchive.conversationID ";
 
-    public static final String SELECT_CONVERSATIONS_GROUP_BY = " GROUP BY ofConversation.conversationID, ofConversation.room, ofConversation.isExternal, ofConversation.lastActivity, ofConversation.messageCount, ofConversation.startDate, ofConParticipant.bareJID, ofConParticipant.jidResource, ofConParticipant.nickname, ofConParticipant.bareJID, ofMessageArchive.toJID";
+    public static final String SELECT_CONVERSATIONS_GROUP_BY = " GROUP BY ofConversation.conversationID, ofConversation.room, ofConversation.isExternal, ofConversation.lastActivity, ofConversation.messageCount, ofConversation.startDate, ofConParticipant.bareJID, ofConParticipant.jidResource, ofConParticipant.nickname, ofConParticipant.bareJID, ofMessageArchive.toJID, ofMessageArchive.toJIDResource";
 
     public static final String COUNT_CONVERSATIONS = "SELECT COUNT(DISTINCT ofConversation.conversationID) FROM ofConversation "
             + "INNER JOIN ofConParticipant ON ofConversation.conversationID = ofConParticipant.conversationID "
@@ -882,6 +882,7 @@ public class JdbcPersistenceManager implements PersistenceManager {
         }
         final ArchivedMessage archivedMessage = new ArchivedMessage(sentDate, direction, type == null ? null : type.toString(), with, sid);
         archivedMessage.setStanza(stanza);
+        archivedMessage.setBody(body);
         archivedMessage.setId(id);
         return archivedMessage;
     }
