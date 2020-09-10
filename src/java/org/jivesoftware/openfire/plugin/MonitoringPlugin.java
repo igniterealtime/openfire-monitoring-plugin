@@ -184,6 +184,9 @@ public class MonitoringPlugin implements Plugin {
         enabled = JiveGlobals.getBooleanProperty(ArchiveProperties.ENABLED,
                 false);
 
+        // Issue #113: Migrate full JIDs in the database
+        TaskEngine.getInstance().submit( new DatabaseUpdateSplitJIDsTask() );
+
         persistenceManager = new JdbcPersistenceManager();
         mucPersistenceManager = new MucMamPersistenceManager();
 
@@ -235,6 +238,9 @@ public class MonitoringPlugin implements Plugin {
 
     public void destroyPlugin() {
         shuttingDown = true;
+
+        // Issue #114: Shut down the task-engine first, to prevent tasks from being executed in a shutting-down environment.
+        TaskEngine.getInstance().dispose();
 
         unloadPublicWeb();
 

@@ -274,6 +274,8 @@ public class ConversationManager implements Startable, ComponentEventListener{
         cleanupTask.cancel();
         cleanupTask = null;
 
+        maxAgeTask.cancel();
+        maxAgeTask = null;
         // Remove the statistics.
         StatisticsManager.getInstance().removeStatistic(CONVERSATIONS_KEY);
 
