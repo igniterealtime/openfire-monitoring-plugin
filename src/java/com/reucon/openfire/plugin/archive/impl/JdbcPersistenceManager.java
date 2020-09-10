@@ -15,7 +15,7 @@ import org.jivesoftware.openfire.archive.ConversationManager;
 import org.jivesoftware.openfire.cluster.ClusterManager;
 import org.jivesoftware.openfire.muc.MUCRoom;
 import org.jivesoftware.openfire.reporting.util.TaskEngine;
-import org.jivesoftware.openfire.stanzaid.StanzaIDUtil;
+import com.reucon.openfire.plugin.archive.util.StanzaIDUtil;
 import org.jivesoftware.util.JiveConstants;
 import org.jivesoftware.util.JiveGlobals;
 import org.jivesoftware.util.NotFoundException;
