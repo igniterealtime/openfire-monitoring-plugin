@@ -95,7 +95,10 @@ public class ConversationEvent implements Externalizable {
         if (body != null) {
             ExternalizableUtil.getInstance().writeSafeUTF(out, body);
         }
-
+        ExternalizableUtil.getInstance().writeBoolean(out, stanza != null);
+        if (stanza != null) {
+            ExternalizableUtil.getInstance().writeSafeUTF(out, stanza);
+        }
         ExternalizableUtil.getInstance().writeBoolean(out, roomJID != null);
         if (roomJID != null) {
             ExternalizableUtil.getInstance().writeSerializable(out, roomJID);
@@ -122,6 +125,9 @@ public class ConversationEvent implements Externalizable {
         }
         if (ExternalizableUtil.getInstance().readBoolean(in)) {
             body = ExternalizableUtil.getInstance().readSafeUTF(in);
+        }
+        if (ExternalizableUtil.getInstance().readBoolean(in)) {
+            stanza = ExternalizableUtil.getInstance().readSafeUTF(in);
         }
 
         if (ExternalizableUtil.getInstance().readBoolean(in)) {
