@@ -8,7 +8,6 @@ import org.xmpp.packet.JID;
 import org.xmpp.packet.Packet;
 import org.xmpp.packet.PacketError;
 
-import com.reucon.openfire.plugin.archive.IndexManager;
 import com.reucon.openfire.plugin.archive.PersistenceManager;
 
 /**
@@ -29,10 +28,6 @@ public abstract class AbstractIQHandler extends IQHandler {
 
     protected PersistenceManager getPersistenceManager(JID jid) {
         return MonitoringPlugin.getInstance().getPersistenceManager(jid);
-    }
-
-    protected IndexManager getIndexManager() {
-        return MonitoringPlugin.getInstance().getIndexManager();
     }
 
     protected IQ error(Packet packet, PacketError.Condition condition) {

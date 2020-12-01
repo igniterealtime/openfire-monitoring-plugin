@@ -472,7 +472,6 @@ public class JdbcPersistenceManager implements PersistenceManager {
                 ArchivedMessage message;
 
                 message = extractMessage(rs);
-                message.setConversation(conversation);
                 conversation.addMessage(message);
             }
         } catch (SQLException sqle) {
@@ -621,7 +620,6 @@ public class JdbcPersistenceManager implements PersistenceManager {
             stanza = message.toString();
         }
 
-        Message.Type type;
         String sid;
         try
         {
@@ -643,12 +641,10 @@ public class JdbcPersistenceManager implements PersistenceManager {
             }
             final Document doc = DocumentHelper.parseText( stanza );
             final Message message = new Message( doc.getRootElement() );
-            type = message.getType();
             sid = StanzaIDUtil.findFirstUniqueAndStableStanzaID( message, owner.toBareJID() );
         } catch ( Exception e ) {
             Log.warn( "An exception occurred while parsing message with ID {}", id, e );
             sid = null;
-            type = null;
         }
 
         final JID from = new JID(fromJID + ( fromJIDResource == null || fromJIDResource.isEmpty() ? "" : "/" + fromJIDResource ));
@@ -663,7 +659,7 @@ public class JdbcPersistenceManager implements PersistenceManager {
             direction = Direction.to;
             with = to;
         }
-        final ArchivedMessage archivedMessage = new ArchivedMessage(id, sentDate, direction, type == null ? null : type.toString(), with, sid, body, stanza);
+        final ArchivedMessage archivedMessage = new ArchivedMessage(id, sentDate, direction, with, sid, body, stanza);
         return archivedMessage;
     }
 

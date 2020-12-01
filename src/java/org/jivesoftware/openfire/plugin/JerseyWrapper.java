@@ -6,7 +6,6 @@ import java.util.Map;
 import javax.servlet.ServletConfig;
 import javax.servlet.ServletException;
 
-import org.jivesoftware.openfire.plugin.service.LogAPI;
 import org.jivesoftware.openfire.plugin.service.MonitoringAPI;
 
 import com.sun.jersey.api.core.PackagesResourceConfig;

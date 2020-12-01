@@ -268,7 +268,7 @@ public class MucMamPersistenceManager implements PersistenceManager {
             sid = null;
         }
 
-        final ArchivedMessage archivedMessage = new ArchivedMessage(id, sentDate, ArchivedMessage.Direction.from, null, null, sid, body, stanza);
+        final ArchivedMessage archivedMessage = new ArchivedMessage(id, sentDate, ArchivedMessage.Direction.from, null, sid, body, stanza);
         return archivedMessage;
     }
 

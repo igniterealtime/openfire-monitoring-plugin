@@ -5,7 +5,6 @@
 <%@ page import="org.jivesoftware.openfire.archive.Conversation" %>
 <%@ page import="org.jivesoftware.openfire.archive.ConversationManager" %>
 <%@ page import="org.jivesoftware.openfire.XMPPServer" %>
-<%@ page import="org.jivesoftware.openfire.user.UserManager" %>
 <%@ page import="org.jivesoftware.openfire.user.UserNameManager" %>
 <%@ page import="org.jivesoftware.openfire.user.UserNotFoundException" %>
 <%@ page import="org.jivesoftware.util.*" %>
@@ -66,7 +65,6 @@
     }
 
     if (submit) {
-        UserManager userManager = UserManager.getInstance();
         ArchiveSearch search = new ArchiveSearch();
         JID participant1JID = null;
         JID participant2JID = null;

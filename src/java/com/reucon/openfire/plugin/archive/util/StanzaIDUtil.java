@@ -2,14 +2,9 @@ package com.reucon.openfire.plugin.archive.util;
 
 import org.dom4j.Element;
 import org.dom4j.QName;
-import org.jivesoftware.util.JiveGlobals;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.xmpp.packet.*;
 
-import java.util.Iterator;
 import java.util.List;
-import java.util.UUID;
 
 /*
  * This is a partial copy of the implementation provided in Openfire 4.5.2 by

@@ -3,8 +3,6 @@ package com.reucon.openfire.plugin.archive.xep0313;
 import org.jivesoftware.openfire.forward.Forwarded;
 import org.xmpp.packet.PacketExtension;
 
-import java.util.Date;
-
 /**
  * Created by dwd on 26/07/16.
  */

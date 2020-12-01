@@ -2,7 +2,6 @@ package com.reucon.openfire.plugin.archive.xep0313;
 
 import com.reucon.openfire.plugin.archive.xep.AbstractXepSupport;
 import org.jivesoftware.openfire.XMPPServer;
-import org.jivesoftware.openfire.handler.IQHandler;
 
 import java.util.ArrayList;
 
