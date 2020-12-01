@@ -53,7 +53,6 @@ import org.jivesoftware.util.SystemProperty;
 import org.picocontainer.MutablePicoContainer;
 import org.picocontainer.defaults.DefaultPicoContainer;
 
-import com.reucon.openfire.plugin.archive.ArchiveManager;
 import com.reucon.openfire.plugin.archive.ArchiveProperties;
 import com.reucon.openfire.plugin.archive.IndexManager;
 import com.reucon.openfire.plugin.archive.PersistenceManager;
@@ -93,7 +92,6 @@ public class MonitoringPlugin implements Plugin {
     private boolean enabled = true;
     private PersistenceManager persistenceManager;
     private PersistenceManager mucPersistenceManager;
-    private ArchiveManager archiveManager;
     private IndexManager indexManager;
     private Xep0136Support xep0136Support;
     private Xep0313Support xep0313Support;
@@ -146,10 +144,6 @@ public class MonitoringPlugin implements Plugin {
         return this.enabled;
     }
 
-    public ArchiveManager getArchiveManager() {
-        return archiveManager;
-    }
-
     public IndexManager getIndexManager() {
         return indexManager;
     }
@@ -189,9 +183,6 @@ public class MonitoringPlugin implements Plugin {
 
         persistenceManager = new JdbcPersistenceManager();
         mucPersistenceManager = new MucMamPersistenceManager();
-
-        archiveManager = new ArchiveManagerImpl(persistenceManager,
-                indexManager, conversationTimeout);
 
         xep0136Support = new Xep0136Support(XMPPServer.getInstance());
         xep0136Support.start();
