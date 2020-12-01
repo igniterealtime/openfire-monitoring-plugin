@@ -20,28 +20,35 @@ import org.jivesoftware.openfire.archive.Conversation;
 import org.jivesoftware.openfire.archive.ConversationManager;
 import org.jivesoftware.openfire.archive.MonitoringConstants;
 import org.jivesoftware.openfire.XMPPServer;
+import org.jivesoftware.openfire.container.Plugin;
 import org.jivesoftware.openfire.plugin.MonitoringPlugin;
 import org.jivesoftware.util.NotFoundException;
 import org.jivesoftware.util.cache.ClusterTask;
 import org.jivesoftware.util.cache.ExternalizableUtil;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.ObjectInput;
 import java.io.ObjectOutput;
+import java.util.Optional;
 
 /**
  * Task that returns the specified conversation or <tt>null</tt> if not found.
  *
  * @author Gaston Dombiak
  */
-public class GetConversationTask implements ClusterTask<Conversation> {
+public class GetConversationTask implements ClusterTask<Conversation>
+{
+    private static final Logger Log = LoggerFactory.getLogger(GetConversationTask.class);
+
     private long conversationID;
     private Conversation conversation;
 
     public GetConversationTask() {
     }
 
-    public GetConversationTask(long conversationID) {
+    public GetConversationTask(final long conversationID) {
         this.conversationID = conversationID;
     }
 
@@ -50,9 +57,12 @@ public class GetConversationTask implements ClusterTask<Conversation> {
     }
 
     public void run() {
-        MonitoringPlugin plugin = (MonitoringPlugin) XMPPServer.getInstance().getPluginManager().getPlugin(
-                MonitoringConstants.NAME);
-        ConversationManager conversationManager = (ConversationManager)plugin.getModule(ConversationManager.class);
+        final Optional<Plugin> plugin = XMPPServer.getInstance().getPluginManager().getPluginByName(MonitoringConstants.PLUGIN_NAME);
+        if (!plugin.isPresent()) {
+            Log.error("Unable to execute cluster task! The Monitoring plugin does not appear to be loaded on this machine.");
+            return;
+        }
+        final ConversationManager conversationManager = (ConversationManager) ((MonitoringPlugin)plugin.get()).getModule(ConversationManager.class);
         try {
             conversation = conversationManager.getConversation(conversationID);
         } catch (NotFoundException e) {
@@ -64,7 +74,7 @@ public class GetConversationTask implements ClusterTask<Conversation> {
         ExternalizableUtil.getInstance().writeLong(out, conversationID);
     }
 
-    public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
+    public void readExternal(ObjectInput in) throws IOException {
         conversationID = ExternalizableUtil.getInstance().readLong(in);
     }
 }

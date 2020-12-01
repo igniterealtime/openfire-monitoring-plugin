@@ -21,19 +21,23 @@ import java.io.ObjectInput;
 import java.io.ObjectOutput;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 import org.jivesoftware.openfire.XMPPServer;
 import org.jivesoftware.openfire.archive.ConversationEvent;
 import org.jivesoftware.openfire.archive.ConversationManager;
 import org.jivesoftware.openfire.archive.MonitoringConstants;
+import org.jivesoftware.openfire.container.Plugin;
 import org.jivesoftware.openfire.plugin.MonitoringPlugin;
 import org.jivesoftware.util.cache.ClusterTask;
 import org.jivesoftware.util.cache.ExternalizableUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nonnull;
+
 /**
- * Task that sends cnoversation events to the senior cluster member.
+ * Task that sends conversation events to the senior cluster member.
  *
  * @author Gaston Dombiak
  */
@@ -49,7 +53,7 @@ public class SendConversationEventsTask implements ClusterTask<Void> {
     public SendConversationEventsTask() {
     }
 
-    public SendConversationEventsTask(List<ConversationEvent> events) {
+    public SendConversationEventsTask(@Nonnull final List<ConversationEvent> events) {
         this.events = events;
     }
 
@@ -58,10 +62,13 @@ public class SendConversationEventsTask implements ClusterTask<Void> {
     }
 
     public void run() {
-        MonitoringPlugin plugin = (MonitoringPlugin) XMPPServer.getInstance().getPluginManager().getPlugin(
-                MonitoringConstants.NAME);
-        ConversationManager conversationManager = (ConversationManager)plugin.getModule(ConversationManager.class);
-        for (ConversationEvent event : events) {
+        final Optional<Plugin> plugin = XMPPServer.getInstance().getPluginManager().getPluginByName(MonitoringConstants.PLUGIN_NAME);
+        if (!plugin.isPresent()) {
+            Log.error("Unable to execute cluster task! The Monitoring plugin does not appear to be loaded on this machine.");
+            return;
+        }
+        final ConversationManager conversationManager = (ConversationManager) ((MonitoringPlugin)plugin.get()).getModule(ConversationManager.class);
+        for (final ConversationEvent event : events) {
             try {
                 event.run(conversationManager);
             } catch (Exception e) {
@@ -74,8 +81,8 @@ public class SendConversationEventsTask implements ClusterTask<Void> {
         ExternalizableUtil.getInstance().writeExternalizableCollection(out, events);
     }
 
-    public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
-        events = new ArrayList<ConversationEvent>();
+    public void readExternal(ObjectInput in) throws IOException {
+        events = new ArrayList<>();
         ExternalizableUtil.getInstance().readExternalizableCollection(in, events, getClass().getClassLoader());
     }
 }

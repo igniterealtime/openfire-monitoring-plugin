@@ -19,15 +19,20 @@ package org.jivesoftware.openfire.archive.cluster;
 import org.jivesoftware.openfire.XMPPServer;
 import org.jivesoftware.openfire.archive.ConversationManager;
 import org.jivesoftware.openfire.archive.MonitoringConstants;
+import org.jivesoftware.openfire.container.Plugin;
 import org.jivesoftware.openfire.plugin.MonitoringPlugin;
 import org.jivesoftware.util.cache.ClusterTask;
 import org.jivesoftware.util.cache.ExternalizableUtil;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nonnull;
 import java.io.IOException;
 import java.io.ObjectInput;
 import java.io.ObjectOutput;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Optional;
 
 /**
  * A task that retrieves a time estimation on the time it takes for conversations (and metadata) to have been written to persistent storage.
@@ -36,12 +41,14 @@ import java.time.Instant;
  */
 public class GetConversationsWriteETATask implements ClusterTask<Duration>
 {
+    private static final Logger Log = LoggerFactory.getLogger(GetConversationsWriteETATask.class);
+
     private Instant instant;
     private Duration result;
 
     public GetConversationsWriteETATask() {}
 
-    public GetConversationsWriteETATask( Instant instant )
+    public GetConversationsWriteETATask( @Nonnull final Instant instant )
     {
         this.instant = instant;
     }
@@ -49,8 +56,12 @@ public class GetConversationsWriteETATask implements ClusterTask<Duration>
     @Override
     public void run()
     {
-        final MonitoringPlugin plugin = (MonitoringPlugin) XMPPServer.getInstance().getPluginManager().getPlugin( MonitoringConstants.NAME );
-        final ConversationManager conversationManager = (ConversationManager) plugin.getModule( ConversationManager.class );
+        final Optional<Plugin> plugin = XMPPServer.getInstance().getPluginManager().getPluginByName(MonitoringConstants.PLUGIN_NAME);
+        if (!plugin.isPresent()) {
+            Log.error("Unable to execute cluster task! The Monitoring plugin does not appear to be loaded on this machine.");
+            return;
+        }
+        final ConversationManager conversationManager = (ConversationManager) ((MonitoringPlugin)plugin.get()).getModule(ConversationManager.class);
         result = conversationManager.availabilityETAOnLocalNode( instant );
     }
 
@@ -67,7 +78,7 @@ public class GetConversationsWriteETATask implements ClusterTask<Duration>
     }
 
     @Override
-    public void readExternal( ObjectInput in ) throws IOException, ClassNotFoundException
+    public void readExternal( ObjectInput in ) throws IOException
     {
         instant = (Instant) ExternalizableUtil.getInstance().readSerializable( in );
     }

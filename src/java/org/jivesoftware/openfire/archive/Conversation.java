@@ -24,21 +24,14 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.jivesoftware.database.DbConnectionManager;
 import org.jivesoftware.database.JiveID;
 import org.jivesoftware.database.SequenceManager;
 import org.jivesoftware.openfire.XMPPServer;
+import org.jivesoftware.openfire.container.Plugin;
 import org.jivesoftware.openfire.muc.MUCRole;
 import org.jivesoftware.openfire.muc.MUCRoom;
 import org.jivesoftware.openfire.plugin.MonitoringPlugin;
@@ -47,7 +40,6 @@ import org.jivesoftware.openfire.user.UserNotFoundException;
 import org.jivesoftware.util.JiveGlobals;
 import org.jivesoftware.util.LocaleUtils;
 import org.jivesoftware.util.NotFoundException;
-import org.jivesoftware.util.StringUtils;
 import org.jivesoftware.util.cache.ExternalizableUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -121,7 +113,7 @@ public class Conversation implements Externalizable {
             throw new IllegalArgumentException("Illegal number of participants: " + users.size());
         }
         this.conversationManager = conversationManager;
-        this.participants = new HashMap<String, UserParticipations>(2);
+        this.participants = new HashMap<>(2);
         // Ensure that we're use the full JID of each participant.
         for (JID user : users) {
             UserParticipations userParticipations = new UserParticipations(false);
@@ -155,7 +147,7 @@ public class Conversation implements Externalizable {
      */
     public Conversation(ConversationManager conversationManager, JID room, boolean external, Date startDate) {
         this.conversationManager = conversationManager;
-        this.participants = new ConcurrentHashMap<String, UserParticipations>();
+        this.participants = new ConcurrentHashMap<>();
         // Add list of existing room occupants as participants of this conversation
         MUCRoom mucRoom = XMPPServer.getInstance().getMultiUserChatManager().getMultiUserChatService(room).getChatRoom(room.getNode());
         if (mucRoom != null) {
@@ -221,7 +213,7 @@ public class Conversation implements Externalizable {
      * @return the two conversation participants. Returned JIDs are full JIDs.
      */
     public Collection<JID> getParticipants() {
-        List<JID> users = new ArrayList<JID>();
+        List<JID> users = new ArrayList<>();
         for (String key : participants.keySet()) {
             users.add(new JID(key));
         }
@@ -294,7 +286,7 @@ public class Conversation implements Externalizable {
             return Collections.emptyList();
         }
 
-        List<ArchivedMessage> messages = new ArrayList<ArchivedMessage>();
+        List<ArchivedMessage> messages = new ArrayList<>();
         Connection con = null;
         PreparedStatement pstmt = null;
         ResultSet rs = null;
@@ -345,9 +337,9 @@ public class Conversation implements Externalizable {
                     String leftBody;
                     if (anonymous) {
                         joinBody = LocaleUtils.getLocalizedString("muc.conversation.joined.anonymous", MonitoringConstants.NAME,
-                                Arrays.asList(participation.getNickname()));
+                            Collections.singletonList(participation.getNickname()));
                         leftBody = LocaleUtils.getLocalizedString("muc.conversation.left.anonymous", MonitoringConstants.NAME,
-                                Arrays.asList(participation.getNickname()));
+                            Collections.singletonList(participation.getNickname()));
                     } else {
                         joinBody = LocaleUtils.getLocalizedString("muc.conversation.joined", MonitoringConstants.NAME,
                                 Arrays.asList(participation.getNickname(), name));
@@ -361,11 +353,7 @@ public class Conversation implements Externalizable {
                 }
             }
             // Sort messages by sent date
-            Collections.sort(messages, new Comparator<ArchivedMessage>() {
-                public int compare(ArchivedMessage o1, ArchivedMessage o2) {
-                    return o1.getSentDate().compareTo(o2.getSentDate());
-                }
-            });
+            messages.sort(Comparator.comparing(ArchivedMessage::getSentDate));
         }
         return messages;
     }
@@ -519,8 +507,6 @@ public class Conversation implements Externalizable {
             pstmt.setString(5, nickname);
             pstmt.executeUpdate();
             pstmt.close();
-        } catch (SQLException sqle) {
-            throw sqle;
         } finally {
             DbConnectionManager.closeConnection(con);
         }
@@ -546,7 +532,7 @@ public class Conversation implements Externalizable {
             rs.close();
             pstmt.close();
 
-            this.participants = new ConcurrentHashMap<String, UserParticipations>();
+            this.participants = new ConcurrentHashMap<>();
             pstmt = con.prepareStatement(LOAD_PARTICIPANTS);
             pstmt.setLong(1, conversationID);
             rs = pstmt.executeQuery();
@@ -605,11 +591,14 @@ public class Conversation implements Externalizable {
         }
     }
 
-    public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
-        MonitoringPlugin plugin = (MonitoringPlugin) XMPPServer.getInstance().getPluginManager().getPlugin(MonitoringConstants.NAME);
-        conversationManager = (ConversationManager) plugin.getModule(ConversationManager.class);
+    public void readExternal(ObjectInput in) throws IOException {
+        final Optional<Plugin> plugin = XMPPServer.getInstance().getPluginManager().getPluginByName(MonitoringConstants.PLUGIN_NAME);
+        if (!plugin.isPresent()) {
+            throw new IllegalStateException("Unable to handle IQ stanza. The Monitoring plugin does not appear to be loaded on this machine.");
+        }
+        conversationManager = (ConversationManager) ((MonitoringPlugin)plugin.get()).getModule(ConversationManager.class);
 
-        this.participants = new ConcurrentHashMap<String, UserParticipations>();
+        this.participants = new ConcurrentHashMap<>();
 
         conversationID = ExternalizableUtil.getInstance().readLong(in);
         ExternalizableUtil.getInstance().readExternalizableMap(in, participants, getClass().getClassLoader());
