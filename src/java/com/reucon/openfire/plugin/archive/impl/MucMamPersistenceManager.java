@@ -1,10 +1,9 @@
 package com.reucon.openfire.plugin.archive.impl;
 
-import com.reucon.openfire.plugin.archive.ArchivedMessageConsumer;
 import com.reucon.openfire.plugin.archive.PersistenceManager;
 import com.reucon.openfire.plugin.archive.model.ArchivedMessage;
 import com.reucon.openfire.plugin.archive.model.Conversation;
-import com.reucon.openfire.plugin.archive.model.Participant;
+import com.reucon.openfire.plugin.archive.util.StanzaIDUtil;
 import com.reucon.openfire.plugin.archive.xep0059.XmppResultSet;
 import org.dom4j.*;
 import org.jivesoftware.database.DbConnectionManager;
@@ -12,7 +11,6 @@ import org.jivesoftware.openfire.XMPPServer;
 import org.jivesoftware.openfire.muc.MUCRoom;
 import org.jivesoftware.openfire.muc.MultiUserChatManager;
 import org.jivesoftware.openfire.muc.MultiUserChatService;
-import com.reucon.openfire.plugin.archive.util.StanzaIDUtil;
 import org.jivesoftware.util.JiveGlobals;
 import org.jivesoftware.util.NotFoundException;
 import org.slf4j.Logger;
@@ -25,7 +23,10 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.Instant;
-import java.util.*;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Date;
+import java.util.List;
 
 /**
  * Created by dwd on 25/07/16.
@@ -34,36 +35,6 @@ public class MucMamPersistenceManager implements PersistenceManager {
     private final static Logger Log = LoggerFactory.getLogger( MucMamPersistenceManager.class );
     protected static final DocumentFactory docFactory = DocumentFactory.getInstance();
     private static final int DEFAULT_MAX = 100;
-
-    @Override
-    public boolean createMessage(ArchivedMessage message) {
-        throw new UnsupportedOperationException("MAM-MUC cannot perform this operation");
-    }
-
-    @Override
-    public int processAllMessages(ArchivedMessageConsumer callback) {
-        throw new UnsupportedOperationException("MAM-MUC cannot perform this operation");
-    }
-
-    @Override
-    public boolean createConversation(Conversation conversation) {
-        throw new UnsupportedOperationException("MAM-MUC cannot perform this operation");
-    }
-
-    @Override
-    public boolean updateConversationEnd(Conversation conversation) {
-        throw new UnsupportedOperationException("MAM-MUC cannot perform this operation");
-    }
-
-    @Override
-    public boolean createParticipant(Participant participant, Long conversationId) {
-        throw new UnsupportedOperationException("MAM-MUC cannot perform this operation");
-    }
-
-    @Override
-    public List<Conversation> findConversations(String[] participants, Date startDate, Date endDate) {
-        throw new UnsupportedOperationException("MAM-MUC cannot perform this operation");
-    }
 
     @Override
     public Collection<Conversation> findConversations(Date startDate, Date endDate, JID owner, JID with, XmppResultSet xmppResultSet) {
@@ -386,22 +357,7 @@ public class MucMamPersistenceManager implements PersistenceManager {
     }
 
     @Override
-    public Collection<Conversation> getActiveConversations(int conversationTimeout) {
-        throw new UnsupportedOperationException("MAM-MUC cannot perform this operation");
-    }
-
-    @Override
-    public List<Conversation> getConversations(Collection<Long> conversationIds) {
-        throw new UnsupportedOperationException("MAM-MUC cannot perform this operation");
-    }
-
-    @Override
     public Conversation getConversation(JID owner, JID with, Date start) {
-        throw new UnsupportedOperationException("MAM-MUC cannot perform this operation");
-    }
-
-    @Override
-    public Conversation getConversation(Long conversationId) {
         throw new UnsupportedOperationException("MAM-MUC cannot perform this operation");
     }
 

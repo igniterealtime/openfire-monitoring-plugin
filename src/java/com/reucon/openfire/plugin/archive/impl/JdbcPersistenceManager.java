@@ -1,36 +1,30 @@
 package com.reucon.openfire.plugin.archive.impl;
 
-import java.sql.*;
-import java.time.Instant;
-import java.time.temporal.ChronoUnit;
-import java.util.*;
-import java.util.Date;
-
+import com.reucon.openfire.plugin.archive.PersistenceManager;
+import com.reucon.openfire.plugin.archive.model.ArchivedMessage;
+import com.reucon.openfire.plugin.archive.model.ArchivedMessage.Direction;
+import com.reucon.openfire.plugin.archive.model.Conversation;
+import com.reucon.openfire.plugin.archive.model.Participant;
+import com.reucon.openfire.plugin.archive.util.StanzaIDUtil;
+import com.reucon.openfire.plugin.archive.xep0059.XmppResultSet;
 import org.dom4j.Document;
 import org.dom4j.DocumentFactory;
 import org.dom4j.DocumentHelper;
 import org.dom4j.Element;
 import org.jivesoftware.database.DbConnectionManager;
 import org.jivesoftware.openfire.archive.ConversationManager;
-import org.jivesoftware.openfire.cluster.ClusterManager;
-import org.jivesoftware.openfire.muc.MUCRoom;
-import org.jivesoftware.openfire.reporting.util.TaskEngine;
-import com.reucon.openfire.plugin.archive.util.StanzaIDUtil;
 import org.jivesoftware.util.JiveConstants;
 import org.jivesoftware.util.JiveGlobals;
-import org.jivesoftware.util.NotFoundException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.xmpp.packet.JID;
-
-import com.reucon.openfire.plugin.archive.ArchivedMessageConsumer;
-import com.reucon.openfire.plugin.archive.PersistenceManager;
-import com.reucon.openfire.plugin.archive.model.ArchivedMessage;
-import com.reucon.openfire.plugin.archive.model.ArchivedMessage.Direction;
-import com.reucon.openfire.plugin.archive.model.Conversation;
-import com.reucon.openfire.plugin.archive.model.Participant;
-import com.reucon.openfire.plugin.archive.xep0059.XmppResultSet;
 import org.xmpp.packet.Message;
+
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.util.*;
 
 /**
  * Manages database persistence.
@@ -76,101 +70,11 @@ public class JdbcPersistenceManager implements PersistenceManager {
 
     public static final String CONVERSATION_WITH_JID = "ofMessageArchive.toJID";
 
-    public static final String SELECT_ACTIVE_CONVERSATIONS = "SELECT DISTINCT ofConversation.conversationID, ofConversation.room, "
-            + "ofConversation.isExternal, ofConversation.startDate, ofConversation.lastActivity, ofConversation.messageCount, "
-            + "ofConParticipant.joinedDate, ofConParticipant.leftDate, ofConParticipant.bareJID, ofConParticipant.jidResource, "
-            + "ofConParticipant.nickname, ofMessageArchive.fromJID, ofMessageArchive.fromJIDResource, ofMessageArchive.toJID, "
-            + "ofMessageArchive.toJIDResource, ofMessageArchive.sentDate, "
-            + "ofMessageArchive.body FROM ofConversation "
-            + "INNER JOIN ofConParticipant ON ofConversation.conversationID = ofConParticipant.conversationID "
-            + "INNER JOIN ofMessageArchive ON ofConParticipant.conversationID = ofMessageArchive.conversationID "
-            + "WHERE ofConversation.lastActivity > ?";
-
-    public static final String SELECT_ACTIVE_CONVERSATIONS_ORACLE = "select SUBSET.conversationID,"
-                + "SUBSET.room,"
-                + "SUBSET.isExternal,"
-                + "SUBSET.startDate,"
-                + "SUBSET.lastActivity,"
-                + "SUBSET.messageCount,"
-                + "SUBSET.joinedDate,"
-                + "SUBSET.leftDate,"
-                + "SUBSET.bareJID,"
-                + "SUBSET.jidResource,"
-                + "SUBSET.nickname,"
-                + "SUBSET.fromJID,"
-                + "SUBSET.fromJIDResource,"
-                + "SUBSET.toJID,"
-                + "SUBSET.toJIDResource,"
-                + "SUBSET.sentDate,"
-                + "MAR.body from ("
-                + "SELECT DISTINCT ofConversation.conversationID as conversationID,"
-                + "ofConversation.room as room,"
-                + "ofConversation.isExternal as isExternal,"
-                + "ofConversation.startDate as startDate,"
-                + "ofConversation.lastActivity as lastActivity,"
-                + "ofConversation.messageCount as messageCount,"
-                + "ofConParticipant.joinedDate as joinedDate,"
-                + "ofConParticipant.leftDate as leftDate,"
-                + "ofConParticipant.bareJID as bareJID,"
-                + "ofConParticipant.jidResource as jidResource,"
-                + "ofConParticipant.nickname as nickname,"
-                + "ofMessageArchive.fromJID as fromJID,"
-                + "ofMessageArchive.fromJIDResource as fromJIDResource,"
-                + "ofMessageArchive.toJID as toJID,"
-                + "ofMessageArchive.toJIDResource as toJIDResource,"
-                + "ofMessageArchive.sentDate as sentDate,"
-                + "ofMessageArchive.MESSAGEID as msgId "
-                + "FROM ofConversation "
-                + "INNER JOIN ofConParticipant ON ofConversation.conversationID = ofConParticipant.conversationID "
-                + "INNER JOIN ofMessageArchive ON ofConParticipant.conversationID = ofMessageArchive.conversationID "
-                + "where ofConversation.lastActivity > ? ) SUBSET "
-                + "INNER JOIN ofMessageArchive MAR ON MAR.conversationID = SUBSET.conversationID "
-                + "where MAR.MESSAGEID = SUBSET.msgId "
-                + "and MAR.sentDate = SUBSET.sentDate "
-                + "and MAR.fromJID = SUBSET.fromJID "
-                + "and MAR.fromJIDResource = SUBSET.fromJIDResource "
-                + "and MAR.toJID = SUBSET.toJID "
-                + "and MAR.toJIDResource = SUBSET.toJIDResource";
-
     public static final String SELECT_PARTICIPANTS_BY_CONVERSATION = "SELECT DISTINCT ofConversation.conversationID, "
             + "ofConversation.startDate, ofConversation.lastActivity, ofConParticipant.bareJID FROM ofConversation "
             + "INNER JOIN ofConParticipant ON ofConversation.conversationID = ofConParticipant.conversationID "
             + "INNER JOIN ofMessageArchive ON ofConParticipant.conversationID = ofMessageArchive.conversationID "
             + "WHERE ofConversation.conversationID = ? ORDER BY ofConversation.startDate";
-
-    @Override
-    public boolean createMessage(ArchivedMessage message) {
-        /* read only */
-        return false;
-    }
-
-    @Override
-    public int processAllMessages(ArchivedMessageConsumer callback) {
-        return 0;
-    }
-
-    @Override
-    public boolean createConversation(Conversation conversation) {
-        /* read only */
-        return false;
-    }
-
-    @Override
-    public boolean updateConversationEnd(Conversation conversation) {
-        /* read only */
-        return false;
-    }
-
-    @Override
-    public boolean createParticipant(Participant participant, Long conversationId) {
-        return false;
-    }
-
-    @Override
-    public List<Conversation> findConversations(String[] participants, Date startDate, Date endDate) {
-        final List<Conversation> conversations = new ArrayList<Conversation>();
-        return conversations;
-    }
 
     public Date getAuditedStartDate(Date startDate) {
         long maxRetrievable = JiveGlobals.getIntProperty("conversation.maxRetrievable", ConversationManager.DEFAULT_MAX_RETRIEVABLE)
@@ -498,99 +402,8 @@ public class JdbcPersistenceManager implements PersistenceManager {
         return msgs;
     }
 
-    private boolean isOracleDB()
-    {
-        return DbConnectionManager.getDatabaseType() == DbConnectionManager.DatabaseType.oracle;
-    }
-
-    @Override
-    public Collection<Conversation> getActiveConversations(int conversationTimeout) {
-        final Collection<Conversation> conversations;
-        final long now = System.currentTimeMillis();
-
-        conversations = new ArrayList<>();
-
-        Connection con = null;
-        PreparedStatement pstmt = null;
-        ResultSet rs = null;
-        try {
-            con = DbConnectionManager.getConnection();
-            pstmt = con.prepareStatement( isOracleDB() ? SELECT_ACTIVE_CONVERSATIONS_ORACLE : SELECT_ACTIVE_CONVERSATIONS );
-
-            pstmt.setLong(1, now - conversationTimeout * 60L * 1000L);
-            rs = pstmt.executeQuery();
-            while (rs.next()) {
-                conversations.add(extractConversation(rs));
-            }
-        } catch (SQLException sqle) {
-            Log.error("Error selecting conversations", sqle);
-        } finally {
-            DbConnectionManager.closeConnection(rs, pstmt, con);
-        }
-
-        return conversations;
-    }
-
-    @Override
-    public List<Conversation> getConversations(Collection<Long> conversationIds) {
-        final List<Conversation> conversations;
-        final StringBuilder querySB;
-
-        conversations = new ArrayList<>();
-        if (conversationIds.isEmpty()) {
-            return conversations;
-        }
-
-        querySB = new StringBuilder(SELECT_CONVERSATIONS);
-        querySB.append(" WHERE ");
-        querySB.append(CONVERSATION_ID);
-        querySB.append(" IN ( ");
-        for (int i = 0; i < conversationIds.size(); i++) {
-            if (i == 0) {
-                querySB.append("?");
-            } else {
-                querySB.append(",?");
-            }
-        }
-        querySB.append(" )");
-        querySB.append(SELECT_CONVERSATIONS_GROUP_BY);
-        querySB.append(" ORDER BY ").append(CONVERSATION_END_TIME);
-
-        Connection con = null;
-        PreparedStatement pstmt = null;
-        ResultSet rs = null;
-        try {
-            con = DbConnectionManager.getConnection();
-            pstmt = con.prepareStatement(querySB.toString());
-
-            int i = 0;
-            for (Long id : conversationIds) {
-                pstmt.setLong(++i, id);
-            }
-            rs = pstmt.executeQuery();
-            while (rs.next()) {
-                conversations.add(extractConversation(rs));
-            }
-        } catch (SQLException sqle) {
-            Log.error("Error selecting conversations", sqle);
-        } finally {
-            DbConnectionManager.closeConnection(rs, pstmt, con);
-        }
-
-        return conversations;
-    }
-
     @Override
     public Conversation getConversation(JID owner, JID with, Date start) {
-        return getConversation(null, owner, with, start);
-    }
-
-    @Override
-    public Conversation getConversation(Long conversationId) {
-        return getConversation(conversationId, null, null, null);
-    }
-
-    private Conversation getConversation(Long conversationId, JID owner, JID with, Date start) {
         Conversation conversation = null;
         StringBuilder querySB;
 
@@ -600,18 +413,14 @@ public class JdbcPersistenceManager implements PersistenceManager {
 
         querySB = new StringBuilder(SELECT_CONVERSATIONS);
         querySB.append(" WHERE ");
-        if (conversationId != null) {
-            querySB.append(CONVERSATION_ID).append(" = ? ");
-        } else {
-            querySB.append(CONVERSATION_OWNER_JID).append(" = ?");
-            if (with != null) {
-                querySB.append(" AND ");
-                querySB.append(CONVERSATION_WITH_JID).append(" = ? ");
-            }
-            if (start != null) {
-                querySB.append(" AND ");
-                querySB.append(CONVERSATION_START_TIME).append(" = ? ");
-            }
+        querySB.append(CONVERSATION_OWNER_JID).append(" = ?");
+        if (with != null) {
+            querySB.append(" AND ");
+            querySB.append(CONVERSATION_WITH_JID).append(" = ? ");
+        }
+        if (start != null) {
+            querySB.append(" AND ");
+            querySB.append(CONVERSATION_START_TIME).append(" = ? ");
         }
         querySB.append(SELECT_CONVERSATIONS_GROUP_BY);
 
@@ -619,17 +428,12 @@ public class JdbcPersistenceManager implements PersistenceManager {
             con = DbConnectionManager.getConnection();
             pstmt = con.prepareStatement(querySB.toString());
             int i = 1;
-
-            if (conversationId != null) {
-                pstmt.setLong(1, conversationId);
-            } else {
-                pstmt.setString(i++, owner.toString());
-                if (with != null) {
-                    pstmt.setString(i++, with.toString());
-                }
-                if (start != null) {
-                    pstmt.setLong(i++, dateToMillis(start));
-                }
+            pstmt.setString(i++, owner.toString());
+            if (with != null) {
+                pstmt.setString(i++, with.toString());
+            }
+            if (start != null) {
+                pstmt.setLong(i++, dateToMillis(start));
             }
             rs = pstmt.executeQuery();
             Log.debug("getConversation: SELECT_CONVERSATIONS: " + pstmt.toString());
@@ -698,27 +502,6 @@ public class JdbcPersistenceManager implements PersistenceManager {
             }
         }
         return result == null ? null : new JID(result);
-    }
-
-    private static Direction getDirection(ResultSet rs) throws SQLException {
-        Direction direction = null;
-        String bareJid = rs.getString("bareJID");
-        String fromJid = rs.getString("fromJID");
-        String toJid = rs.getString("toJID");
-        if (bareJid != null && fromJid != null && toJid != null) {
-            if (fromJid.contains(bareJid)) { // older versions of the database put the full jid in 'fromJID'. Using 'contains' (instead of 'equals') will also match those.
-                /*
-                 * if message from me to 'with' then it is to the 'with' participant
-                 */
-                direction = Direction.to;
-            } else {
-                /*
-                 * if message to me from 'with' then it is from the 'with' participant
-                 */
-                direction = Direction.from;
-            }
-        }
-        return direction;
     }
 
     private Conversation extractConversation(ResultSet rs) throws SQLException {
