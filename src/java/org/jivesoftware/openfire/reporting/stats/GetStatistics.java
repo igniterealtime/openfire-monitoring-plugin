@@ -46,7 +46,7 @@ public class GetStatistics implements ClusterTask<Map<String, Double>> {
     }
 
     public void run() {
-        samples = new HashMap<String, Double>();
+        samples = new HashMap<>();
         for (Map.Entry<String, Statistic> statisticEntry : StatisticsManager.getInstance().getAllStatistics()) {
             String key = statisticEntry.getKey();
             Statistic statistic = statisticEntry.getValue();
@@ -59,11 +59,11 @@ public class GetStatistics implements ClusterTask<Map<String, Double>> {
         }
     }
 
-    public void writeExternal(ObjectOutput out) throws IOException {
+    public void writeExternal(ObjectOutput out) {
         // Ignore
     }
 
-    public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
+    public void readExternal(ObjectInput in) {
         // Ignore
     }
 

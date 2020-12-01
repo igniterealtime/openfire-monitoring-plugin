@@ -19,12 +19,17 @@ package org.jivesoftware.openfire.archive.cluster;
 import org.jivesoftware.openfire.archive.ConversationManager;
 import org.jivesoftware.openfire.archive.MonitoringConstants;
 import org.jivesoftware.openfire.XMPPServer;
+import org.jivesoftware.openfire.container.Plugin;
 import org.jivesoftware.openfire.plugin.MonitoringPlugin;
 import org.jivesoftware.util.cache.ClusterTask;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nonnull;
 import java.io.IOException;
 import java.io.ObjectInput;
 import java.io.ObjectOutput;
+import java.util.Optional;
 
 /**
  * Task that will return the number of current conversations taking place in the senior cluster member.
@@ -32,25 +37,32 @@ import java.io.ObjectOutput;
  *
  * @author Gaston Dombiak
  */
-public class GetConversationCountTask implements ClusterTask<Integer> {
+public class GetConversationCountTask implements ClusterTask<Integer>
+{
+    private static final Logger Log = LoggerFactory.getLogger(GetConversationTask.class);
+
     private int conversationCount;
 
+    @Nonnull
     public Integer getResult() {
         return conversationCount;
     }
 
     public void run() {
-        MonitoringPlugin plugin = (MonitoringPlugin) XMPPServer.getInstance().getPluginManager().getPlugin(
-            MonitoringConstants.NAME);
-        ConversationManager conversationManager = (ConversationManager)plugin.getModule(ConversationManager.class);
+        final Optional<Plugin> plugin = XMPPServer.getInstance().getPluginManager().getPluginByName(MonitoringConstants.PLUGIN_NAME);
+        if (!plugin.isPresent()) {
+            Log.error("Unable to execute cluster task! The Monitoring plugin does not appear to be loaded on this machine.");
+            return;
+        }
+        final ConversationManager conversationManager = (ConversationManager) ((MonitoringPlugin)plugin.get()).getModule(ConversationManager.class);
         conversationCount = conversationManager.getConversationCount();
     }
 
-    public void writeExternal(ObjectOutput out) throws IOException {
+    public void writeExternal(ObjectOutput out) {
         // Do nothing
     }
 
-    public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
+    public void readExternal(ObjectInput in) {
         // Do nothing
     }
 }

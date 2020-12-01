@@ -11,6 +11,7 @@ import org.apache.lucene.queryparser.classic.QueryParser;
 import org.apache.lucene.search.*;
 import org.jivesoftware.openfire.XMPPServer;
 import org.jivesoftware.openfire.archive.MonitoringConstants;
+import org.jivesoftware.openfire.container.Plugin;
 import org.jivesoftware.openfire.muc.MUCRoom;
 import org.jivesoftware.openfire.plugin.MonitoringPlugin;
 import org.slf4j.Logger;
@@ -18,10 +19,7 @@ import org.slf4j.LoggerFactory;
 import org.xmpp.packet.JID;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Date;
-import java.util.List;
+import java.util.*;
 
 public class PaginatedMucMessageLuceneQuery
 {
@@ -44,8 +42,11 @@ public class PaginatedMucMessageLuceneQuery
 
     protected IndexSearcher getSearcher() throws IOException
     {
-        final MonitoringPlugin plugin = (MonitoringPlugin) XMPPServer.getInstance().getPluginManager().getPlugin(MonitoringConstants.NAME);
-        final MucIndexer mucIndexer = (MucIndexer) plugin.getModule(MucIndexer.class);
+        final Optional<Plugin> plugin = XMPPServer.getInstance().getPluginManager().getPluginByName(MonitoringConstants.PLUGIN_NAME);
+        if (!plugin.isPresent()) {
+            throw new IllegalStateException("Unable to obtain Lucene Index Searcher! The Monitoring plugin does not appear to be loaded on this machine.");
+        }
+        final MucIndexer mucIndexer = (MucIndexer) ((MonitoringPlugin)plugin.get()).getModule(MucIndexer.class);
         final IndexSearcher searcher = mucIndexer.getSearcher();
         return searcher;
     }

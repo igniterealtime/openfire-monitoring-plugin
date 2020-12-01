@@ -64,7 +64,7 @@ public class ConversationEvent implements Externalizable {
         }
         else if (Type.occupantLeft == type) {
             conversationManager.leftGroupConversation(roomJID, user, date);
-            // If there are no more occupants then consider the group conversarion over
+            // If there are no more occupants then consider the group conversation over
             MUCRoom mucRoom = XMPPServer.getInstance().getMultiUserChatManager().getMultiUserChatService(roomJID).getChatRoom(roomJID.getNode());
             if (mucRoom != null &&  mucRoom.getOccupantsCount() == 0) {
                 conversationManager.roomConversationEnded(roomJID, date);

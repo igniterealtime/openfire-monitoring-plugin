@@ -1,6 +1,7 @@
 package com.reucon.openfire.plugin.archive.xep0313;
 
 import com.reucon.openfire.plugin.archive.ArchiveProperties;
+import com.reucon.openfire.plugin.archive.impl.MucIndexer;
 import com.reucon.openfire.plugin.archive.model.ArchivedMessage;
 import com.reucon.openfire.plugin.archive.xep.AbstractIQHandler;
 import com.reucon.openfire.plugin.archive.xep0059.XmppResultSet;
@@ -10,6 +11,7 @@ import org.jivesoftware.openfire.PacketRouter;
 import org.jivesoftware.openfire.archive.ConversationManager;
 import org.jivesoftware.openfire.archive.MonitoringConstants;
 import org.jivesoftware.openfire.auth.UnauthorizedException;
+import org.jivesoftware.openfire.container.Plugin;
 import org.jivesoftware.openfire.disco.ServerFeaturesProvider;
 import org.jivesoftware.openfire.forward.Forwarded;
 import org.jivesoftware.openfire.muc.MUCRole;
@@ -231,8 +233,11 @@ abstract class IQQueryHandler extends AbstractIQHandler implements
         queryRequest = new QueryRequest(packet.getChildElement(), archiveJid);
 
         // OF-1200: make sure that data is flushed to the database before retrieving it.
-        final MonitoringPlugin plugin = (MonitoringPlugin) XMPPServer.getInstance().getPluginManager().getPlugin(MonitoringConstants.NAME);
-        final ConversationManager conversationManager = (ConversationManager)plugin.getModule( ConversationManager.class);
+        final Optional<Plugin> plugin = XMPPServer.getInstance().getPluginManager().getPluginByName(MonitoringConstants.PLUGIN_NAME);
+        if (!plugin.isPresent()) {
+            throw new IllegalStateException("Unable to handle IQ stanza. The Monitoring plugin does not appear to be loaded on this machine.");
+        }
+        final ConversationManager conversationManager = (ConversationManager) ((MonitoringPlugin)plugin.get()).getModule(ConversationManager.class);
         final Instant targetEndDate = Instant.now(); // TODO or, the timestamp of the element referenced by 'before' from RSM, if that's set.
 
         final QueryRequest finalQueryRequest = queryRequest;
@@ -328,9 +333,11 @@ abstract class IQQueryHandler extends AbstractIQHandler implements
         String startField = null;
         String endField = null;
         String textField = null;
-        final MonitoringPlugin plugin = (MonitoringPlugin) XMPPServer.getInstance().getPluginManager().getPlugin(MonitoringConstants.NAME);
-        final ConversationManager conversationManager = (ConversationManager)plugin.getModule( ConversationManager.class);
-
+        final Optional<Plugin> plugin = XMPPServer.getInstance().getPluginManager().getPluginByName(MonitoringConstants.PLUGIN_NAME);
+        if (!plugin.isPresent()) {
+            throw new IllegalStateException("Unable to retrieve messages. The Monitoring plugin does not appear to be loaded on this machine.");
+        }
+        final ConversationManager conversationManager = (ConversationManager) ((MonitoringPlugin)plugin.get()).getModule(ConversationManager.class);
         
         DataForm dataForm = queryRequest.getDataForm();
         if(dataForm != null) {

@@ -19,10 +19,7 @@
 package org.jivesoftware.openfire.archive.commands;
 
 import java.io.ByteArrayOutputStream;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Date;
-import java.util.List;
+import java.util.*;
 
 import org.dom4j.Element;
 import org.jivesoftware.openfire.XMPPServer;
@@ -35,6 +32,7 @@ import org.jivesoftware.openfire.archive.MonitoringConstants;
 import org.jivesoftware.openfire.commands.AdHocCommand;
 import org.jivesoftware.openfire.commands.SessionData;
 import org.jivesoftware.openfire.component.InternalComponentManager;
+import org.jivesoftware.openfire.container.Plugin;
 import org.jivesoftware.openfire.plugin.MonitoringPlugin;
 import org.jivesoftware.util.StringUtils;
 import org.slf4j.Logger;
@@ -98,10 +96,12 @@ public class GetGroupConversationTranscript extends AdHocCommand {
     public void execute(SessionData data, Element command) {
         Element note = command.addElement("note");
         // Get handle on the Monitoring plugin
-        MonitoringPlugin plugin = (MonitoringPlugin) XMPPServer.getInstance().getPluginManager()
-                .getPlugin(MonitoringConstants.NAME);
-        ConversationManager conversationManager =
-                (ConversationManager) plugin.getModule(ConversationManager.class);
+        final Optional<Plugin> plugin = XMPPServer.getInstance().getPluginManager().getPluginByName(MonitoringConstants.PLUGIN_NAME);
+        if (!plugin.isPresent()) {
+            Log.error("Unable to execute command! The Monitoring plugin does not appear to be loaded on this machine.");
+            return;
+        }
+        final ConversationManager conversationManager = (ConversationManager) ((MonitoringPlugin)plugin.get()).getModule(ConversationManager.class);
         if (!conversationManager.isArchivingEnabled()) {
             note.addAttribute("type", "error");
             note.setText("Message archiving is not enabled.");
@@ -130,7 +130,7 @@ public class GetGroupConversationTranscript extends AdHocCommand {
             boolean includePDF = DataForm.parseBoolean(data.getData().get("includePDF").get(0));
 
             // Get archive searcher module
-            ArchiveSearcher archiveSearcher = (ArchiveSearcher) plugin.getModule(ArchiveSearcher.class);
+            final ArchiveSearcher archiveSearcher = (ArchiveSearcher) ((MonitoringPlugin)plugin.get()).getModule(ArchiveSearcher.class);
 
             ArchiveSearch search = new ArchiveSearch();
             search.setParticipants(participant);
