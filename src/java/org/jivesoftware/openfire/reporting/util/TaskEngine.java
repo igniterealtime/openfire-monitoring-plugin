@@ -23,7 +23,6 @@ import org.slf4j.LoggerFactory;
 
 import java.util.*;
 import java.util.concurrent.*;
-import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Performs tasks using worker threads. It also allows tasks to be scheduled to be

@@ -3,7 +3,6 @@ package org.jivesoftware.openfire.plugin;
 import com.sun.jersey.api.core.PackagesResourceConfig;
 import com.sun.jersey.spi.container.servlet.ServletContainer;
 import org.jivesoftware.openfire.plugin.service.LogAPI;
-import org.jivesoftware.openfire.plugin.service.MonitoringAPI;
 
 import javax.servlet.ServletConfig;
 import javax.servlet.ServletException;

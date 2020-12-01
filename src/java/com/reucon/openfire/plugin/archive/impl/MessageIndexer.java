@@ -9,7 +9,6 @@ import org.jivesoftware.openfire.archive.MonitoringConstants;
 import org.jivesoftware.openfire.index.LuceneIndexer;
 import org.jivesoftware.openfire.reporting.util.TaskEngine;
 import org.jivesoftware.util.JiveGlobals;
-import org.jivesoftware.util.StringUtils;
 import org.xmpp.packet.JID;
 
 import java.io.File;

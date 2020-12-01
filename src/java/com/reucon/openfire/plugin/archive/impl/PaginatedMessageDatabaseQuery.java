@@ -16,8 +16,6 @@ package com.reucon.openfire.plugin.archive.impl;
 
 import com.reucon.openfire.plugin.archive.model.ArchivedMessage;
 import org.jivesoftware.database.DbConnectionManager;
-import com.reucon.openfire.plugin.archive.util.StanzaIDUtil;
-import org.jivesoftware.util.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.xmpp.packet.JID;

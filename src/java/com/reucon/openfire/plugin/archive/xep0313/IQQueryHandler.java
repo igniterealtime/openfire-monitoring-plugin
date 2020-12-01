@@ -1,7 +1,6 @@
 package com.reucon.openfire.plugin.archive.xep0313;
 
 import com.reucon.openfire.plugin.archive.ArchiveProperties;
-import com.reucon.openfire.plugin.archive.impl.MucIndexer;
 import com.reucon.openfire.plugin.archive.model.ArchivedMessage;
 import com.reucon.openfire.plugin.archive.xep.AbstractIQHandler;
 import com.reucon.openfire.plugin.archive.xep0059.XmppResultSet;
@@ -30,7 +29,6 @@ import org.xmpp.packet.PacketError;
 
 import java.text.ParseException;
 import java.time.*;
-import java.time.Instant;
 import java.util.*;
 import java.util.LinkedList;
 import java.util.concurrent.ExecutorService;

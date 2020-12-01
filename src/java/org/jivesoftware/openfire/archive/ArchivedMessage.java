@@ -18,7 +18,6 @@ package org.jivesoftware.openfire.archive;
 
 import org.jivesoftware.database.JiveID;
 import org.jivesoftware.database.SequenceManager;
-import org.jivesoftware.util.JiveConstants;
 import org.xmpp.packet.JID;
 
 import java.util.Date;

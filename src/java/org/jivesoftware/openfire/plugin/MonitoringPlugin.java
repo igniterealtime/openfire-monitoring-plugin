@@ -49,12 +49,10 @@ import org.jivesoftware.openfire.reporting.stats.StatsViewer;
 import org.jivesoftware.openfire.reporting.util.TaskEngine;
 import org.jivesoftware.util.JiveGlobals;
 import org.jivesoftware.util.JiveProperties;
-import org.jivesoftware.util.SystemProperty;
 import org.picocontainer.MutablePicoContainer;
 import org.picocontainer.defaults.DefaultPicoContainer;
 
 import com.reucon.openfire.plugin.archive.ArchiveProperties;
-import com.reucon.openfire.plugin.archive.IndexManager;
 import com.reucon.openfire.plugin.archive.PersistenceManager;
 import com.reucon.openfire.plugin.archive.xep0136.Xep0136Support;
 import com.reucon.openfire.plugin.archive.xep0313.Xep0313Support;
@@ -85,14 +83,10 @@ public class MonitoringPlugin implements Plugin {
 
     private MutablePicoContainer picoContainer;
 
-    private boolean shuttingDown = false;
-
-    private int conversationTimeout;
     private static MonitoringPlugin instance;
     private boolean enabled = true;
     private PersistenceManager persistenceManager;
     private PersistenceManager mucPersistenceManager;
-    private IndexManager indexManager;
     private Xep0136Support xep0136Support;
     private Xep0313Support xep0313Support;
     private Xep0313Support1 xep0313Support1;
@@ -144,10 +138,6 @@ public class MonitoringPlugin implements Plugin {
         return this.enabled;
     }
 
-    public IndexManager getIndexManager() {
-        return indexManager;
-    }
-
     public PersistenceManager getPersistenceManager(JID jid) {
         Log.debug("Getting PersistenceManager for {}", jid);
         if (XMPPServer.getInstance().getMultiUserChatManager().getMultiUserChatService(jid) != null) {
@@ -172,9 +162,6 @@ public class MonitoringPlugin implements Plugin {
         Log = LoggerFactory.getLogger(MonitoringPlugin.class);
 
         /* Configuration */
-        conversationTimeout = JiveGlobals.getIntProperty(
-                ArchiveProperties.CONVERSATION_TIMEOUT,
-                DEFAULT_CONVERSATION_TIMEOUT);
         enabled = JiveGlobals.getBooleanProperty(ArchiveProperties.ENABLED,
                 false);
 
@@ -213,8 +200,6 @@ public class MonitoringPlugin implements Plugin {
                     "This plugin cannot run next to the Enterprise plugin");
         }
 
-        shuttingDown = false;
-
         // Make sure that the monitoring folder exists under the home directory
         File dir = new File(JiveGlobals.getHomeDirectory() + File.separator
                 + MonitoringConstants.NAME);
@@ -228,7 +213,6 @@ public class MonitoringPlugin implements Plugin {
     }
 
     public void destroyPlugin() {
-        shuttingDown = true;
 
         // Issue #114: Shut down the task-engine first, to prevent tasks from being executed in a shutting-down environment.
         TaskEngine.getInstance().dispose();
@@ -247,10 +231,6 @@ public class MonitoringPlugin implements Plugin {
         xep0313Support2.stop();
         
         instance = null;
-    }
-
-    public boolean isShuttingDown() {
-        return shuttingDown;
     }
 
 
