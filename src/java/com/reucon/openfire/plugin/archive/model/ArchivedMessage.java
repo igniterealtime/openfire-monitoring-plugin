@@ -23,31 +23,29 @@ public class ArchivedMessage {
         from
     }
 
-    private Long id;
+    private final Long id;
     private final Date time;
     private final Direction direction;
     private final String type;
-    private String subject;
-    private String body;
+    private final String body;
     private Conversation conversation;
-    private JID with;
-    private String stanza;
-    private String stableId;
+    private final JID with;
+    private final String stanza;
+    private final String stableId;
 
-    public ArchivedMessage( Date time, Direction direction, String type, JID with, String stableId ) {
+    public ArchivedMessage( Long id, Date time, Direction direction, String type, JID with, String stableId, String body, String stanza) {
+        this.id = id;
         this.time = time;
         this.direction = direction;
         this.type = type;
         this.with = with;
         this.stableId = stableId;
+        this.body = body;
+        this.stanza = stanza;
     }
 
     public Long getId() {
         return id;
-    }
-
-    public void setId(Long id) {
-        this.id = id;
     }
 
     public Date getTime() {
@@ -62,28 +60,12 @@ public class ArchivedMessage {
         return type;
     }
 
-    public String getSubject() {
-        return subject;
-    }
-
-    public void setSubject(String subject) {
-        this.subject = subject;
-    }
-
     public String getBody() {
         return body;
     }
 
-    public void setBody(String body) {
-        this.body = body;
-    }
-
     public String getStanza() {
         return stanza;
-    }
-
-    public void setStanza(String stanza) {
-        this.stanza = stanza;
     }
 
     public Conversation getConversation() {
@@ -101,7 +83,7 @@ public class ArchivedMessage {
      *         otherwise.
      */
     public boolean isEmpty() {
-        return subject == null && body == null;
+        return body == null;
     }
 
     public JID getWith() {
@@ -111,16 +93,6 @@ public class ArchivedMessage {
     public String getStableId()
     {
         return stableId;
-    }
-
-    public void setStableId( final UUID stableId )
-    {
-        this.stableId = stableId.toString();
-    }
-
-    public void setStableId( final String stableId )
-    {
-        this.stableId = stableId;
     }
 
     public String toString() {

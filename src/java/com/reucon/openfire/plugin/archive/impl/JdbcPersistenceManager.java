@@ -880,10 +880,7 @@ public class JdbcPersistenceManager implements PersistenceManager {
             direction = Direction.to;
             with = to;
         }
-        final ArchivedMessage archivedMessage = new ArchivedMessage(sentDate, direction, type == null ? null : type.toString(), with, sid);
-        archivedMessage.setStanza(stanza);
-        archivedMessage.setBody(body);
-        archivedMessage.setId(id);
+        final ArchivedMessage archivedMessage = new ArchivedMessage(id, sentDate, direction, type == null ? null : type.toString(), with, sid, body, stanza);
         return archivedMessage;
     }
 
