@@ -22,9 +22,10 @@ public class ArchiveFactory {
         final String sid = StanzaIDUtil.findFirstUniqueAndStableStanzaID( message, owner.toBareJID() );
         final ArchivedMessage archivedMessage;
 
-        archivedMessage = new ArchivedMessage(new Date(), direction, message.getType().toString(), with, sid);
-        archivedMessage.setSubject(message.getSubject());
-        archivedMessage.setBody(message.getBody());
+        // Use a 'null' value for the numeric database ID, as the resulting object has not yet been stored in the database.
+        final Long id = null;
+
+        archivedMessage = new ArchivedMessage(id, new Date(), direction, message.getType().toString(), with, sid, message.getBody(), message.toXML());
 
         return archivedMessage;
     }
