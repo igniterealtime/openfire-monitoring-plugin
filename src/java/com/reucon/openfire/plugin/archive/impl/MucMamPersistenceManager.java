@@ -100,14 +100,14 @@ public class MucMamPersistenceManager implements PersistenceManager {
             final String first;
             final String last;
             if ( useStableID ) {
-                final String firstSid = firstMessage.getStableId();
+                final String firstSid = firstMessage.getStableId(owner);
                 if ( firstSid != null && !firstSid.isEmpty() ) {
                     first = firstSid;
                 } else {
                     // Issue #98: Fall-back to using the database-identifier. Although not a stable-id, it at least gives the client the option to paginate.
                     first = firstMessage.getId().toString();
                 }
-                final String lastSid = lastMessage.getStableId();
+                final String lastSid = lastMessage.getStableId(owner);
                 if ( lastSid != null && !lastSid.isEmpty()) {
                     last = lastSid;
                 } else {
@@ -235,22 +235,7 @@ public class MucMamPersistenceManager implements PersistenceManager {
             with = roomJID;
         }
 
-        String sid;
-        if (stanza != null) {
-            try {
-                final Document doc = DocumentHelper.parseText(stanza);
-                final Message message = new Message(doc.getRootElement());
-                sid = StanzaIDUtil.findFirstUniqueAndStableStanzaID(message, roomJID.toBareJID());
-            } catch (Exception e) {
-                Log.warn("An exception occurred while parsing message with ID {}", id, e);
-                sid = null;
-            }
-        } else {
-            sid = null;
-        }
-
-        final ArchivedMessage archivedMessage = new ArchivedMessage(id, sentDate, ArchivedMessage.Direction.from, with, sid, body, stanza);
-        return archivedMessage;
+        return new ArchivedMessage(id, sentDate, ArchivedMessage.Direction.from, with, body, stanza);
     }
 
     static Long parseIdentifier( String value, MUCRoom room, boolean useStableID )
