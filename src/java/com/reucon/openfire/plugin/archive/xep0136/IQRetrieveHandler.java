@@ -122,9 +122,7 @@ public class IQRetrieveHandler extends AbstractIQHandler {
         messageElement = parentElement.addElement(message.getDirection()
                 .toString());
         messageElement.addAttribute("secs", Long.toString(secs));
-        if (message.getWith() != null) {
-            messageElement.addAttribute("jid", message.getWith().toBareJID());
-        }
+        messageElement.addAttribute("jid", message.getWith().toBareJID());
         messageElement.addElement("body").setText(message.getBody());
 
         return messageElement;
