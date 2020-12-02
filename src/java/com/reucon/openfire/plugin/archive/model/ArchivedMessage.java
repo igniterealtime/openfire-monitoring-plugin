@@ -32,7 +32,23 @@ public class ArchivedMessage {
         /**
          * A message received by the owner.
          */
-        from
+        from;
+
+        /**
+         * Returns a direction instance for a particular stanza, based on the owner of the archive that the stanza is
+         * in, and the addressee ('to') of the stanza.
+         *
+         * @param owner The owner of the archive that a message is in.
+         * @param addressee The addressee of the stanza.
+         * @return The direction of the stanza.
+         */
+        public static Direction getDirection(@Nonnull final JID owner, @Nonnull final JID addressee) {
+            if (owner.asBareJID().equals(addressee.asBareJID())) {
+                return Direction.from;
+            } else {
+                return Direction.to;
+            }
+        }
     }
 
     @Nullable
