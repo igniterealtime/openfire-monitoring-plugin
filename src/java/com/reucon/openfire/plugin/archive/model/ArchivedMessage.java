@@ -63,7 +63,7 @@ public class ArchivedMessage {
     @Nullable
     private final String body;
 
-    @Nullable
+    @Nonnull
     private final JID with;
 
     @Nullable
@@ -72,7 +72,7 @@ public class ArchivedMessage {
     @Nullable
     private final String stableId;
 
-    public ArchivedMessage(@Nullable final Long id, @Nonnull final Date time, @Nonnull final Direction direction, @Nullable final JID with, @Nullable final String stableId, @Nullable final String body, @Nullable final String stanza) throws DocumentException {
+    public ArchivedMessage(@Nullable final Long id, @Nonnull final Date time, @Nonnull final Direction direction, @Nonnull final JID with, @Nullable final String stableId, @Nullable final String body, @Nullable final String stanza) throws DocumentException {
         this.id = id;
         this.time = time;
         this.direction = direction;
@@ -154,12 +154,12 @@ public class ArchivedMessage {
      * The message peer (the 'other side' of the conversation), in respect to the owner of the archive that this message
      * is part of.
      *
-     * This value will only have meaning when the original message was sent in a one-to-one conversation. When the
-     * archived message was originally shared in a group chat, this value can be null.
+     * When the archived message was originally shared in a group chat, this value will reference the in-room address
+     * of the participant that sent the message (eg: room@service/nickname).
      *
      * @return The conversation peer.
      */
-    @Nullable
+    @Nonnull
     public JID getWith() {
         return with;
     }
@@ -224,8 +224,8 @@ public class ArchivedMessage {
             from = archivedMessage.getWith();
         }
 
-        final boolean isMuc = (to != null && XMPPServer.getInstance().getMultiUserChatManager().getMultiUserChatService( to ) != null)
-            || (from != null && XMPPServer.getInstance().getMultiUserChatManager().getMultiUserChatService( from ) != null);
+        final boolean isMuc = XMPPServer.getInstance().getMultiUserChatManager().getMultiUserChatService( to ) != null
+            || XMPPServer.getInstance().getMultiUserChatManager().getMultiUserChatService( from ) != null;
 
         final Message result = new Message();
         result.setFrom(from);

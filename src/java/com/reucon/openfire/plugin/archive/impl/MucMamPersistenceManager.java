@@ -226,21 +226,13 @@ public class MucMamPersistenceManager implements PersistenceManager {
     }
 
     static protected ArchivedMessage asArchivedMessage(JID roomJID, String senderJID, String nickname, Date sentDate, String subject, String body, String stanza, long id) throws DocumentException {
-        if (stanza == null) {
-            Message message = new Message();
-            message.setType(Message.Type.groupchat);
-            message.setSubject(subject);
-            message.setBody(body);
-            // Set the sender of the message
-            if (nickname != null && nickname.trim().length() > 0) {
-                // Recreate the sender address based on the nickname and room's JID
-                message.setFrom(new JID(roomJID.getNode(), roomJID.getDomain(), nickname, true));
-            }
-            else {
-                // Set the room as the sender of the message
-                message.setFrom(roomJID);
-            }
-            stanza = message.toString();
+        final JID with;
+        if (nickname != null && nickname.trim().length() > 0) {
+            // Recreate the sender address based on the nickname and room's JID
+            with = new JID(roomJID.getNode(), roomJID.getDomain(), nickname, true);
+        }
+        else {
+            with = roomJID;
         }
 
         String sid;
@@ -257,7 +249,7 @@ public class MucMamPersistenceManager implements PersistenceManager {
             sid = null;
         }
 
-        final ArchivedMessage archivedMessage = new ArchivedMessage(id, sentDate, ArchivedMessage.Direction.from, null, sid, body, stanza);
+        final ArchivedMessage archivedMessage = new ArchivedMessage(id, sentDate, ArchivedMessage.Direction.from, with, sid, body, stanza);
         return archivedMessage;
     }
 
