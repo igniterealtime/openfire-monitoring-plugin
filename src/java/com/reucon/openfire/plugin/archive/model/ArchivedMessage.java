@@ -1,7 +1,13 @@
 package com.reucon.openfire.plugin.archive.model;
 
+import org.dom4j.*;
 import org.jivesoftware.database.JiveID;
+import org.jivesoftware.openfire.XMPPServer;
+import org.jivesoftware.util.JiveGlobals;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.xmpp.packet.JID;
+import org.xmpp.packet.Message;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -14,6 +20,9 @@ import java.util.Date;
 @JiveID(601)
 @Immutable
 public class ArchivedMessage {
+
+    public static final Logger Log = LoggerFactory.getLogger( ArchivedMessage.class );
+
     public enum Direction {
         /**
          * A message sent by the owner.
@@ -42,19 +51,33 @@ public class ArchivedMessage {
     private final JID with;
 
     @Nullable
-    private final String stanza;
+    private final Message stanza;
 
     @Nullable
     private final String stableId;
 
-    public ArchivedMessage(@Nullable final Long id, @Nonnull final Date time, @Nonnull final Direction direction, @Nullable final JID with, @Nullable final String stableId, @Nullable final String body, @Nullable final String stanza) {
+    public ArchivedMessage(@Nullable final Long id, @Nonnull final Date time, @Nonnull final Direction direction, @Nullable final JID with, @Nullable final String stableId, @Nullable final String body, @Nullable final String stanza) throws DocumentException {
         this.id = id;
         this.time = time;
         this.direction = direction;
         this.with = with;
         this.stableId = stableId;
         this.body = body;
-        this.stanza = stanza;
+
+        if ( stanza != null) {
+            final Document doc = DocumentHelper.parseText( stanza );
+            this.stanza = new Message( doc.getRootElement() );
+        } else {
+            this.stanza = null;
+        }
+
+        if ( this.stanza != null && !JiveGlobals.getBooleanProperty( "conversation.OF-1804.disable", false ) )
+        {
+            // Prior to OF-1804 (Openfire 4.4.0), the stanza was logged with a formatter applied.
+            // This causes message formatting to be modified (notably, new lines could be altered).
+            // This workaround restores the original body text, that was stored in a different column.
+            this.stanza.setBody( body );
+        }
     }
 
     /**
@@ -107,7 +130,7 @@ public class ArchivedMessage {
      * @return XMPP packet
      */
     @Nullable
-    public String getStanza() {
+    public Message getStanza() {
         return stanza;
     }
 
@@ -126,7 +149,8 @@ public class ArchivedMessage {
     }
 
     /**
-     * The first stable and unique stanza-id value in the stanza, if the stanza contains such a value.
+     * The first stable and unique stanza-id value in the stanza that was set by owner of the message archive, if the
+     * stanza contains such a value.
      *
      * @return a stable and unique stanza-id value.
      */
@@ -145,5 +169,55 @@ public class ArchivedMessage {
         sb.append("direction=").append(direction).append("]");
 
         return sb.toString();
+    }
+
+    /**
+     * When the archived message does not include the original stanza, this method can be used to recreate a stanza from
+     * the individual parts that did get persisted.
+     *
+     * Note that the result of this method will not include most of the metadata that would have been sent in the original
+     * stanza. When the original stanza is available, that should be preferred over the result of this method. This
+     * method explicitly does not return or use a stanza that is available in the archivedMessage argument, assuming
+     * that the caller has evaluated that, and choose (for whatever reason) to not use that (eg: it might be malformed?)
+     *
+     * When the archived message does not contain certain optional data (such as a body), this method cannot recreate a
+     * message stanza. In such cases, this method returns null.
+     *
+     * @param archivedMessage The archived message for which to recreate a stanza.
+     * @param archiveOwner The owner of the archive from which to recreate a stanza
+     * @return A recreated stanza.
+     */
+    @Nullable
+    public static Message recreateStanza( @Nonnull final ArchivedMessage archivedMessage, @Nonnull final JID archiveOwner )
+    {
+        if ( archivedMessage.getBody() == null || archivedMessage.getBody().isEmpty() ) {
+            Log.trace("Cannot reconstruct stanza for archived message ID {}, as it has no body.", archivedMessage.getId());
+            return null;
+        }
+
+        // Try creating a fake one from the body.
+        final JID to;
+        final JID from;
+        if (archivedMessage.getDirection() == ArchivedMessage.Direction.to) {
+            // message sent by the archive owner;
+            to = archivedMessage.getWith();
+            from = archiveOwner;
+        } else {
+            // message received by the archive owner;
+            to = archiveOwner;
+            from = archivedMessage.getWith();
+        }
+
+        final boolean isMuc = (to != null && XMPPServer.getInstance().getMultiUserChatManager().getMultiUserChatService( to ) != null)
+            || (from != null && XMPPServer.getInstance().getMultiUserChatManager().getMultiUserChatService( from ) != null);
+
+        final Message result = new Message();
+        result.setFrom(from);
+        result.setTo(to);
+        result.setType( isMuc ? Message.Type.groupchat : Message.Type.chat );
+        result.setBody(archivedMessage.getBody());
+
+        Log.trace( "Reconstructed stanza for archived message with ID {} (only a body was stored): {}", archivedMessage.getId(), result );
+        return result;
     }
 }
