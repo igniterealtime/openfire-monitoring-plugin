@@ -353,14 +353,14 @@ public class JdbcPersistenceManager implements PersistenceManager {
             final String first;
             final String last;
             if ( useStableID ) {
-                final String firstSid = firstMessage.getStableId();
+                final String firstSid = firstMessage.getStableId(owner);
                 if ( firstSid != null && !firstSid.isEmpty() ) {
                     first = firstSid;
                 } else {
                     // Issue #98: Fall-back to using the database-identifier. Although not a stable-id, it at least gives the client the option to paginate.
                     first = firstMessage.getId().toString();
                 }
-                final String lastSid = lastMessage.getStableId();
+                final String lastSid = lastMessage.getStableId(owner);
                 if ( lastSid != null && !lastSid.isEmpty()) {
                     last = lastSid;
                 } else {
@@ -609,26 +609,12 @@ public class JdbcPersistenceManager implements PersistenceManager {
     }
 
     static protected ArchivedMessage asArchivedMessage(JID owner, String fromJID, String fromJIDResource, String toJID, String toJIDResource, Date sentDate, String body, String stanza, Long id) throws DocumentException {
-        String sid;
-        if (stanza != null) {
-            try {
-                final Document doc = DocumentHelper.parseText(stanza);
-                final Message message = new Message(doc.getRootElement());
-                sid = StanzaIDUtil.findFirstUniqueAndStableStanzaID(message, owner.toBareJID());
-            } catch (Exception e) {
-                Log.warn("An exception occurred while parsing message with ID {}", id, e);
-                sid = null;
-            }
-        } else {
-            sid = null;
-        }
-
         final JID from = new JID(fromJID + ( fromJIDResource == null || fromJIDResource.isEmpty() ? "" : "/" + fromJIDResource ));
         final JID to = new JID(toJID + ( toJIDResource == null || toJIDResource.isEmpty() ? "" : "/" + toJIDResource ));
 
         final ArchivedMessage.Direction direction = ArchivedMessage.Direction.getDirection(owner, to);
         final JID with = direction == Direction.from ? from : to;
-        return new ArchivedMessage(id, sentDate, direction, with, sid, body, stanza);
+        return new ArchivedMessage(id, sentDate, direction, with, body, stanza);
     }
 
     private static Long dateToMillis(Date date) {

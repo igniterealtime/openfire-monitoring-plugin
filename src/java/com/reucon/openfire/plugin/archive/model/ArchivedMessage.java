@@ -1,5 +1,6 @@
 package com.reucon.openfire.plugin.archive.model;
 
+import com.reucon.openfire.plugin.archive.util.StanzaIDUtil;
 import org.dom4j.*;
 import org.jivesoftware.database.JiveID;
 import org.jivesoftware.openfire.XMPPServer;
@@ -69,15 +70,11 @@ public class ArchivedMessage {
     @Nullable
     private final Message stanza;
 
-    @Nullable
-    private final String stableId;
-
-    public ArchivedMessage(@Nullable final Long id, @Nonnull final Date time, @Nonnull final Direction direction, @Nonnull final JID with, @Nullable final String stableId, @Nullable final String body, @Nullable final String stanza) throws DocumentException {
+    public ArchivedMessage(@Nullable final Long id, @Nonnull final Date time, @Nonnull final Direction direction, @Nonnull final JID with, @Nullable final String body, @Nullable final String stanza) throws DocumentException {
         this.id = id;
         this.time = time;
         this.direction = direction;
         this.with = with;
-        this.stableId = stableId;
         this.body = body;
 
         if ( stanza != null) {
@@ -171,16 +168,24 @@ public class ArchivedMessage {
      * @return a stable and unique stanza-id value.
      */
     @Nullable
-    public String getStableId()
+    public String getStableId(final JID owner)
     {
-        return stableId;
+        if (this.stanza == null) {
+            return null;
+        }
+
+        try {
+            return StanzaIDUtil.findFirstUniqueAndStableStanzaID(this.stanza, owner.toBareJID());
+        } catch (Exception e) {
+            Log.warn("An exception occurred while parsing message with ID {}", id, e);
+            return null;
+        }
     }
 
     public String toString() {
         StringBuilder sb = new StringBuilder();
 
         sb.append("ArchivedMessage[id=").append(id).append(",");
-        sb.append("stableId=").append(stableId).append(",");
         sb.append("time=").append(time).append(",");
         sb.append("direction=").append(direction).append("]");
 
