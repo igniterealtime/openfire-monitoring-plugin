@@ -430,9 +430,7 @@ public class ArchiveSearcher implements Startable {
                 public boolean hasNext() {
                     if (nextElement == null) {
                         nextElement = getNextElement();
-                        if (nextElement == null) {
-                            return false;
-                        }
+                        return nextElement != null;
                     }
                     return true;
                 }
@@ -518,9 +516,7 @@ public class ArchiveSearcher implements Startable {
                 public boolean hasNext() {
                     if (nextElement == null) {
                         nextElement = getNextElement();
-                        if (nextElement == null) {
-                            return false;
-                        }
+                        return nextElement != null;
                     }
                     return true;
                 }

@@ -32,7 +32,7 @@ public interface ConversationListener {
      *
      * @param conversation the conversation.
      */
-    public void conversationCreated(Conversation conversation);
+    void conversationCreated(Conversation conversation);
 
     /**
      * A conversation was updated, which means that a new message was sent between
@@ -41,7 +41,7 @@ public interface ConversationListener {
      * @param conversation the conversation.
      * @param date the date the conversation was updated.
      */
-    public void conversationUpdated(Conversation conversation, Date date);
+    void conversationUpdated(Conversation conversation, Date date);
 
     /**
      * A conversation ended due to inactivity or because the maximum conversation time
@@ -49,6 +49,5 @@ public interface ConversationListener {
      *
      * @param conversation the conversation.
      */
-    public void conversationEnded(Conversation conversation);
-
+    void conversationEnded(Conversation conversation);
 }

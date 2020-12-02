@@ -131,7 +131,7 @@ public class GraphServlet extends HttpServlet {
 
     }
 
-    private void writePDFContent(HttpServletRequest request, HttpServletResponse response, JFreeChart charts[], Statistic[] stats, long starttime, long endtime, int width, int height)
+    private void writePDFContent(HttpServletRequest request, HttpServletResponse response, JFreeChart[] charts, Statistic[] stats, long starttime, long endtime, int width, int height)
             throws IOException
     {
 

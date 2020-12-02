@@ -155,14 +155,14 @@ public interface StatsViewer {
      * determine the period of time which data should be  returned, it also provides a
      * suggestion on the number of datapoints that should be provided.
      */
-    public enum TimePeriod {
+    enum TimePeriod {
         last_hour(3600, 15),
         last_day(43200, 15);
 
         private long timePeriod;
         private int dataPoints;
 
-        private TimePeriod(long timePeriod, int dataPoints) {
+        TimePeriod(long timePeriod, int dataPoints) {
             this.timePeriod = timePeriod;
             this.dataPoints = dataPoints;
         }
@@ -196,7 +196,7 @@ public interface StatsViewer {
     /**
      * A snapshot of a stat in time.
      */
-    public final class StatView {
+    final class StatView {
         private long startTime;
         private long endTime;
         private double[][] data;

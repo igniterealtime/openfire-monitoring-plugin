@@ -64,19 +64,6 @@ public class ArchiveSearch {
     private boolean externalWildcardMode;
 
     /**
-     * Creates a new search on a query string.
-     *
-     * @param queryString the query string to use for the search.
-     * @return an ArchiveSearch instance to search using the specified query string.
-     */
-    public static ArchiveSearch createKeywordSearch(String queryString) {
-        ArchiveSearch search = new ArchiveSearch();
-        search.setQueryString(queryString);
-        search.setSortField(SortField.relevance);
-        return search;
-    }
-
-    /**
      * Constructs a new archive search, sorted on date descending.
      */
     public ArchiveSearch() {

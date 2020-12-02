@@ -211,7 +211,7 @@ public class PaginatedMucMessageDatabaseQuery
     {
         String sql = "SELECT sender, nickname, logTime, subject, body, stanza, messageId ";
         sql += " FROM ( ";
-        sql += "   SELECT TOP("+String.valueOf(maxResults)+") sender, nickname, logTime, subject, body, stanza, messageId FROM ofMucConversationLog ";
+        sql += "   SELECT TOP("+ maxResults +") sender, nickname, logTime, subject, body, stanza, messageId FROM ofMucConversationLog ";
         sql += "   WHERE messageId IS NOT NULL AND logTime > ? AND logTime <= ? AND roomID = ? AND (nickname IS NOT NULL OR subject IS NOT NULL) ";
         if ( with != null ) {
             // XEP-0313 specifies: If (and only if) the supplied JID is a bare JID (i.e. no resource is present), then the server

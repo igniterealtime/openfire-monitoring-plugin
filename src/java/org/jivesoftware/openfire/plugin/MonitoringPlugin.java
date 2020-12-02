@@ -67,8 +67,6 @@ import org.xmpp.packet.JID;
  */
 public class MonitoringPlugin implements Plugin {
 
-    private static final int DEFAULT_CONVERSATION_TIMEOUT = 30; // minutes
-
     /**
      * The context root of the URL under which the public web endpoints are exposed.
      */

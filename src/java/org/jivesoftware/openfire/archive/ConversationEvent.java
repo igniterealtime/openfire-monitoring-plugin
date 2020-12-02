@@ -201,7 +201,7 @@ public class ConversationEvent implements Externalizable {
         return event;
     }
 
-    private static enum Type {
+    private enum Type {
         /**
          * Event triggered when a room was destroyed.
          */
