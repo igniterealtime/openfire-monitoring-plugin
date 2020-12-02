@@ -626,17 +626,9 @@ public class JdbcPersistenceManager implements PersistenceManager {
         final JID from = new JID(fromJID + ( fromJIDResource == null || fromJIDResource.isEmpty() ? "" : "/" + fromJIDResource ));
         final JID to = new JID(toJID + ( toJIDResource == null || toJIDResource.isEmpty() ? "" : "/" + toJIDResource ));
 
-        final ArchivedMessage.Direction direction;
-        final JID with;
-        if (owner.asBareJID().equals(to.asBareJID())) {
-            direction = Direction.from;
-            with = from;
-        } else {
-            direction = Direction.to;
-            with = to;
-        }
-        final ArchivedMessage archivedMessage = new ArchivedMessage(id, sentDate, direction, with, sid, body, stanza);
-        return archivedMessage;
+        final ArchivedMessage.Direction direction = ArchivedMessage.Direction.getDirection(owner, to);
+        final JID with = direction == Direction.from ? from : to;
+        return new ArchivedMessage(id, sentDate, direction, with, sid, body, stanza);
     }
 
     private static Long dateToMillis(Date date) {
