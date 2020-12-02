@@ -54,7 +54,7 @@ public class ConversationEvent implements Externalizable {
 
     public void run(ConversationManager conversationManager) {
         if (Type.chatMessageReceived == type) {
-            conversationManager.processMessage(sender, receiver, body, "", date);
+            conversationManager.processMessage(sender, receiver, body, stanza, date);
         }
         else if (Type.roomDestroyed == type) {
             conversationManager.roomConversationEnded(roomJID, date);
