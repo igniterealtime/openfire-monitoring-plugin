@@ -7,10 +7,7 @@ import com.reucon.openfire.plugin.archive.model.Conversation;
 import com.reucon.openfire.plugin.archive.model.Participant;
 import com.reucon.openfire.plugin.archive.util.StanzaIDUtil;
 import com.reucon.openfire.plugin.archive.xep0059.XmppResultSet;
-import org.dom4j.Document;
-import org.dom4j.DocumentFactory;
-import org.dom4j.DocumentHelper;
-import org.dom4j.Element;
+import org.dom4j.*;
 import org.jivesoftware.database.DbConnectionManager;
 import org.jivesoftware.openfire.archive.ConversationManager;
 import org.jivesoftware.util.JiveConstants;
@@ -31,7 +28,6 @@ import java.util.*;
  */
 public class JdbcPersistenceManager implements PersistenceManager {
     private static final Logger Log = LoggerFactory.getLogger( JdbcPersistenceManager.class );
-    protected static final DocumentFactory docFactory = DocumentFactory.getInstance();
     public static final int DEFAULT_MAX = 1000;
 
     public static final String SELECT_MESSAGES_BY_CONVERSATION = "SELECT DISTINCT ofConversation.conversationID, ofConversation.room, "
@@ -474,7 +470,7 @@ public class JdbcPersistenceManager implements PersistenceManager {
                 message = extractMessage(rs);
                 conversation.addMessage(message);
             }
-        } catch (SQLException sqle) {
+        } catch (SQLException | DocumentException sqle) {
             Log.error("Error selecting conversation", sqle);
         } finally {
             DbConnectionManager.closeConnection(rs, pstmt, con);
@@ -542,7 +538,7 @@ public class JdbcPersistenceManager implements PersistenceManager {
         return participants;
     }
 
-    static ArchivedMessage extractMessage(ResultSet rs) throws SQLException {
+    static ArchivedMessage extractMessage(ResultSet rs) throws SQLException, DocumentException {
         Date time = millisToDate(rs.getLong("sentDate"));
         String body = rs.getString("body");
         String stanza = rs.getString("stanza");
@@ -604,46 +600,26 @@ public class JdbcPersistenceManager implements PersistenceManager {
         } catch (SQLException ex) {
             Log.warn("SQL failure while trying to get message with ID {} from the archive of {}.", messageId, owner, ex);
             return null;
+        } catch (DocumentException ex) {
+            Log.warn("Failure to parse 'stanza' value as XMPP for the message with ID {} from the archive of {}.", messageId, owner, ex);
+            return null;
         } finally {
             DbConnectionManager.closeConnection(rs, pstmt, connection);
         }
     }
 
-    static protected ArchivedMessage asArchivedMessage(JID owner, String fromJID, String fromJIDResource, String toJID, String toJIDResource, Date sentDate, String body, String stanza, Long id)
-    {
-        if (stanza == null) {
-            Message message = new Message();
-            message.setFrom(fromJID);
-            message.setTo(toJID);
-            message.setType(Message.Type.normal);
-            message.setBody(body);
-            stanza = message.toString();
-        }
-
+    static protected ArchivedMessage asArchivedMessage(JID owner, String fromJID, String fromJIDResource, String toJID, String toJIDResource, Date sentDate, String body, String stanza, Long id) throws DocumentException {
         String sid;
-        try
-        {
-            if ( !JiveGlobals.getBooleanProperty( "conversation.OF-1804.disable", false ) )
-            {
-                // Prior to OF-1804 (Openfire 4.4.0), the stanza was logged with a formatter applied.
-                // This causes message formatting to be modified (notably, new lines could be altered).
-                // This workaround restores the original body text, that was stored in a different column.
-                final int pos1 = stanza.indexOf( "<body>" );
-                final int pos2 = stanza.indexOf( "</body>" );
-
-                if ( pos1 > -1 && pos2 > -1 )
-                {
-                    // Add the body value to a proper XML element, so that the strings get XML encoded (eg: ampersand is escaped).
-                    final Element bodyEl = docFactory.createDocument().addElement("body");
-                    bodyEl.setText(body);
-                    stanza = stanza.substring( 0, pos1 ) + bodyEl.asXML() + stanza.substring( pos2 + 7 );
-                }
+        if (stanza != null) {
+            try {
+                final Document doc = DocumentHelper.parseText(stanza);
+                final Message message = new Message(doc.getRootElement());
+                sid = StanzaIDUtil.findFirstUniqueAndStableStanzaID(message, owner.toBareJID());
+            } catch (Exception e) {
+                Log.warn("An exception occurred while parsing message with ID {}", id, e);
+                sid = null;
             }
-            final Document doc = DocumentHelper.parseText( stanza );
-            final Message message = new Message( doc.getRootElement() );
-            sid = StanzaIDUtil.findFirstUniqueAndStableStanzaID( message, owner.toBareJID() );
-        } catch ( Exception e ) {
-            Log.warn( "An exception occurred while parsing message with ID {}", id, e );
+        } else {
             sid = null;
         }
 

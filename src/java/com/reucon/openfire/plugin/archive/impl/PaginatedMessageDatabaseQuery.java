@@ -15,6 +15,7 @@
 package com.reucon.openfire.plugin.archive.impl;
 
 import com.reucon.openfire.plugin.archive.model.ArchivedMessage;
+import org.dom4j.DocumentException;
 import org.jivesoftware.database.DbConnectionManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -134,7 +135,9 @@ public class PaginatedMessageDatabaseQuery
                 archivedMessages.add(archivedMessage);
             }
         } catch (SQLException e) {
-            Log.error("SQL failure during MAM: ", e);
+            Log.error("SQL failure during MAM for owner: {}", this.owner, e);
+        } catch (DocumentException e) {
+            Log.error("Unable to parse 'stanza' value as valid XMMP for owner {}", this.owner, e);
         } finally {
             DbConnectionManager.closeConnection(rs, pstmt, connection);
         }

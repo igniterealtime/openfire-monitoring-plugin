@@ -15,6 +15,7 @@
 package com.reucon.openfire.plugin.archive.impl;
 
 import com.reucon.openfire.plugin.archive.model.ArchivedMessage;
+import org.dom4j.DocumentException;
 import org.jivesoftware.database.DbConnectionManager;
 import org.jivesoftware.openfire.muc.MUCRoom;
 import org.jivesoftware.util.StringUtils;
@@ -136,7 +137,9 @@ public class PaginatedMucMessageDatabaseQuery
                 msgs.add( MucMamPersistenceManager.asArchivedMessage(room.getJID(), senderJID, nickname, sentDate, subject, body, stanza, id) );
             }
         } catch (SQLException e) {
-            Log.error("SQL failure during MAM-MUC: ", e);
+            Log.error("SQL failure during MAM-MUC for room: {}", this.room, e);
+        } catch (DocumentException e) {
+            Log.error("Unable to parse 'stanza' value as valid XMMP for MAM-MUC room {}", this.room, e);
         } finally {
             DbConnectionManager.closeConnection(rs, pstmt, connection);
         }

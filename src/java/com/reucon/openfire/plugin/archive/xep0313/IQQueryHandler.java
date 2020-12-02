@@ -514,30 +514,17 @@ abstract class IQQueryHandler extends AbstractIQHandler implements
      * @return
      */
     private void sendMessageResult(JID from, QueryRequest queryRequest, ArchivedMessage archivedMessage) {
-        String stanzaText = archivedMessage.getStanza();
-        if(stanzaText == null || stanzaText.equals("")) {
-            // Try creating a fake one from the body.
-            if (archivedMessage.getBody() != null && !archivedMessage.getBody().equals("")) {
-                final JID to;
-                final JID frm;
-                if (archivedMessage.getDirection() == ArchivedMessage.Direction.to) {
-                    // message sent by the archive owner;
-                    to = archivedMessage.getWith();
-                    frm = queryRequest.getArchive();
-                } else {
-                    // message received by the archive owner;
-                    to = queryRequest.getArchive();
-                    frm = archivedMessage.getWith();
-                }
-                final boolean isMuc = (to != null &&XMPPServer.getInstance().getMultiUserChatManager().getMultiUserChatService( to ) != null)
-                    || (from != null && XMPPServer.getInstance().getMultiUserChatManager().getMultiUserChatService( from ) != null);
+        final Message stanza;
+        if ( archivedMessage.getStanza() != null ) {
+            stanza = archivedMessage.getStanza();
+        } else {
+            // Try create a fake on from the body.
+            stanza = ArchivedMessage.recreateStanza(archivedMessage, queryRequest.getArchive());
+        }
 
-                stanzaText = String.format("<message from=\"%s\" to=\"%s\" type=\"%s\"><body>%s</body></message>", frm, to, isMuc ? "groupchat" : "chat", archivedMessage.getBody());
-                Log.trace( "Reconstructed stanza (only a body was stored): {}", stanzaText );
-            } else {
-                // Don't send legacy archived messages (that have no stanza)
-                return;
-            }
+        if (stanza == null) {
+            Log.debug("Unable to formulate a stanza from archived message with ID {}", archivedMessage.getId());
+            return;
         }
 
         final boolean isMuc = XMPPServer.getInstance().getMultiUserChatManager().getMultiUserChatService( queryRequest.getArchive() ) != null;
@@ -547,25 +534,26 @@ abstract class IQQueryHandler extends AbstractIQHandler implements
         {
             messagePacket.setFrom( queryRequest.getArchive().asBareJID() );
         }
-        Forwarded fwd;
 
-        Document stanza;
-        try {
-            stanza = DocumentHelper.parseText(stanzaText);
-            if ( isMuc ) {
-                // XEP-0313 specifies in section 5.1.2 MUC Archives: When sending out the archives to a requesting client, the forwarded stanza MUST NOT have a 'to' attribute.
-                final Attribute to = stanza.getRootElement().attribute("to");
-                if (to != null) {
-                    stanza.getRootElement().remove(to);
-                }
+        final Element rootElement = stanza.getElement().createCopy();
+        if ( isMuc ) {
+            // XEP-0313 specifies in section 5.1.2 MUC Archives: When sending out the archives to a requesting client, the forwarded stanza MUST NOT have a 'to' attribute.
+            final Attribute to = rootElement.attribute("to");
+            if (to != null) {
+                rootElement.remove(to);
             }
-            fwd = new Forwarded(stanza.getRootElement(), archivedMessage.getTime(), null);
-        } catch (DocumentException e) {
-            Log.error("Failed to parse message stanza.", e);
-            // If we can't parse stanza then we have no message to send to client, abort
-            return;
+        }
+        final Forwarded fwd = new Forwarded(rootElement, archivedMessage.getTime(), null);
+
+        if (archivedMessage.getId() == null) {
+            // TODO The MAM XEP specifies that there _must_ be an ID value in the result element. Traditionally, this
+            // code used the database ID. That introduces a weird dependency that a message must have a database ID
+            // before it can be used in results. In practise, that will probably always be the case, but it is not a
+            // particularly nice dependency.
+            throw new IllegalStateException("Unable to use an archived message that has no database ID.");
         }
 
+        // TODO Can/should we use a SSID instead of the database ID for the result 'ID' attribute value?
         messagePacket.addExtension(new Result(fwd, NAMESPACE, queryRequest.getQueryid(), archivedMessage.getId().toString()));
         router.route(messagePacket);
     }
