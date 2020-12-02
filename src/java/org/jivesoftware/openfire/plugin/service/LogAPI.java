@@ -186,7 +186,7 @@ public class LogAPI
         private String nickname;
         private String message;
 
-        public Message() {};
+        public Message() {}
 
         public String getTimestamp()
         {

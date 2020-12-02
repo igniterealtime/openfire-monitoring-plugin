@@ -119,7 +119,7 @@ public class StatsAction {
             } else {
                 Map mCon = new HashMap();
                 mCon.put("conversationid", con.getConversationID());
-                String users[];
+                String[] users;
                 int usersIdx = 0;
                 if (con.getRoom() == null) {
                     users = new String[con.getParticipants().size()];

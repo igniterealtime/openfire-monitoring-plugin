@@ -131,19 +131,11 @@ public class GraphEngine {
         }
 
         XYDataset data = populateData(key, def, startTime, endTime, dataPoints);
-        if (data == null) {
-            return null;
+        if (def[0].getStatType() == Statistic.Type.count) {
+            return createTimeBarChart(null, color, def[0].getUnits(), data);
+        } else {
+            return createTimeAreaChart(null, color, def[0].getUnits(), data);
         }
-        JFreeChart chart;
-        switch(def[0].getStatType()) {
-            case count:
-                chart = createTimeBarChart(null, color, def[0].getUnits(), data);
-                break;
-            default:
-                chart = createTimeAreaChart(null, color, def[0].getUnits(), data);
-        }
-
-        return chart;
     }
 
 
@@ -172,12 +164,10 @@ public class GraphEngine {
         }
 
         JFreeChart chart;
-        switch (def[0].getStatType()) {
-            case count:
-                chart = generateSparklineBarGraph(key, color, def, startTime, endTime, dataPoints);
-                break;
-            default:
-                chart = generateSparklineAreaChart(key, color, def, startTime, endTime, dataPoints);
+        if (def[0].getStatType() == Statistic.Type.count) {
+            chart = generateSparklineBarGraph(key, color, def, startTime, endTime, dataPoints);
+        } else {
+            chart = generateSparklineAreaChart(key, color, def, startTime, endTime, dataPoints);
         }
 
         KeypointPNGEncoderAdapter encoder = new KeypointPNGEncoderAdapter();
