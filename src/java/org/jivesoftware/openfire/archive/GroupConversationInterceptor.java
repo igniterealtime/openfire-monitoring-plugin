@@ -124,17 +124,18 @@ public class GroupConversationInterceptor implements MUCEventListener, Startable
 
     public void privateMessageRecieved(JID toJID, JID fromJID, Message message) {
         if(message.getBody() != null) {
-             if (ClusterManager.isSeniorClusterMember()) {
-                 conversationManager.processMessage(fromJID, toJID, message.getBody(), message.toXML(), new Date());
+            if (ClusterManager.isSeniorClusterMember()) {
+                conversationManager.processMessage(fromJID, toJID, message.getBody(), message.toXML(), new Date());
+            }
+            else {
+                ConversationEventsQueue eventsQueue = conversationManager.getConversationEventsQueue();
+                eventsQueue.addChatEvent(conversationManager.getConversationKey(fromJID, toJID),
+                                        ConversationEvent.chatMessageReceived(toJID, fromJID,
+                                            conversationManager.isMessageArchivingEnabled() ? message.getBody() : null,
+                                            conversationManager.isMessageArchivingEnabled() ? message.toXML() : null,
+                                            new Date()));
              }
-             else {
-                 ConversationEventsQueue eventsQueue = conversationManager.getConversationEventsQueue();
-                 eventsQueue.addChatEvent(conversationManager.getConversationKey(fromJID, toJID),
-                         ConversationEvent.chatMessageReceived(toJID, fromJID,
-                                 conversationManager.isMessageArchivingEnabled() ? message.getBody() : null,
-                                 new Date()));
-             }
-         }
+        }
     }
 
     public void roomSubjectChanged(JID roomJID, JID user, String newSubject) {
