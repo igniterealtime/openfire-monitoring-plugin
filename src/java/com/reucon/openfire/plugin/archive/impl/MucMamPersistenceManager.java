@@ -5,13 +5,14 @@ import com.reucon.openfire.plugin.archive.model.ArchivedMessage;
 import com.reucon.openfire.plugin.archive.model.Conversation;
 import com.reucon.openfire.plugin.archive.util.StanzaIDUtil;
 import com.reucon.openfire.plugin.archive.xep0059.XmppResultSet;
-import org.dom4j.*;
+import org.dom4j.Document;
+import org.dom4j.DocumentException;
+import org.dom4j.DocumentHelper;
 import org.jivesoftware.database.DbConnectionManager;
 import org.jivesoftware.openfire.XMPPServer;
 import org.jivesoftware.openfire.muc.MUCRoom;
 import org.jivesoftware.openfire.muc.MultiUserChatManager;
 import org.jivesoftware.openfire.muc.MultiUserChatService;
-import org.jivesoftware.util.JiveGlobals;
 import org.jivesoftware.util.NotFoundException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -29,11 +30,15 @@ import java.util.Date;
 import java.util.List;
 
 /**
+ * A persistence provider that facilitates the implementation of Message Archive Management (XEP-0313) for MUC rooms.
+ *
+ * Note that this implementation primarily makes use of the database tables that are provided by Openfire (core), and
+ * not of the database tables that are provided by the Monitoring plugin.
+ *
  * Created by dwd on 25/07/16.
  */
 public class MucMamPersistenceManager implements PersistenceManager {
     private final static Logger Log = LoggerFactory.getLogger( MucMamPersistenceManager.class );
-    protected static final DocumentFactory docFactory = DocumentFactory.getInstance();
     private static final int DEFAULT_MAX = 100;
 
     @Override
@@ -355,7 +360,6 @@ public class MucMamPersistenceManager implements PersistenceManager {
         PreparedStatement pstmt = null;
         ResultSet rs = null;
 
-        int totalCount = 0;
         try {
             connection = DbConnectionManager.getConnection();
             pstmt = connection.prepareStatement( "SELECT MAX(logTime) FROM ofMucConversationLog WHERE roomid = ?");

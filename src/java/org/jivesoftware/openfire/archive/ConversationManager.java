@@ -1163,9 +1163,7 @@ public class ConversationManager implements Startable, ComponentEventListener{
 
                 for ( final ArchivedMessage work : workQueue )
                 {
-                    long id = SequenceManager.nextID(work);
-
-                    pstmt.setLong(1, id);
+                    pstmt.setLong(1, work.getID());
                     pstmt.setLong(2, work.getConversationID());
                     pstmt.setString(3, work.getFromJID().toBareJID());
                     pstmt.setString(4, work.getFromJID().getResource());

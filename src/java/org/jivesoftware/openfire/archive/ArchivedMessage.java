@@ -35,13 +35,14 @@ public class ArchivedMessage {
         new SequenceManager(604, 50);
     }
 
-    private long conversationID;
-    private JID fromJID;
-    private JID toJID;
-    private Date sentDate;
-    private String body;
-    private String stanza;
-    private boolean roomEvent;
+    private final long conversationID;
+    private final JID fromJID;
+    private final JID toJID;
+    private final Date sentDate;
+    private final String body;
+    private final String stanza;
+    private final boolean roomEvent;
+    private final long id;
 
     /**
      * Creates a new archived message.
@@ -54,6 +55,17 @@ public class ArchivedMessage {
      * @param roomEvent true if the message belongs to a room event. Eg. User joined room.
      */
     public ArchivedMessage(long conversationID, JID fromJID, JID toJID, Date sentDate, String body, boolean roomEvent) {
+        this(conversationID, fromJID, toJID, sentDate, body, null, roomEvent);
+    }
+
+    public ArchivedMessage(long conversationID, JID fromJID, JID toJID, Date sentDate, String body, String stanza, boolean roomEvent) {
+        // OF-2157: It is important to assign a message ID, which is used for ordering messages in a conversation, soon
+        // after the message arrived, as opposed to just before the message gets written to the database. In the latter
+        // scenario, the message ID values might no longer reflect the order of the messages in a conversation, as
+        // database writes are batched up together for performance reasons. Using these batches won't affect the
+        // database-insertion order (as compared to the order of messages in the conversation) on a single Openfire
+        // server, but when running in a cluster, these batches do have a good chance to mess up the order of things.
+        this.id = SequenceManager.nextID(this);
         this.conversationID = conversationID;
         // Convert both JID's to bare JID's so that we don't store resource information.
         this.fromJID = fromJID;
@@ -61,10 +73,6 @@ public class ArchivedMessage {
         this.sentDate = sentDate;
         this.body = body;
         this.roomEvent = roomEvent;
-    }
-
-    public ArchivedMessage(long conversationID, JID fromJID, JID toJID, Date sentDate, String body, String stanza, boolean roomEvent) {
-        this(conversationID, fromJID, toJID, sentDate, body, roomEvent);
         this.stanza = stanza;
     }
 
@@ -75,6 +83,17 @@ public class ArchivedMessage {
      */
     public long getConversationID() {
         return conversationID;
+    }
+
+    /**
+     * The ID that the message is associated with.
+     *
+     * This value is used to order messages in a conversation.
+     *
+     * @return the conversation ID.
+     */
+    public long getID() {
+        return id;
     }
 
     /**
