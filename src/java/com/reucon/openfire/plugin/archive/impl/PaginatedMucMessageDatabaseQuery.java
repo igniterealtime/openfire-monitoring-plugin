@@ -35,6 +35,9 @@ import org.xmpp.packet.JID;
 /**
  * Encapsulates responsibility of creating a database query that retrieves a specific subset (page) of archived messages related to a MUC room.
  *
+ * Note that this implementation primarily makes use of the database tables that are provided by Openfire (core), and
+ * not of the database tables that are provided by the Monitoring plugin.
+ *
  * @author Guus der Kinderen, guus.der.kinderen@gmail.com
  */
 public class PaginatedMucMessageDatabaseQuery
