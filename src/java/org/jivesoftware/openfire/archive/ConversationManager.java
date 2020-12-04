@@ -1086,7 +1086,11 @@ public class ConversationManager implements Startable, ComponentEventListener{
     {
         ConversationArchivingRunnable( String id )
         {
-            super( id, 500, Duration.ofSeconds( 1 ), Duration.ofMillis( 50 ) ); // TODO make values configurable.
+            super( id,
+                JiveGlobals.getIntProperty("conversation.archiver.conversation.max-work-queue-size", 500),
+                Duration.ofMillis( JiveGlobals.getLongProperty("conversation.archiver.conversation.max-purge-interval", 1000)),
+                Duration.ofMillis( JiveGlobals.getLongProperty("conversation.archiver.conversation.grace-period", 50))
+            );
         }
 
         protected void store( List<Conversation> workQueue )
@@ -1138,11 +1142,15 @@ public class ConversationManager implements Startable, ComponentEventListener{
     /**
      * Stores Messages in the database.
      */
-    private class MessageArchivingRunnable extends Archiver<ArchivedMessage>
+    private static class MessageArchivingRunnable extends Archiver<ArchivedMessage>
     {
         MessageArchivingRunnable( String id )
         {
-            super( id, 500, Duration.ofSeconds( 1 ), Duration.ofMillis( 50 ) ); // TODO make values configurable.
+            super( id,
+                JiveGlobals.getIntProperty("conversation.archiver.message.max-work-queue-size", 500),
+                Duration.ofMillis( JiveGlobals.getLongProperty("conversation.archiver.message.max-purge-interval", 1000)),
+                Duration.ofMillis( JiveGlobals.getLongProperty("conversation.archiver.message.grace-period", 50))
+            );
         }
 
         @Override
@@ -1206,7 +1214,11 @@ public class ConversationManager implements Startable, ComponentEventListener{
     {
         ParticipantArchivingRunnable( String id )
         {
-            super( id, 500, Duration.ofSeconds( 1 ), Duration.ofMillis( 50 ) ); // TODO make values configurable.
+            super( id,
+                JiveGlobals.getIntProperty("conversation.archiver.participant.max-work-queue-size", 500),
+                Duration.ofMillis( JiveGlobals.getLongProperty("conversation.archiver.participant.max-purge-interval", 1000)),
+                Duration.ofMillis( JiveGlobals.getLongProperty("conversation.archiver.participant.grace-period", 50))
+            );
         }
 
         protected void store( List<RoomParticipant> workQueue )
