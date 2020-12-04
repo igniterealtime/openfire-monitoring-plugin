@@ -303,7 +303,7 @@ public class MucMamPersistenceManager implements PersistenceManager {
                     final Document doc = DocumentHelper.parseText( stanza );
                     final Message message = new Message( doc.getRootElement() );
                     final String sid = StanzaIDUtil.findFirstUniqueAndStableStanzaID( message, room.getJID().toBareJID() );
-                    if ( sid != null ) {
+                    if ( sid != null && sid.equals(value)) {
                         Log.debug( "Found stable/unique stanza ID {} in message with ID {}.", value, messageId );
                         return messageId;
                     }
