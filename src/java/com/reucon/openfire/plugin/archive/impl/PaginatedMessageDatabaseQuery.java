@@ -106,6 +106,7 @@ public class PaginatedMessageDatabaseQuery
             pstmt.setLong( 1, dateToMillis( startDate ) );
             pstmt.setLong( 2, dateToMillis( endDate ) );
             pstmt.setString( 3, owner.toBareJID() );
+            pstmt.setString( 4, owner.toBareJID() );
             int pos = 3;
 
             if ( with != null ) {
@@ -195,78 +196,71 @@ public class PaginatedMessageDatabaseQuery
 
     private String getStatement(final Long after, final Long before, final int maxResults, final boolean isPagingBackwards)
     {
-        String sql = "SELECT fromJID, fromJIDResource, toJID, toJIDResource, sentDate, body, stanza, messageID, bareJID FROM ("
-            + "SELECT DISTINCT ofMessageArchive.fromJID, ofMessageArchive.fromJIDResource, ofMessageArchive.toJID, ofMessageArchive.toJIDResource, ofMessageArchive.sentDate, ofMessageArchive.body, ofMessageArchive.stanza, ofMessageArchive.messageID, ofConParticipant.bareJID "
-            + "FROM ofMessageArchive "
-            + "INNER JOIN ofConParticipant ON ofMessageArchive.conversationID = ofConParticipant.conversationID "
-            + "WHERE (ofMessageArchive.stanza IS NOT NULL OR ofMessageArchive.body IS NOT NULL) ";
+        String sql = "SELECT fromJID, fromJIDResource, toJID, toJIDResource, sentDate, body, stanza, messageID"
+            + " FROM ofMessageArchive"
+            + " WHERE (stanza IS NOT NULL OR body IS NOT NULL)";
 
         // Ignore legacy messages
-        sql += " AND ofMessageArchive.messageID IS NOT NULL ";
-        sql += " AND ofMessageArchive.sentDate >= ?";
-        sql += " AND ofMessageArchive.sentDate <= ?";
-        sql += " AND ofConParticipant.bareJID = ?";
+        sql += " AND messageID IS NOT NULL";
+
+        sql += " AND sentDate >= ?";
+        sql += " AND sentDate <= ?";
+        sql += " AND ( toJID = ? OR fromJID = ? )";
 
         if( with != null )
         {
             // XEP-0313 specifies: If (and only if) the supplied JID is a bare JID (i.e. no resource is present), then the server SHOULD return messages if their bare to/from address for a user archive, or from address otherwise, would match it.
             if (with.getResource() == null) {
-                sql += " AND ( ofMessageArchive.toJID = ? OR ofMessageArchive.fromJID = ? )";
+                sql += " AND ( toJID = ? OR fromJID = ? )";
             } else {
-                sql += " AND ( (ofMessageArchive.toJID = ? AND ofMessageArchive.toJIDResource = ? ) OR (ofMessageArchive.fromJID = ? AND ofMessageArchive.fromJIDResource = ? ) )";
+                sql += " AND ( toJID = ? AND toJIDResource = ? ) OR (fromJID = ? AND fromJIDResource = ? ) )";
             }
         }
 
         if ( after != null ) {
-            sql += " AND ofMessageArchive.messageID > ? ";
+            sql += " AND messageID > ?";
         }
         if ( before != null ) {
-            sql += " AND ofMessageArchive.messageID < ? ";
+            sql += " AND messageID < ?";
         }
 
-        sql += " ORDER BY ofMessageArchive.sentDate " + (isPagingBackwards ? "DESC" : "ASC");
+        sql += " ORDER BY sentDate " + (isPagingBackwards ? "DESC" : "ASC");
         sql += " LIMIT " + maxResults;
-        sql += " ) AS part ";
-        sql += " ORDER BY sentDate";
 
         return sql;
     }
 
     private String getStatementForSqlServer(final Long after, final Long before, final int maxResults, final boolean isPagingBackwards)
     {
-        String sql = "SELECT fromJID, fromJIDResource, toJID, toJIDResource, sentDate, body, stanza, messageID, bareJID FROM ("
-            + "SELECT DISTINCT TOP("+maxResults+") ofMessageArchive.fromJID, ofMessageArchive.fromJIDResource, ofMessageArchive.toJID, ofMessageArchive.toJIDResource, ofMessageArchive.sentDate, ofMessageArchive.body, ofMessageArchive.stanza, ofMessageArchive.messageID, ofConParticipant.bareJID "
-            + "FROM ofMessageArchive "
-            + "INNER JOIN ofConParticipant ON ofMessageArchive.conversationID = ofConParticipant.conversationID "
-            + "WHERE (ofMessageArchive.stanza IS NOT NULL OR ofMessageArchive.body IS NOT NULL) ";
+        String sql = "SELECT DISTINCT TOP("+maxResults+") fromJID, fromJIDResource, toJID, toJIDResource, sentDate, body, stanza, messageID"
+            + " FROM ofMessageArchive "
+            + " WHERE (stanza IS NOT NULL OR body IS NOT NULL) ";
 
         // Ignore legacy messages
-        sql += " AND ofMessageArchive.messageID IS NOT NULL ";
-        sql += " AND ofMessageArchive.sentDate >= ?";
-        sql += " AND ofMessageArchive.sentDate <= ?";
-        sql += " AND ofConParticipant.bareJID = ?";
+        sql += " AND messageID IS NOT NULL ";
+
+        sql += " AND sentDate >= ?";
+        sql += " AND sentDate <= ?";
+        sql += " AND ( toJID = ? OR fromJID = ? )";
 
         if( with != null )
         {
             // XEP-0313 specifies: If (and only if) the supplied JID is a bare JID (i.e. no resource is present), then the server SHOULD return messages if their bare to/from address for a user archive, or from address otherwise, would match it.
             if (with.getResource() == null) {
-                sql += " AND ( ofMessageArchive.toJID = ? OR ofMessageArchive.fromJID = ? )";
+                sql += " AND ( toJID = ? OR fromJID = ? )";
             } else {
-                sql += " AND ( (ofMessageArchive.toJID = ? AND ofMessageArchive.toJIDResource = ? ) OR (ofMessageArchive.fromJID = ? AND ofMessageArchive.fromJIDResource = ? ) )";
+                sql += " AND ( (toJID = ? AND toJIDResource = ? ) OR (fromJID = ? AND fromJIDResource = ? ) )";
             }
         }
 
         if ( after != null ) {
-            sql += " AND ofMessageArchive.messageID > ? ";
+            sql += " AND messageID > ?";
         }
         if ( before != null ) {
-            sql += " AND ofMessageArchive.messageID < ? ";
+            sql += " AND messageID < ?";
         }
 
-        sql += " ORDER BY ofMessageArchive.sentDate " + (isPagingBackwards ? "DESC" : "ASC");
-        sql += " ) AS part ";
-
-        sql += " ORDER BY sentDate";
+        sql += " ORDER BY sentDate " + (isPagingBackwards ? "DESC" : "ASC");
 
         return sql;
     }
