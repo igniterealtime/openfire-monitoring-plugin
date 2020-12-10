@@ -21,6 +21,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.xmpp.packet.JID;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -32,7 +33,10 @@ import java.util.List;
 
 /**
  * Encapsulates responsibility of creating a database query that retrieves a specific subset (page) of archived messages
- * from a specific owner
+ * from a specific owner.
+ *
+ * Note that an 'owner' can be an end-user entity (when the archive that's queried is considered to be a
+ * 'personal archive') or a chatroom (in which case the archive that's queried is considered to be a group chat archive).
  *
  * @author Guus der Kinderen, guus.der.kinderen@gmail.com
  */
@@ -40,12 +44,32 @@ public class PaginatedMessageDatabaseQuery
 {
     private static final Logger Log = LoggerFactory.getLogger(PaginatedMessageDatabaseQuery.class );
 
+    @Nonnull
     private final Date startDate;
+
+    @Nonnull
     private final Date endDate;
+
+    @Nonnull
     private final JID owner;
+
+    @Nullable
     private final JID with;
 
-    public PaginatedMessageDatabaseQuery( Date startDate, Date endDate, JID owner, JID with )
+    /**
+     * Creates a query for messages from a message archive.
+     *
+     * The semantics of the 'with' arguments are slightly different, depending on the nature of the owner of the
+     * archive. When the archive owner is an end-user ('personal archive'), then all messages sent 'to' or 'from' the
+     * 'with' entity are returned. When the archive is a group chat archive and the 'with' argument is provided, then
+     * the results will be limited to messages sent by the 'with' entity.
+     *
+     * @param startDate Start (inclusive) of period for which to return messages. EPOCH will be used if no value is provided.
+     * @param endDate End (inclusive) of period for which to return messages. 'now' will be used if no value is provided.
+     * @param owner The message archive owner.
+     * @param with An optional converstation partner (or message author, in case of MUC).
+     */
+    public PaginatedMessageDatabaseQuery(@Nullable final Date startDate, @Nullable final Date endDate, @Nonnull final JID owner, @Nullable final JID with)
     {
         this.startDate = startDate == null ? new Date( 0L ) : startDate ;
         this.endDate = endDate == null ? new Date() : endDate;
@@ -53,21 +77,25 @@ public class PaginatedMessageDatabaseQuery
         this.with = with;
     }
 
+    @Nonnull
     public Date getStartDate()
     {
         return startDate;
     }
 
+    @Nonnull
     public Date getEndDate()
     {
         return endDate;
     }
 
+    @Nonnull
     public JID getOwner()
     {
         return owner;
     }
 
+    @Nullable
     public JID getWith()
     {
         return with;
@@ -84,7 +112,7 @@ public class PaginatedMessageDatabaseQuery
             '}';
     }
 
-    protected List<ArchivedMessage> getPage( final Long after, final Long before, final int maxResults, final boolean isPagingBackwards )
+    protected List<ArchivedMessage> getPage( @Nullable final Long after, @Nullable final Long before, final int maxResults, final boolean isPagingBackwards )
     {
         Log.trace( "Getting page of archived messages. After: {}, Before: {}, Max results: {}, Paging backwards: {}", after, before, maxResults, isPagingBackwards );
 
@@ -106,11 +134,14 @@ public class PaginatedMessageDatabaseQuery
             pstmt = connection.prepareStatement( query );
             pstmt.setLong( 1, dateToMillis( startDate ) );
             pstmt.setLong( 2, dateToMillis( endDate ) );
+
+            // TODO Optimize this for the MUC use-case. Unlike personal archives, the owner of the MUC archive is guaranteed to be in the 'tojid' column. For MUC, there's no need to look in both columns.
             pstmt.setString( 3, owner.toBareJID() );
             pstmt.setString( 4, owner.toBareJID() );
             int pos = 4;
 
             if ( with != null ) {
+                // TODO Optimize this for the MUC use-case. Unlike personal archives, the relevant 'with' value (sender of the message) of the MUC archive is guaranteed to be in the 'fromJid' columns. For MUC, there's no need to look in both columns.
                 if (with.getResource() == null) {
                     pstmt.setString( ++pos, with.toString() );
                     pstmt.setString( ++pos, with.toString() );
@@ -147,11 +178,7 @@ public class PaginatedMessageDatabaseQuery
         return archivedMessages;
     }
 
-    private Date millisToDate(Long millis) {
-        return millis == null ? null : new Date(millis);
-    }
-
-    private Long dateToMillis(Date date) {
+    private Long dateToMillis(@Nullable final Date date) {
         return date == null ? null : date.getTime();
     }
 

@@ -13,6 +13,7 @@ import org.jivesoftware.openfire.XMPPServer;
 import org.jivesoftware.openfire.muc.MUCRoom;
 import org.jivesoftware.openfire.muc.MultiUserChatManager;
 import org.jivesoftware.openfire.muc.MultiUserChatService;
+import org.jivesoftware.util.JiveGlobals;
 import org.jivesoftware.util.NotFoundException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -31,9 +32,6 @@ import java.util.List;
 
 /**
  * A persistence provider that facilitates the implementation of Message Archive Management (XEP-0313) for MUC rooms.
- *
- * Note that this implementation primarily makes use of the database tables that are provided by Openfire (core), and
- * not of the database tables that are provided by the Monitoring plugin.
  *
  * Created by dwd on 25/07/16.
  */
@@ -85,13 +83,24 @@ public class MucMamPersistenceManager implements PersistenceManager {
                 msgs = paginatedMucMessageLuceneQuery.getPage(after, before, maxResults, isPagingBackwards);
             }
         } else {
-            final PaginatedMucMessageDatabaseQuery paginatedMucMessageDatabaseQuery = new PaginatedMucMessageDatabaseQuery(startDate, endDate, room, with );
-            Log.debug("Request for message archive of room '{}' resulted in the following query data: {}", room.getJID(), paginatedMucMessageDatabaseQuery);
-            totalCount = paginatedMucMessageDatabaseQuery.getTotalCount();
-            if ( totalCount == 0 ) {
-                msgs = Collections.emptyList();
+            if (JiveGlobals.getBooleanProperty("conversation.database.use-openfire-tables", false ) ) {
+                final PaginatedMucMessageDatabaseQuery paginatedMucMessageDatabaseQuery = new PaginatedMucMessageDatabaseQuery(startDate, endDate, room, with);
+                Log.debug("Request for message archive of room '{}' resulted in the following query data: {}", room.getJID(), paginatedMucMessageDatabaseQuery);
+                totalCount = paginatedMucMessageDatabaseQuery.getTotalCount();
+                if (totalCount == 0) {
+                    msgs = Collections.emptyList();
+                } else {
+                    msgs = paginatedMucMessageDatabaseQuery.getPage(after, before, maxResults, isPagingBackwards);
+                }
             } else {
-                msgs = paginatedMucMessageDatabaseQuery.getPage(after, before, maxResults, isPagingBackwards);
+                final PaginatedMessageDatabaseQuery paginatedMessageDatabaseQuery = new PaginatedMessageDatabaseQuery(startDate, endDate, room.getJID(), with);
+                Log.debug("Request for message archive of room '{}' resulted in the following query data: {}", room.getJID(), paginatedMessageDatabaseQuery);
+                totalCount = paginatedMessageDatabaseQuery.getTotalCount();
+                if (totalCount == 0) {
+                    msgs = Collections.emptyList();
+                } else {
+                    msgs = paginatedMessageDatabaseQuery.getPage(after, before, maxResults, isPagingBackwards);
+                }
             }
         }
 
@@ -138,8 +147,13 @@ public class MucMamPersistenceManager implements PersistenceManager {
             }
             else
             {
-                final PaginatedMucMessageDatabaseQuery paginatedMucMessageDatabaseQuery = new PaginatedMucMessageDatabaseQuery(startDate, endDate, room, with);
-                nextPage = paginatedMucMessageDatabaseQuery.getPage(afterForNextPage, beforeForNextPage, 1, isPagingBackwards);
+                if (JiveGlobals.getBooleanProperty("conversation.database.use-openfire-tables", false ) ) {
+                    final PaginatedMucMessageDatabaseQuery paginatedMucMessageDatabaseQuery = new PaginatedMucMessageDatabaseQuery(startDate, endDate, room, with);
+                    nextPage = paginatedMucMessageDatabaseQuery.getPage(afterForNextPage, beforeForNextPage, 1, isPagingBackwards);
+                } else {
+                    final PaginatedMessageDatabaseQuery paginatedMessageDatabaseQuery = new PaginatedMessageDatabaseQuery(startDate, endDate, room.getJID(), with);
+                    nextPage = paginatedMessageDatabaseQuery.getPage(afterForNextPage, beforeForNextPage, 1, isPagingBackwards);
+                }
             }
             Log.debug("Found results for 'next page': {} (based on after: {} before: {} isPagingBackwards: {})", !nextPage.isEmpty(), afterForNextPage, beforeForNextPage, isPagingBackwards);
             xmppResultSet.setComplete(nextPage.isEmpty());
