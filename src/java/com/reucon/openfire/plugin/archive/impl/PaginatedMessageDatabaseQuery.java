@@ -21,6 +21,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.xmpp.packet.JID;
 
+import javax.annotation.Nullable;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -107,7 +108,7 @@ public class PaginatedMessageDatabaseQuery
             pstmt.setLong( 2, dateToMillis( endDate ) );
             pstmt.setString( 3, owner.toBareJID() );
             pstmt.setString( 4, owner.toBareJID() );
-            int pos = 3;
+            int pos = 4;
 
             if ( with != null ) {
                 if (with.getResource() == null) {
@@ -132,7 +133,7 @@ public class PaginatedMessageDatabaseQuery
             Log.trace( "Constructed query: {}", query );
             rs = pstmt.executeQuery();
             while (rs.next()) {
-                final ArchivedMessage archivedMessage = JdbcPersistenceManager.extractMessage(rs);
+                final ArchivedMessage archivedMessage = JdbcPersistenceManager.extractMessage(owner, rs);
                 archivedMessages.add(archivedMessage);
             }
         } catch (SQLException e) {
@@ -167,7 +168,8 @@ public class PaginatedMessageDatabaseQuery
             pstmt.setLong( 1, dateToMillis( startDate ) );
             pstmt.setLong( 2, dateToMillis( endDate ) );
             pstmt.setString( 3, owner.toBareJID() );
-            int pos = 3;
+            pstmt.setString( 4, owner.toBareJID() );
+            int pos = 4;
 
             if ( with != null ) {
                 if (with.getResource() == null) {
@@ -194,9 +196,16 @@ public class PaginatedMessageDatabaseQuery
         return totalCount;
     }
 
-    private String getStatement(final Long after, final Long before, final int maxResults, final boolean isPagingBackwards)
+    private String buildQueryForMessages( @Nullable final Long after, @Nullable final Long before, final int maxResults, final boolean isPagingBackwards )
     {
-        String sql = "SELECT fromJID, fromJIDResource, toJID, toJIDResource, sentDate, body, stanza, messageID"
+        // What SQL keyword should be used to limit the result set: TOP() or LIMIT ?
+        final boolean useTopNotLimit = DbConnectionManager.getDatabaseType().equals(DbConnectionManager.DatabaseType.sqlserver);
+
+        String sql = "SELECT";
+        if (useTopNotLimit) {
+            sql += " TOP(" + maxResults + ")";
+        }
+        sql += " fromJID, fromJIDResource, toJID, toJIDResource, sentDate, body, stanza, messageID"
             + " FROM ofMessageArchive"
             + " WHERE (stanza IS NOT NULL OR body IS NOT NULL)";
 
@@ -213,7 +222,7 @@ public class PaginatedMessageDatabaseQuery
             if (with.getResource() == null) {
                 sql += " AND ( toJID = ? OR fromJID = ? )";
             } else {
-                sql += " AND ( toJID = ? AND toJIDResource = ? ) OR (fromJID = ? AND fromJIDResource = ? ) )";
+                sql += " AND ( ( toJID = ? AND toJIDResource = ? ) OR ( fromJID = ? AND fromJIDResource = ? ) )";
             }
         }
 
@@ -225,75 +234,29 @@ public class PaginatedMessageDatabaseQuery
         }
 
         sql += " ORDER BY sentDate " + (isPagingBackwards ? "DESC" : "ASC");
-        sql += " LIMIT " + maxResults;
 
+        if (!useTopNotLimit) {
+            sql += " LIMIT " + maxResults;
+        }
         return sql;
     }
 
-    private String getStatementForSqlServer(final Long after, final Long before, final int maxResults, final boolean isPagingBackwards)
+    private String buildQueryForTotalCount()
     {
-        String sql = "SELECT DISTINCT TOP("+maxResults+") fromJID, fromJIDResource, toJID, toJIDResource, sentDate, body, stanza, messageID"
-            + " FROM ofMessageArchive "
-            + " WHERE (stanza IS NOT NULL OR body IS NOT NULL) ";
+        String sql = "SELECT COUNT(DISTINCT messageID) "
+            + "FROM ofMessageArchive "
+            + "WHERE (stanza IS NOT NULL OR body IS NOT NULL) "
+            + "AND messageID IS NOT NULL "
+            + "AND sentDate >= ? "
+            + "AND sentDate <= ? "
+            + "AND ( toJID = ? OR fromJID = ? ) ";
 
-        // Ignore legacy messages
-        sql += " AND messageID IS NOT NULL ";
-
-        sql += " AND sentDate >= ?";
-        sql += " AND sentDate <= ?";
-        sql += " AND ( toJID = ? OR fromJID = ? )";
-
-        if( with != null )
-        {
+        if (with != null) {
             // XEP-0313 specifies: If (and only if) the supplied JID is a bare JID (i.e. no resource is present), then the server SHOULD return messages if their bare to/from address for a user archive, or from address otherwise, would match it.
             if (with.getResource() == null) {
                 sql += " AND ( toJID = ? OR fromJID = ? )";
             } else {
                 sql += " AND ( (toJID = ? AND toJIDResource = ? ) OR (fromJID = ? AND fromJIDResource = ? ) )";
-            }
-        }
-
-        if ( after != null ) {
-            sql += " AND messageID > ?";
-        }
-        if ( before != null ) {
-            sql += " AND messageID < ?";
-        }
-
-        sql += " ORDER BY sentDate " + (isPagingBackwards ? "DESC" : "ASC");
-
-        return sql;
-    }
-
-    private String buildQueryForMessages( final Long after, final Long before, final int maxResults, final boolean isPagingBackwards )
-    {
-        switch ( DbConnectionManager.getDatabaseType())
-        {
-            case sqlserver:
-                return getStatementForSqlServer( after, before, maxResults, isPagingBackwards );
-
-            default:
-                return getStatement( after, before, maxResults, isPagingBackwards );
-        }
-    }
-
-    private String buildQueryForTotalCount()
-    {
-        String sql = "SELECT COUNT(DISTINCT ofMessageArchive.messageID) "
-            + "FROM ofMessageArchive "
-            + "INNER JOIN ofConParticipant ON ofMessageArchive.conversationID = ofConParticipant.conversationID "
-            + "WHERE (ofMessageArchive.stanza IS NOT NULL OR ofMessageArchive.body IS NOT NULL) "
-            + "AND ofMessageArchive.messageID IS NOT NULL "
-            + "AND ofMessageArchive.sentDate >= ? "
-            + "AND ofMessageArchive.sentDate <= ? "
-            + "AND ofConParticipant.bareJID = ? ";
-
-        if (with != null) {
-            // XEP-0313 specifies: If (and only if) the supplied JID is a bare JID (i.e. no resource is present), then the server SHOULD return messages if their bare to/from address for a user archive, or from address otherwise, would match it.
-            if (with.getResource() == null) {
-                sql += " AND ( ofMessageArchive.toJID = ? OR ofMessageArchive.fromJID = ? )";
-            } else {
-                sql += " AND ( (ofMessageArchive.toJID = ? AND ofMessageArchive.toJIDResource = ? ) OR (ofMessageArchive.fromJID = ? AND ofMessageArchive.fromJIDResource = ? ) )";
             }
         }
 

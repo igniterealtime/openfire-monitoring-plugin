@@ -467,7 +467,7 @@ public class JdbcPersistenceManager implements PersistenceManager {
             while (rs.next()) {
                 ArchivedMessage message;
 
-                message = extractMessage(rs);
+                message = extractMessage(owner, rs);
                 conversation.addMessage(message);
             }
         } catch (SQLException | DocumentException sqle) {
@@ -538,18 +538,17 @@ public class JdbcPersistenceManager implements PersistenceManager {
         return participants;
     }
 
-    static ArchivedMessage extractMessage(ResultSet rs) throws SQLException, DocumentException {
+    static ArchivedMessage extractMessage(final JID owner, ResultSet rs) throws SQLException, DocumentException {
         Date time = millisToDate(rs.getLong("sentDate"));
         String body = rs.getString("body");
         String stanza = rs.getString("stanza");
-        String bareJid = rs.getString("bareJID");
         String fromJid = rs.getString("fromJID");
         String fromJIDResource = rs.getString("fromJIDResource");
         String toJid = rs.getString("toJID");
         String toJIDResource = rs.getString("toJIDResource");
         Long id = rs.getLong( "messageID" );
 
-        return asArchivedMessage( new JID(bareJid), fromJid, fromJIDResource, toJid, toJIDResource, time, body, stanza, id );
+        return asArchivedMessage( owner, fromJid, fromJIDResource, toJid, toJIDResource, time, body, stanza, id );
     }
 
     /**
