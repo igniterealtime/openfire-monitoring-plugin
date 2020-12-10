@@ -46,8 +46,8 @@ import org.slf4j.LoggerFactory;
 import org.xmpp.packet.JID;
 
 /**
- * Represents an IM conversation between two people. A conversation encompasses a series of messages sent back and forth. It may cover a single topic
- * or several. The start of a conversation occurs when the first message between two users is sent. It ends when either:
+ * Represents an IM conversation between people. A conversation encompasses a series of messages sent back and forth. It may cover a single topic
+ * or several. The start of a conversation occurs when the first message between users is sent. It ends when either:
  * <ul>
  * <li>No messages are sent between the users for a certain period of time (default of 10 minutes). The default value can be overridden by setting the
  * Openfire property <tt>conversation.idleTime</tt>.</li>
