@@ -17,6 +17,7 @@ package com.reucon.openfire.plugin.archive.impl;
 import com.reucon.openfire.plugin.archive.model.ArchivedMessage;
 import org.dom4j.DocumentException;
 import org.jivesoftware.database.DbConnectionManager;
+import org.jivesoftware.util.JiveGlobals;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.xmpp.packet.JID;
@@ -120,8 +121,7 @@ public class PaginatedMucMessageDatabaseQuery
             '}';
     }
 
-    protected List<ArchivedMessage> getPage( @Nullable final Long after, @Nullable final Long before, final int maxResults, final boolean isPagingBackwards )
-    {
+    protected List<ArchivedMessage> getPage( @Nullable final Long after, @Nullable final Long before, final int maxResults, final boolean isPagingBackwards ) throws DataRetrievalException {
         Log.trace( "Getting page of archived messages. After: {}, Before: {}, Max results: {}, Paging backwards: {}", after, before, maxResults, isPagingBackwards );
 
         final List<ArchivedMessage> archivedMessages = new ArrayList<>();
@@ -176,6 +176,9 @@ public class PaginatedMucMessageDatabaseQuery
             }
         } catch (SQLException e) {
             Log.error("SQL failure during MUC MAM for room {}, message owner: {}", this.archiveOwner, this.messageOwner, e);
+            if (!JiveGlobals.getBooleanProperty("archive.ignore-retrieval-exceptions", false)) {
+                throw new DataRetrievalException(e);
+            }
         } catch (DocumentException e) {
             Log.error("Unable to parse 'stanza' value as valid XMPP for room {}, message owner {}", this.archiveOwner, this.messageOwner, e);
         } finally {

@@ -18,6 +18,7 @@ import com.reucon.openfire.plugin.archive.model.ArchivedMessage;
 import org.dom4j.DocumentException;
 import org.jivesoftware.database.DbConnectionManager;
 import org.jivesoftware.openfire.muc.MUCRoom;
+import org.jivesoftware.util.JiveGlobals;
 import org.jivesoftware.util.StringUtils;
 
 import java.sql.Connection;
@@ -88,8 +89,7 @@ public class PaginatedMucMessageFromOpenfireDatabaseQuery
             '}';
     }
 
-    protected List<ArchivedMessage> getPage( final Long after, final Long before, final int maxResults, final boolean isPagingBackwards )
-    {
+    protected List<ArchivedMessage> getPage( final Long after, final Long before, final int maxResults, final boolean isPagingBackwards ) throws DataRetrievalException {
         Log.trace( "Getting page of archived messages. After: {}, Before: {}, Max results: {}, Paging backwards: {}", after, before, maxResults, isPagingBackwards );
         final List<ArchivedMessage> msgs = new LinkedList<>();
 
@@ -141,6 +141,9 @@ public class PaginatedMucMessageFromOpenfireDatabaseQuery
             }
         } catch (SQLException e) {
             Log.error("SQL failure during MAM-MUC for room: {}", this.room, e);
+            if (!JiveGlobals.getBooleanProperty("archive.ignore-retrieval-exceptions", false)) {
+                throw new DataRetrievalException(e);
+            }
         } catch (DocumentException e) {
             Log.error("Unable to parse 'stanza' value as valid XMPP for MAM-MUC room {}", this.room, e);
         } finally {

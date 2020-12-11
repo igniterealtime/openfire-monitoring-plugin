@@ -11,6 +11,7 @@ import org.apache.lucene.search.*;
 import org.jivesoftware.openfire.XMPPServer;
 import org.jivesoftware.openfire.archive.MonitoringConstants;
 import org.jivesoftware.openfire.plugin.MonitoringPlugin;
+import org.jivesoftware.util.JiveGlobals;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.xmpp.packet.JID;
@@ -49,7 +50,7 @@ public class PaginatedMessageLuceneQuery
     }
 
 
-    public List<ArchivedMessage> getPage( final Long after, final Long before, final int maxResults, final boolean isPagingBackwards ) {
+    public List<ArchivedMessage> getPage( final Long after, final Long before, final int maxResults, final boolean isPagingBackwards ) throws DataRetrievalException {
         Log.debug( "Retrieving archived messages page. After: {}, Before: {}, maxResults: {}, isPagingBackwards: {}", after, before, maxResults, isPagingBackwards);
         final List<ArchivedMessage> result = new ArrayList<>();
         try
@@ -75,6 +76,9 @@ public class PaginatedMessageLuceneQuery
         }
         catch ( Exception e ) {
             Log.warn( "An exception occurred while trying to query the Lucene index to get messages from archive of owner {}.", owner, e );
+            if (!JiveGlobals.getBooleanProperty("archive.ignore-retrieval-exceptions", false)) {
+                throw new DataRetrievalException(e);
+            }
         }
         Log.debug( "Returning {} result(s).", result.size() );
         return result;
