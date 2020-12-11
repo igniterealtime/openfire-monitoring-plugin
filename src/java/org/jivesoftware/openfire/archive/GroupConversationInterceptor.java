@@ -21,6 +21,7 @@ import org.jivesoftware.openfire.cluster.ClusterManager;
 import org.jivesoftware.openfire.muc.MUCEventDispatcher;
 import org.jivesoftware.openfire.muc.MUCEventListener;
 import org.jivesoftware.openfire.muc.MUCRoom;
+import org.jivesoftware.util.JiveGlobals;
 import org.picocontainer.Startable;
 import org.xmpp.packet.JID;
 import org.xmpp.packet.Message;
@@ -137,23 +138,33 @@ public class GroupConversationInterceptor implements MUCEventListener, Startable
             final String senderNickname = message.getFrom().getResource();
             final Date now = new Date();
             if (ClusterManager.isSeniorClusterMember()) {
-                // Historically, private messages are saved as regular 'one-on-one' messages.
-                conversationManager.processMessage(fromJID, toJID, message.getBody(), message.toXML(), now);
+                if (JiveGlobals.getBooleanProperty("conversation.roomArchiving.PMinPersonalArchive", true)) {
+                    // Historically, private messages are saved as regular 'one-on-one' messages.
+                    conversationManager.processMessage(fromJID, toJID, message.getBody(), message.toXML(), now);
+                }
 
-                // Since issue #133 they also get stored specifically as a PM in MUC context.
-                conversationManager.processRoomMessage(roomJID, fromJID, toJID, senderNickname, message.getBody(), message.toXML(), now);
+                if (JiveGlobals.getBooleanProperty("conversation.roomArchiving.PMinRoomArchive", true)) {
+                    // Since issue #133 they also get stored specifically as a PM in MUC context.
+                    conversationManager.processRoomMessage(roomJID, fromJID, toJID, senderNickname, message.getBody(), message.toXML(), now);
+                }
             }
             else {
                 ConversationEventsQueue eventsQueue = conversationManager.getConversationEventsQueue();
-                eventsQueue.addChatEvent(conversationManager.getConversationKey(fromJID, toJID),
-                                        ConversationEvent.chatMessageReceived(toJID, fromJID,
-                                            conversationManager.isMessageArchivingEnabled() ? message.getBody() : null,
-                                            conversationManager.isMessageArchivingEnabled() ? message.toXML() : null,
-                                            now));
 
-                eventsQueue.addGroupChatEvent(conversationManager.getRoomConversationKey(roomJID),
-                    ConversationEvent.roomMessageReceived(roomJID, fromJID, toJID, senderNickname, conversationManager.isMessageArchivingEnabled() ? message.getBody() : null, message.toXML(), now));
+                if (JiveGlobals.getBooleanProperty("conversation.roomArchiving.PMinPersonalArchive", true)) {
+                    eventsQueue.addChatEvent(
+                        conversationManager.getConversationKey(fromJID, toJID),
+                        ConversationEvent.chatMessageReceived(toJID, fromJID,
+                            conversationManager.isMessageArchivingEnabled() ? message.getBody() : null,
+                            conversationManager.isMessageArchivingEnabled() ? message.toXML() : null,
+                            now));
+                }
 
+                if (JiveGlobals.getBooleanProperty("conversation.roomArchiving.PMinRoomArchive", true)) {
+                    eventsQueue.addGroupChatEvent(
+                        conversationManager.getRoomConversationKey(roomJID),
+                        ConversationEvent.roomMessageReceived(roomJID, fromJID, toJID, senderNickname, conversationManager.isMessageArchivingEnabled() ? message.getBody() : null, message.toXML(), now));
+                }
              }
         }
     }
