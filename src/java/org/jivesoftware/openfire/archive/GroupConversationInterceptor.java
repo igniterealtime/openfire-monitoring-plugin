@@ -42,10 +42,12 @@ public class GroupConversationInterceptor implements MUCEventListener, Startable
         this.conversationManager = conversationManager;
     }
 
+    @Override
     public void roomCreated(JID roomJID) {
         //Do nothing
     }
 
+    @Override
     public void roomDestroyed(JID roomJID) {
         // Process this event in the senior cluster member or local JVM when not in a cluster
         if (ClusterManager.isSeniorClusterMember()) {
@@ -58,6 +60,7 @@ public class GroupConversationInterceptor implements MUCEventListener, Startable
         }
     }
 
+    @Override
     public void occupantJoined(JID roomJID, JID user, String nickname) {
         // Process this event in the senior cluster member or local JVM when not in a cluster
         if (ClusterManager.isSeniorClusterMember()) {
@@ -70,6 +73,7 @@ public class GroupConversationInterceptor implements MUCEventListener, Startable
         }
     }
 
+    @Override
     public void occupantLeft(JID roomJID, JID user) {
         // Process this event in the senior cluster member or local JVM when not in a cluster
         if (ClusterManager.isSeniorClusterMember()) {
@@ -87,6 +91,7 @@ public class GroupConversationInterceptor implements MUCEventListener, Startable
         }
     }
 
+    @Override
     public void nicknameChanged(JID roomJID, JID user, String oldNickname, String newNickname) {
         // Process this event in the senior cluster member or local JVM when not in a cluster
         if (ClusterManager.isSeniorClusterMember()) {
@@ -106,6 +111,7 @@ public class GroupConversationInterceptor implements MUCEventListener, Startable
         }
     }
 
+    @Override
     public void messageReceived(JID roomJID, JID user, String nickname, Message message) {
         // Process this event in the senior cluster member or local JVM when not in a cluster
         if (ClusterManager.isSeniorClusterMember()) {
@@ -122,6 +128,7 @@ public class GroupConversationInterceptor implements MUCEventListener, Startable
         }
     }
 
+    @Override
     public void privateMessageRecieved(JID toJID, JID fromJID, Message message) {
         if(message.getBody() != null) {
             if (ClusterManager.isSeniorClusterMember()) {
@@ -138,14 +145,17 @@ public class GroupConversationInterceptor implements MUCEventListener, Startable
         }
     }
 
+    @Override
     public void roomSubjectChanged(JID roomJID, JID user, String newSubject) {
         // Do nothing
     }
 
+    @Override
     public void start() {
         MUCEventDispatcher.addListener(this);
     }
 
+    @Override
     public void stop() {
         MUCEventDispatcher.removeListener(this);
         conversationManager = null;
