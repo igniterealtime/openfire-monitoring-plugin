@@ -74,7 +74,7 @@ public class GroupConversationInterceptor implements MUCEventListener, Startable
     }
 
     @Override
-    public void occupantLeft(JID roomJID, JID user) {
+    public void occupantLeft(JID roomJID, JID user, String nickname) {
         // Process this event in the senior cluster member or local JVM when not in a cluster
         if (ClusterManager.isSeniorClusterMember()) {
             conversationManager.leftGroupConversation(roomJID, user, new Date());
