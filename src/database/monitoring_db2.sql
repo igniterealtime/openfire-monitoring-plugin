@@ -1,5 +1,5 @@
 
-INSERT INTO ofVersion (name, version) VALUES ('monitoring', 6);
+INSERT INTO ofVersion (name, version) VALUES ('monitoring', 7);
 
 CREATE TABLE ofConversation (
   conversationID        INTEGER      NOT NULL,
@@ -34,17 +34,19 @@ CREATE TABLE ofMessageArchive (
    toJIDResource     VARCHAR(255)    NULL,
    sentDate          BIGINT          NOT NULL,
    stanza			 LONG VARCHAR    NULL,
-   body              LONG VARCHAR
+   body              LONG VARCHAR    NULL,
+   isPMforJID        VARCHAR(1024)   NULL
 );
 CREATE INDEX ofMessageArchive_con_idx ON ofMessageArchive (conversationID);
 CREATE INDEX ofMessageArchive_fromjid_idx ON ofMessageArchive (fromJID);
 CREATE INDEX ofMessageArchive_tojid_idx ON ofMessageArchive (toJID);
 CREATE INDEX ofMessageArchive_sent_idx ON ofMessageArchive (sentDate);
+CREATE INDEX ofMessageArchive_pm_idx ON ofMessageArchive (isPMforJID);
 
 CREATE TABLE ofRRDs (
    id            VARCHAR(100)        NOT NULL,
-   updatedDate   BIGINT               NOT NULL,
-   bytes         BLOB,
+   updatedDate   BIGINT              NOT NULL,
+   bytes         BLOB                NULL,
    CONSTRAINT ofRRDs_pk PRIMARY KEY (id)
 );
 

@@ -78,7 +78,7 @@ public class GroupConversationInterceptor implements MUCEventListener, Startable
         // Process this event in the senior cluster member or local JVM when not in a cluster
         if (ClusterManager.isSeniorClusterMember()) {
             conversationManager.leftGroupConversation(roomJID, user, new Date());
-            // If there are no more occupants then consider the group conversarion over
+            // If there are no more occupants then consider the group conversation over
             MUCRoom mucRoom = XMPPServer.getInstance().getMultiUserChatManager().getMultiUserChatService(roomJID).getChatRoom(roomJID.getNode());
             if (mucRoom != null &&  mucRoom.getOccupantsCount() == 0) {
                 conversationManager.roomConversationEnded(roomJID, new Date());
@@ -113,9 +113,11 @@ public class GroupConversationInterceptor implements MUCEventListener, Startable
 
     @Override
     public void messageReceived(JID roomJID, JID user, String nickname, Message message) {
+        final Date now = new Date();
+
         // Process this event in the senior cluster member or local JVM when not in a cluster
         if (ClusterManager.isSeniorClusterMember()) {
-            conversationManager.processRoomMessage(roomJID, user, nickname, message.getBody(), message.toXML(), new Date());
+            conversationManager.processRoomMessage(roomJID, user, null, nickname, message.getBody(), message.toXML(), now);
         }
         else {
             boolean withBody = conversationManager.isRoomArchivingEnabled() && (
@@ -124,15 +126,22 @@ public class GroupConversationInterceptor implements MUCEventListener, Startable
 
             ConversationEventsQueue eventsQueue = conversationManager.getConversationEventsQueue();
             eventsQueue.addGroupChatEvent(conversationManager.getRoomConversationKey(roomJID),
-                    ConversationEvent.roomMessageReceived(roomJID, user, nickname, withBody ? message.getBody() : null, message.toXML(), new Date()));
+                    ConversationEvent.roomMessageReceived(roomJID, user, null, nickname, withBody ? message.getBody() : null, message.toXML(), now));
         }
     }
 
     @Override
     public void privateMessageRecieved(JID toJID, JID fromJID, Message message) {
         if(message.getBody() != null) {
+            final JID roomJID = message.getFrom().asBareJID();
+            final String senderNickname = message.getFrom().getResource();
+            final Date now = new Date();
             if (ClusterManager.isSeniorClusterMember()) {
-                conversationManager.processMessage(fromJID, toJID, message.getBody(), message.toXML(), new Date());
+                // Historically, private messages are saved as regular 'one-on-one' messages.
+                conversationManager.processMessage(fromJID, toJID, message.getBody(), message.toXML(), now);
+
+                // Since issue #133 they also get stored specifically as a PM in MUC context.
+                conversationManager.processRoomMessage(roomJID, fromJID, toJID, senderNickname, message.getBody(), message.toXML(), now);
             }
             else {
                 ConversationEventsQueue eventsQueue = conversationManager.getConversationEventsQueue();
@@ -140,7 +149,11 @@ public class GroupConversationInterceptor implements MUCEventListener, Startable
                                         ConversationEvent.chatMessageReceived(toJID, fromJID,
                                             conversationManager.isMessageArchivingEnabled() ? message.getBody() : null,
                                             conversationManager.isMessageArchivingEnabled() ? message.toXML() : null,
-                                            new Date()));
+                                            now));
+
+                eventsQueue.addGroupChatEvent(conversationManager.getRoomConversationKey(roomJID),
+                    ConversationEvent.roomMessageReceived(roomJID, fromJID, toJID, senderNickname, conversationManager.isMessageArchivingEnabled() ? message.getBody() : null, message.toXML(), now));
+
              }
         }
     }

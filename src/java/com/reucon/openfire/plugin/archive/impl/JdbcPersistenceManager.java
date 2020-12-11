@@ -5,7 +5,6 @@ import com.reucon.openfire.plugin.archive.model.ArchivedMessage;
 import com.reucon.openfire.plugin.archive.model.ArchivedMessage.Direction;
 import com.reucon.openfire.plugin.archive.model.Conversation;
 import com.reucon.openfire.plugin.archive.model.Participant;
-import com.reucon.openfire.plugin.archive.util.StanzaIDUtil;
 import com.reucon.openfire.plugin.archive.xep0059.XmppResultSet;
 import org.dom4j.*;
 import org.jivesoftware.database.DbConnectionManager;
@@ -15,7 +14,6 @@ import org.jivesoftware.util.JiveGlobals;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.xmpp.packet.JID;
-import org.xmpp.packet.Message;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -24,7 +22,7 @@ import java.sql.SQLException;
 import java.util.*;
 
 /**
- * Manages database persistence.
+ * Manages database interactions to work with 'personal archives' for messages.
  */
 public class JdbcPersistenceManager implements PersistenceManager {
     private static final Logger Log = LoggerFactory.getLogger( JdbcPersistenceManager.class );
@@ -277,8 +275,10 @@ public class JdbcPersistenceManager implements PersistenceManager {
     }
 
     @Override
-    public Collection<ArchivedMessage> findMessages(Date startDate, Date endDate, JID owner, JID with, String query, XmppResultSet xmppResultSet, boolean useStableID) {
-
+    public Collection<ArchivedMessage> findMessages(Date startDate, Date endDate, JID owner, JID messageOwner, JID with, String query, XmppResultSet xmppResultSet, boolean useStableID) {
+        if ( !owner.equals(messageOwner)) {
+            throw new IllegalArgumentException("A personal archive can't be queried for messages of a different owner than the archive. Supplied archive owner: " + owner + ", supplied message owner: " + messageOwner);
+        }
         Log.debug( "Finding messages of owner '{}' with start date '{}', end date '{}' with '{}' and resultset '{}', useStableId '{}'.", owner, startDate, endDate, with, xmppResultSet, useStableID );
 
         if (startDate == null) {

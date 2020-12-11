@@ -45,12 +45,12 @@ public class MucMamPersistenceManager implements PersistenceManager {
     }
 
     @Override
-    public Collection<ArchivedMessage> findMessages(Date startDate, Date endDate, JID owner, JID with, String query, XmppResultSet xmppResultSet, boolean useStableID ) throws NotFoundException
+    public Collection<ArchivedMessage> findMessages(Date startDate, Date endDate, JID archiveOwner, JID messageOwner, JID with, String query, XmppResultSet xmppResultSet, boolean useStableID ) throws NotFoundException
     {
-        Log.debug( "Finding messages of owner '{}' with start date '{}', end date '{}' with '{}', query: '{}' and resultset '{}', useStableId '{}'.", owner, startDate, endDate, with, query, xmppResultSet, useStableID );
+        Log.debug( "Finding messages in archive '{}' for user '{}' with start date '{}', end date '{}' with '{}', query: '{}' and resultset '{}', useStableId '{}'.", archiveOwner, messageOwner, startDate, endDate, with, query, xmppResultSet, useStableID );
         final MultiUserChatManager manager = XMPPServer.getInstance().getMultiUserChatManager();
-        final MultiUserChatService service = manager.getMultiUserChatService(owner);
-        final MUCRoom room = service.getChatRoom(owner.getNode());
+        final MultiUserChatService service = manager.getMultiUserChatService(archiveOwner);
+        final MUCRoom room = service.getChatRoom(archiveOwner.getNode());
 
         if (!room.isLogEnabled()) {
             Log.debug( "Request for message archive of room '{}' that currently has message logging disabled. Returning an empty list.", room.getJID() );
@@ -84,16 +84,16 @@ public class MucMamPersistenceManager implements PersistenceManager {
             }
         } else {
             if (JiveGlobals.getBooleanProperty("conversation.database.use-openfire-tables", false ) ) {
-                final PaginatedMucMessageDatabaseQuery paginatedMucMessageDatabaseQuery = new PaginatedMucMessageDatabaseQuery(startDate, endDate, room, with);
-                Log.debug("Request for message archive of room '{}' resulted in the following query data: {}", room.getJID(), paginatedMucMessageDatabaseQuery);
-                totalCount = paginatedMucMessageDatabaseQuery.getTotalCount();
+                final PaginatedMucMessageFromOpenfireDatabaseQuery paginatedMucMessageFromOpenfireDatabaseQuery = new PaginatedMucMessageFromOpenfireDatabaseQuery(startDate, endDate, room, with);
+                Log.debug("Request for message archive of room '{}' resulted in the following query data: {}", room.getJID(), paginatedMucMessageFromOpenfireDatabaseQuery);
+                totalCount = paginatedMucMessageFromOpenfireDatabaseQuery.getTotalCount();
                 if (totalCount == 0) {
                     msgs = Collections.emptyList();
                 } else {
-                    msgs = paginatedMucMessageDatabaseQuery.getPage(after, before, maxResults, isPagingBackwards);
+                    msgs = paginatedMucMessageFromOpenfireDatabaseQuery.getPage(after, before, maxResults, isPagingBackwards);
                 }
             } else {
-                final PaginatedMessageDatabaseQuery paginatedMessageDatabaseQuery = new PaginatedMessageDatabaseQuery(startDate, endDate, room.getJID(), with);
+                final PaginatedMucMessageDatabaseQuery paginatedMessageDatabaseQuery = new PaginatedMucMessageDatabaseQuery(startDate, endDate, room.getJID(), messageOwner, with);
                 Log.debug("Request for message archive of room '{}' resulted in the following query data: {}", room.getJID(), paginatedMessageDatabaseQuery);
                 totalCount = paginatedMessageDatabaseQuery.getTotalCount();
                 if (totalCount == 0) {
@@ -114,14 +114,14 @@ public class MucMamPersistenceManager implements PersistenceManager {
             final String first;
             final String last;
             if ( useStableID ) {
-                final String firstSid = firstMessage.getStableId(owner);
+                final String firstSid = firstMessage.getStableId(archiveOwner);
                 if ( firstSid != null && !firstSid.isEmpty() ) {
                     first = firstSid;
                 } else {
                     // Issue #98: Fall-back to using the database-identifier. Although not a stable-id, it at least gives the client the option to paginate.
                     first = firstMessage.getId().toString();
                 }
-                final String lastSid = lastMessage.getStableId(owner);
+                final String lastSid = lastMessage.getStableId(archiveOwner);
                 if ( lastSid != null && !lastSid.isEmpty()) {
                     last = lastSid;
                 } else {
@@ -148,10 +148,10 @@ public class MucMamPersistenceManager implements PersistenceManager {
             else
             {
                 if (JiveGlobals.getBooleanProperty("conversation.database.use-openfire-tables", false ) ) {
-                    final PaginatedMucMessageDatabaseQuery paginatedMucMessageDatabaseQuery = new PaginatedMucMessageDatabaseQuery(startDate, endDate, room, with);
-                    nextPage = paginatedMucMessageDatabaseQuery.getPage(afterForNextPage, beforeForNextPage, 1, isPagingBackwards);
+                    final PaginatedMucMessageFromOpenfireDatabaseQuery paginatedMucMessageFromOpenfireDatabaseQuery = new PaginatedMucMessageFromOpenfireDatabaseQuery(startDate, endDate, room, with);
+                    nextPage = paginatedMucMessageFromOpenfireDatabaseQuery.getPage(afterForNextPage, beforeForNextPage, 1, isPagingBackwards);
                 } else {
-                    final PaginatedMessageDatabaseQuery paginatedMessageDatabaseQuery = new PaginatedMessageDatabaseQuery(startDate, endDate, room.getJID(), with);
+                    final PaginatedMucMessageDatabaseQuery paginatedMessageDatabaseQuery = new PaginatedMucMessageDatabaseQuery(startDate, endDate, room.getJID(), messageOwner, with);
                     nextPage = paginatedMessageDatabaseQuery.getPage(afterForNextPage, beforeForNextPage, 1, isPagingBackwards);
                 }
             }

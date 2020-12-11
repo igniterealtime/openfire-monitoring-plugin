@@ -43,6 +43,7 @@ public class ArchivedMessage {
     private final String stanza;
     private final boolean roomEvent;
     private final long id;
+    private final JID isPMforJID;
 
     /**
      * Creates a new archived message.
@@ -53,12 +54,13 @@ public class ArchivedMessage {
      * @param sentDate the date the message was sent.
      * @param body the body of the message
      * @param roomEvent true if the message belongs to a room event. Eg. User joined room.
+     * @param isPMforJID the JID of the user that is the recipient of the message, if the message was a PM sent in a MUC.
      */
-    public ArchivedMessage(long conversationID, JID fromJID, JID toJID, Date sentDate, String body, boolean roomEvent) {
-        this(conversationID, fromJID, toJID, sentDate, body, null, roomEvent);
+    public ArchivedMessage(long conversationID, JID fromJID, JID toJID, Date sentDate, String body, boolean roomEvent, JID isPMforJID) {
+        this(conversationID, fromJID, toJID, sentDate, body, null, roomEvent, isPMforJID);
     }
 
-    public ArchivedMessage(long conversationID, JID fromJID, JID toJID, Date sentDate, String body, String stanza, boolean roomEvent) {
+    public ArchivedMessage(long conversationID, JID fromJID, JID toJID, Date sentDate, String body, String stanza, boolean roomEvent, JID isPMforJID) {
         // OF-2157: It is important to assign a message ID, which is used for ordering messages in a conversation, soon
         // after the message arrived, as opposed to just before the message gets written to the database. In the latter
         // scenario, the message ID values might no longer reflect the order of the messages in a conversation, as
@@ -74,6 +76,7 @@ public class ArchivedMessage {
         this.body = body;
         this.roomEvent = roomEvent;
         this.stanza = stanza;
+        this.isPMforJID = isPMforJID;
     }
 
     /**
@@ -149,5 +152,15 @@ public class ArchivedMessage {
      */
     public boolean isRoomEvent() {
         return roomEvent;
+    }
+
+    /**
+     * Returns the JID of the user that this message was addressed at, in case the message was a Private Message
+     * exchanged in a MUC room.
+     *
+     * @return A JID
+     */
+    public JID getIsPMforJID() {
+        return isPMforJID;
     }
 }

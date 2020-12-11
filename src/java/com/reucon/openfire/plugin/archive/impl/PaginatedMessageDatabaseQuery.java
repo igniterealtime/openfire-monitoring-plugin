@@ -33,10 +33,7 @@ import java.util.List;
 
 /**
  * Encapsulates responsibility of creating a database query that retrieves a specific subset (page) of archived messages
- * from a specific owner.
- *
- * Note that an 'owner' can be an end-user entity (when the archive that's queried is considered to be a
- * 'personal archive') or a chatroom (in which case the archive that's queried is considered to be a group chat archive).
+ * from a specific end-user entity owner (the archive that's queried is considered to be a 'personal archive').
  *
  * @author Guus der Kinderen, guus.der.kinderen@gmail.com
  */
@@ -59,15 +56,10 @@ public class PaginatedMessageDatabaseQuery
     /**
      * Creates a query for messages from a message archive.
      *
-     * The semantics of the 'with' arguments are slightly different, depending on the nature of the owner of the
-     * archive. When the archive owner is an end-user ('personal archive'), then all messages sent 'to' or 'from' the
-     * 'with' entity are returned. When the archive is a group chat archive and the 'with' argument is provided, then
-     * the results will be limited to messages sent by the 'with' entity.
-     *
      * @param startDate Start (inclusive) of period for which to return messages. EPOCH will be used if no value is provided.
      * @param endDate End (inclusive) of period for which to return messages. 'now' will be used if no value is provided.
      * @param owner The message archive owner.
-     * @param with An optional converstation partner (or message author, in case of MUC).
+     * @param with An optional conversation partner
      */
     public PaginatedMessageDatabaseQuery(@Nullable final Date startDate, @Nullable final Date endDate, @Nonnull final JID owner, @Nullable final JID with)
     {
@@ -135,13 +127,12 @@ public class PaginatedMessageDatabaseQuery
             pstmt.setLong( 1, dateToMillis( startDate ) );
             pstmt.setLong( 2, dateToMillis( endDate ) );
 
-            // TODO Optimize this for the MUC use-case. Unlike personal archives, the owner of the MUC archive is guaranteed to be in the 'tojid' column. For MUC, there's no need to look in both columns.
             pstmt.setString( 3, owner.toBareJID() );
             pstmt.setString( 4, owner.toBareJID() );
-            int pos = 4;
+            pstmt.setString( 5, owner.toBareJID() );
+            int pos = 5;
 
             if ( with != null ) {
-                // TODO Optimize this for the MUC use-case. Unlike personal archives, the relevant 'with' value (sender of the message) of the MUC archive is guaranteed to be in the 'fromJid' columns. For MUC, there's no need to look in both columns.
                 if (with.getResource() == null) {
                     pstmt.setString( ++pos, with.toString() );
                     pstmt.setString( ++pos, with.toString() );
@@ -196,7 +187,8 @@ public class PaginatedMessageDatabaseQuery
             pstmt.setLong( 2, dateToMillis( endDate ) );
             pstmt.setString( 3, owner.toBareJID() );
             pstmt.setString( 4, owner.toBareJID() );
-            int pos = 4;
+            pstmt.setString( 5, owner.toBareJID() );
+            int pos = 5;
 
             if ( with != null ) {
                 if (with.getResource() == null) {
@@ -241,7 +233,25 @@ public class PaginatedMessageDatabaseQuery
 
         sql += " AND sentDate >= ?";
         sql += " AND sentDate <= ?";
-        sql += " AND ( toJID = ? OR fromJID = ? )";
+
+        /* Database table 'ofMessageArchive' content examples:
+         *
+         *   Scenario       | fromJID | toJID | isPMforJID
+         * A sends B a 1:1  |    A    |   B   |   null
+         * B sends A a 1:1  |    B    |   A   |   null
+         * A sends MUC msg  |    A    |  MUC  |   null
+         * B sends MUC msg  |    B    |  MUC  |   null
+         * A sends B a PM   |    A    |  MUC  |    B
+         * B sends A a PM   |    B    |  MUC  |    A
+         *
+         * To get messages from the personal archive of 'A':
+         * - fromJID = OWNER OR toJID = OWNER (to get all 1:1 messages)
+         * - fromJID = OWNER (to get all messages A sent to (local?) MUCs - including PMs that A sent)
+         * - isPMForJID = OWNER (to get all PMs (in local MUCs) that A received).
+         */
+
+        // Query for a personal archive.
+        sql += " AND (fromJID = ? OR toJID = ? OR isPMforJID = ?) ";
 
         if( with != null )
         {
@@ -276,7 +286,7 @@ public class PaginatedMessageDatabaseQuery
             + "AND messageID IS NOT NULL "
             + "AND sentDate >= ? "
             + "AND sentDate <= ? "
-            + "AND ( toJID = ? OR fromJID = ? ) ";
+            + "AND ( toJID = ? OR fromJID = ? OR isPMforJID = ? ) ";
 
         if (with != null) {
             // XEP-0313 specifies: If (and only if) the supplied JID is a bare JID (i.e. no resource is present), then the server SHOULD return messages if their bare to/from address for a user archive, or from address otherwise, would match it.
