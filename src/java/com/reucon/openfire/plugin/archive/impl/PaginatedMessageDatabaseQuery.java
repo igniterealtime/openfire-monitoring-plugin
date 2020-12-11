@@ -161,7 +161,7 @@ public class PaginatedMessageDatabaseQuery
         } catch (SQLException e) {
             Log.error("SQL failure during MAM for owner: {}", this.owner, e);
         } catch (DocumentException e) {
-            Log.error("Unable to parse 'stanza' value as valid XMMP for owner {}", this.owner, e);
+            Log.error("Unable to parse 'stanza' value as valid XMPP for owner {}", this.owner, e);
         } finally {
             DbConnectionManager.closeConnection(rs, pstmt, connection);
         }

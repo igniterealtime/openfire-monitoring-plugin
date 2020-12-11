@@ -177,7 +177,7 @@ public class PaginatedMucMessageDatabaseQuery
         } catch (SQLException e) {
             Log.error("SQL failure during MUC MAM for room {}, message owner: {}", this.archiveOwner, this.messageOwner, e);
         } catch (DocumentException e) {
-            Log.error("Unable to parse 'stanza' value as valid XMMP for room {}, message owner {}", this.archiveOwner, this.messageOwner, e);
+            Log.error("Unable to parse 'stanza' value as valid XMPP for room {}, message owner {}", this.archiveOwner, this.messageOwner, e);
         } finally {
             DbConnectionManager.closeConnection(rs, pstmt, connection);
         }

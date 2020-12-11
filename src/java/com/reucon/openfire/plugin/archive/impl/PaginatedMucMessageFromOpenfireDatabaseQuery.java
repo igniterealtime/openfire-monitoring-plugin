@@ -142,7 +142,7 @@ public class PaginatedMucMessageFromOpenfireDatabaseQuery
         } catch (SQLException e) {
             Log.error("SQL failure during MAM-MUC for room: {}", this.room, e);
         } catch (DocumentException e) {
-            Log.error("Unable to parse 'stanza' value as valid XMMP for MAM-MUC room {}", this.room, e);
+            Log.error("Unable to parse 'stanza' value as valid XMPP for MAM-MUC room {}", this.room, e);
         } finally {
             DbConnectionManager.closeConnection(rs, pstmt, connection);
         }
