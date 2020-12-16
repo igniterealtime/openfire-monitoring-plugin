@@ -3,6 +3,7 @@ package com.reucon.openfire.plugin.archive.impl;
 import com.reucon.openfire.plugin.archive.model.ArchivedMessage;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.document.Document;
+import org.apache.lucene.document.LongPoint;
 import org.apache.lucene.document.NumericDocValuesField;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.queryparser.classic.ParseException;
@@ -10,6 +11,7 @@ import org.apache.lucene.queryparser.classic.QueryParser;
 import org.apache.lucene.search.*;
 import org.jivesoftware.openfire.XMPPServer;
 import org.jivesoftware.openfire.archive.MonitoringConstants;
+import org.jivesoftware.openfire.container.Plugin;
 import org.jivesoftware.openfire.muc.MUCRoom;
 import org.jivesoftware.openfire.plugin.MonitoringPlugin;
 import org.jivesoftware.util.JiveGlobals;
@@ -18,40 +20,37 @@ import org.slf4j.LoggerFactory;
 import org.xmpp.packet.JID;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Date;
-import java.util.List;
+import java.util.*;
 
-public class PaginatedMucMessageLuceneQuery
+public class PaginatedMucMessageFromOpenfireLuceneQuery
 {
-    private static final Logger Log = LoggerFactory.getLogger( PaginatedMucMessageLuceneQuery.class );
+    private static final Logger Log = LoggerFactory.getLogger(PaginatedMucMessageFromOpenfireLuceneQuery.class );
 
     private final Date startDate;
     private final Date endDate;
-    private final MUCRoom owner;
-    private final JID messageOwner;
-    private final JID with;
+    private final MUCRoom room;
+    private final JID sender;
     private final String query;
 
-    public PaginatedMucMessageLuceneQuery(final Date startDate, final Date endDate, final MUCRoom owner, final JID messageOwner, final JID with, final String query )
+    public PaginatedMucMessageFromOpenfireLuceneQuery(final Date startDate, final Date endDate, final MUCRoom room, final JID sender, final String query )
     {
         this.startDate = startDate == null ? new Date( 0L ) : startDate ;
         this.endDate = endDate == null ? new Date() : endDate;
-        this.owner = owner;
-        this.messageOwner = messageOwner;
-        this.with = with;
+        this.room = room;
+        this.sender = sender;
         this.query = query;
     }
 
     protected IndexSearcher getSearcher() throws IOException
     {
-        final MonitoringPlugin plugin = (MonitoringPlugin) XMPPServer.getInstance().getPluginManager().getPlugin(MonitoringConstants.NAME);
-        final MessageIndexer archiveIndexer = (MessageIndexer) plugin.getModule(MessageIndexer.class);
-        final IndexSearcher searcher = archiveIndexer.getSearcher();
+        final Optional<Plugin> plugin = XMPPServer.getInstance().getPluginManager().getPluginByName(MonitoringConstants.PLUGIN_NAME);
+        if (!plugin.isPresent()) {
+            throw new IllegalStateException("Unable to obtain Lucene Index Searcher! The Monitoring plugin does not appear to be loaded on this machine.");
+        }
+        final MucIndexer mucIndexer = (MucIndexer) ((MonitoringPlugin)plugin.get()).getModule(MucIndexer.class);
+        final IndexSearcher searcher = mucIndexer.getSearcher();
         return searcher;
     }
-
 
     public List<ArchivedMessage> getPage( final Long after, final Long before, final int maxResults, final boolean isPagingBackwards ) throws DataRetrievalException {
         Log.debug( "Retrieving archived messages page. After: {}, Before: {}, maxResults: {}, isPagingBackwards: {}", after, before, maxResults, isPagingBackwards);
@@ -60,23 +59,16 @@ public class PaginatedMucMessageLuceneQuery
         {
             final IndexSearcher searcher = getSearcher();
             final Query query = getLuceneQueryForPage(after, before);
-            Log.debug("Executing query: {}", query);
-
             final TopFieldDocs indexResult = searcher.search(query, maxResults, getSort(isPagingBackwards));
-            Log.debug("Index result: {}", indexResult);
 
             for ( final ScoreDoc scoreDoc : indexResult.scoreDocs )
             {
-                Log.debug("Iterating over doc: {}", scoreDoc);
                 final Document doc = searcher.doc(scoreDoc.doc);
                 final long messageID = Long.parseLong(doc.get("messageID"));
-                Log.debug("message ID: {}", messageID);
-                final ArchivedMessage archivedMessage = MucMamPersistenceManager.getArchivedMessage(messageID, owner);
+                final ArchivedMessage archivedMessage = MucMamPersistenceManager.getArchivedMessage(messageID, room);
                 if ( archivedMessage != null ) {
                     result.add( archivedMessage );
                 }
-
-                Log.debug("Got message? {}", archivedMessage != null);
             }
 
             // The order of items in the page must always be chronologically, oldest to newest, even when paging backwards.
@@ -85,7 +77,7 @@ public class PaginatedMucMessageLuceneQuery
             }
         }
         catch ( Exception e ) {
-            Log.warn( "An exception occurred while trying to query the Lucene index to get messages from archive of room {}.", owner.getJID(), e );
+            Log.warn( "An exception occurred while trying to query the Lucene index to get messages from room {}.", room, e );
             if (!JiveGlobals.getBooleanProperty("archive.ignore-retrieval-exceptions", false)) {
                 throw new DataRetrievalException(e);
             }
@@ -113,7 +105,7 @@ public class PaginatedMucMessageLuceneQuery
         }
         catch ( Exception e )
         {
-            Log.warn( "An exception occurred while trying to get a count of messages that match a query for message from archive of room {}.", owner.getJID(), e );
+            Log.warn( "An exception occurred while trying to get a count of messages that match a query for message from room {}.", room, e );
             return -1;
         }
     }
@@ -128,38 +120,22 @@ public class PaginatedMucMessageLuceneQuery
         final Query textQuery = new QueryParser("body", analyzer).parse( QueryParser.escape(query) );
         builder.add(textQuery, BooleanClause.Occur.MUST );
 
-        // To retrieve all messages for a 'MUC archive', combine the following:
-        // - look up messages from the archive of the MUC that are not private
-        // - look up messages from the archive of the MUC that are private, where user making the request is a sender or recipient.
-        final BooleanQuery ownerFilter = new BooleanQuery.Builder()
-            .add(new TermQuery(new Term("room", owner.getJID().toBareJID() ) ), BooleanClause.Occur.MUST ) // room
-
-            .setMinimumNumberShouldMatch(1)
-            // Either non-private messages...
-            .add(new TermQuery( new Term( "isPrivateMessage", "false") ), BooleanClause.Occur.SHOULD )
-
-            // ... or private, sent or received by the message owner
-            .add(new BooleanQuery.Builder()
-                .setMinimumNumberShouldMatch(1) // One of the 'SHOULD' terms (pmFromJID or pmToJID) must be true (isPrivateMessage is a 'MUST' and ignored by this).
-                .add( new TermQuery( new Term( "isPrivateMessage", "true") ), BooleanClause.Occur.MUST )
-                .add( new TermQuery(new Term("pmFromJID", messageOwner.toBareJID() ) ), BooleanClause.Occur.SHOULD )
-                .add( new TermQuery(new Term("pmToJID", messageOwner.toBareJID() ) ), BooleanClause.Occur.SHOULD )
-                .build(), BooleanClause.Occur.SHOULD )
-            .build();
-
-        builder.add(ownerFilter, BooleanClause.Occur.MUST);
+        // Limit to the chat room.
+        builder.add(LongPoint.newExactQuery("roomID", room.getID()), BooleanClause.Occur.MUST);
 
         // Limit potential results to the requested time range. Note that these values are always non-null in this method (might be 'EPOCH' though).
-        final Query dateRangeQuery = NumericDocValuesField.newSlowRangeQuery("sentDate", startDate.getTime(), endDate.getTime());
+        final Query dateRangeQuery = NumericDocValuesField.newSlowRangeQuery("logTime", startDate.getTime(), endDate.getTime());
         builder.add(dateRangeQuery, BooleanClause.Occur.MUST);
 
         // If defined, limit to specific senders.
-        if ( with != null ) {
+        if ( sender != null ) {
             // Always limit to the bare JID of the sender.
-            builder.add(new TermQuery(new Term("pmToJID", with.toBareJID() ) ), BooleanClause.Occur.MUST );
+            builder.add(new TermQuery(new Term("senderBare", sender.toBareJID() ) ), BooleanClause.Occur.MUST );
 
-            // For MUC PMs, if the query specified a more specific full JID, the resource part is ignored. It is unlikely that the sender
-            // of the PM was aware of the recipient's resource that the message was delivered to.
+            // If the query specified a more specific full JID, include the resource part in the filter too.
+            if ( sender.getResource() != null ) {
+                builder.add(new TermQuery( new Term( "senderResource", sender.getResource() ) ), BooleanClause.Occur.MUST );
+            }
         }
 
         final BooleanQuery query = builder.build();
@@ -187,17 +163,17 @@ public class PaginatedMucMessageLuceneQuery
 
     public Sort getSort( final boolean isPagingBackwards ) {
         // Always sort based on date.
-        return new Sort(new SortField("sentDate", SortField.Type.LONG, isPagingBackwards));
+        return new Sort(new SortField("logTime", SortField.Type.LONG, isPagingBackwards));
     }
 
     @Override
     public String toString()
     {
-        return "PaginatedMessageLuceneQuery{" +
+        return "PaginatedMucMessageLuceneQuery{" +
             "startDate=" + startDate +
             ", endDate=" + endDate +
-            ", room=" + owner.getJID() +
-            ", with=" + with +
+            ", room=" + room +
+            ", sender=" + sender +
             ", query='" + query + '\'' +
             '}';
     }

@@ -73,16 +73,32 @@ public class MucMamPersistenceManager implements PersistenceManager {
         final List<ArchivedMessage> msgs;
         final int totalCount;
         if ( query != null && !query.isEmpty() ) {
-            final PaginatedMucMessageLuceneQuery paginatedMucMessageLuceneQuery = new PaginatedMucMessageLuceneQuery( startDate, endDate, room, with, query );
-            Log.debug("Request for message archive of room '{}' resulted in the following query data: {}", room.getJID(), paginatedMucMessageLuceneQuery);
-            totalCount = paginatedMucMessageLuceneQuery.getTotalCount();
-            if ( totalCount == 0 ) {
-                msgs = Collections.emptyList();
+            // When there's a 'query' element, the search needs to go through a Lucene index (which takes care of text-search).
+            if (JiveGlobals.getBooleanProperty("conversation.database.use-openfire-tables", false ) ) {
+                Log.debug("Using Openfire tables");
+                final PaginatedMucMessageFromOpenfireLuceneQuery paginatedMucMessageLuceneQuery = new PaginatedMucMessageFromOpenfireLuceneQuery(startDate, endDate, room, with, query);
+                Log.debug("Request for message archive of room '{}' resulted in the following query data: {}", room.getJID(), paginatedMucMessageLuceneQuery);
+                totalCount = paginatedMucMessageLuceneQuery.getTotalCount();
+                if (totalCount == 0) {
+                    msgs = Collections.emptyList();
+                } else {
+                    msgs = paginatedMucMessageLuceneQuery.getPage(after, before, maxResults, isPagingBackwards);
+                }
             } else {
-                msgs = paginatedMucMessageLuceneQuery.getPage(after, before, maxResults, isPagingBackwards);
+                Log.debug("Using Monitoring plugin tables");
+                final PaginatedMucMessageLuceneQuery paginatedMucMessageLuceneQuery = new PaginatedMucMessageLuceneQuery(startDate, endDate, room, messageOwner, with, query);
+                Log.debug("Request for message archive of room '{}' resulted in the following query data: {}", room.getJID(), paginatedMucMessageLuceneQuery);
+                totalCount = paginatedMucMessageLuceneQuery.getTotalCount();
+                if (totalCount == 0) {
+                    msgs = Collections.emptyList();
+                } else {
+                    msgs = paginatedMucMessageLuceneQuery.getPage(after, before, maxResults, isPagingBackwards);
+                }
             }
         } else {
+            // If the search does not include a text query, the results can be looked up in the database directly.
             if (JiveGlobals.getBooleanProperty("conversation.database.use-openfire-tables", false ) ) {
+                Log.debug("Using Openfire tables");
                 final PaginatedMucMessageFromOpenfireDatabaseQuery paginatedMucMessageFromOpenfireDatabaseQuery = new PaginatedMucMessageFromOpenfireDatabaseQuery(startDate, endDate, room, with);
                 Log.debug("Request for message archive of room '{}' resulted in the following query data: {}", room.getJID(), paginatedMucMessageFromOpenfireDatabaseQuery);
                 totalCount = paginatedMucMessageFromOpenfireDatabaseQuery.getTotalCount();
@@ -92,6 +108,7 @@ public class MucMamPersistenceManager implements PersistenceManager {
                     msgs = paginatedMucMessageFromOpenfireDatabaseQuery.getPage(after, before, maxResults, isPagingBackwards);
                 }
             } else {
+                Log.debug("Using Monitoring plugin tables");
                 final PaginatedMucMessageDatabaseQuery paginatedMessageDatabaseQuery = new PaginatedMucMessageDatabaseQuery(startDate, endDate, room.getJID(), messageOwner, with);
                 Log.debug("Request for message archive of room '{}' resulted in the following query data: {}", room.getJID(), paginatedMessageDatabaseQuery);
                 totalCount = paginatedMessageDatabaseQuery.getTotalCount();
@@ -141,7 +158,7 @@ public class MucMamPersistenceManager implements PersistenceManager {
             final List<ArchivedMessage> nextPage;
             if ( query != null && !query.isEmpty() )
             {
-                final PaginatedMucMessageLuceneQuery paginatedMucMessageLuceneQuery = new PaginatedMucMessageLuceneQuery(startDate, endDate, room, with, query);
+                final PaginatedMucMessageFromOpenfireLuceneQuery paginatedMucMessageLuceneQuery = new PaginatedMucMessageFromOpenfireLuceneQuery(startDate, endDate, room, with, query);
                 nextPage = paginatedMucMessageLuceneQuery.getPage(afterForNextPage, beforeForNextPage, 1, isPagingBackwards);
             }
             else
@@ -212,11 +229,18 @@ public class MucMamPersistenceManager implements PersistenceManager {
         ResultSet rs = null;
         try {
             connection = DbConnectionManager.getConnection();
-            pstmt = connection.prepareStatement( "SELECT sender, nickname, logTime, subject, body, stanza, messageId FROM ofMucConversationLog WHERE messageID = ? and roomID = ?");
-            pstmt.setLong( 1, messageId );
-            pstmt.setLong( 2, room.getID());
+            if (JiveGlobals.getBooleanProperty("conversation.database.use-openfire-tables", false ) ) {
+                pstmt = connection.prepareStatement("SELECT sender, nickname, logTime, subject, body, stanza, messageId FROM ofMucConversationLog WHERE messageID = ? and roomID = ?");
+                pstmt.setLong( 1, messageId );
+                pstmt.setLong( 2, room.getID());
+            } else {
+                pstmt = connection.prepareStatement("SELECT fromJid, toJidResource, sentdate, fromJidResource, body, stanza, messageId FROM ofMessageArchive WHERE messageID = ? and toJid LIKE ?");
+                pstmt.setLong( 1, messageId );
+                pstmt.setString( 2, room.getJID().toBareJID());
+            }
             rs = pstmt.executeQuery();
             if (!rs.next()) {
+                Log.warn("Database does not contain a message with ID {} from the archive of MUC room {}.", messageId, room.getJID());
                 return null;
             }
 
@@ -229,14 +253,14 @@ public class MucMamPersistenceManager implements PersistenceManager {
             long id = rs.getLong(7);
 
             if ( rs.next() ) {
-                Log.warn("Database contains more than one message with ID {} from the archive of MUC room {}.", messageId, room);
+                Log.warn("Database contains more than one message with ID {} from the archive of MUC room {}.", messageId, room.getJID());
             }
             return asArchivedMessage(room.getJID(), senderJID, nickname, sentDate, subject, body, stanza, id);
         } catch (SQLException ex) {
-            Log.warn("SQL failure while trying to get message with ID {} from the archive of MUC room {}.", messageId, room, ex);
+            Log.warn("SQL failure while trying to get message with ID {} from the archive of MUC room {}.", messageId, room.getJID(), ex);
             return null;
         } catch (DocumentException ex) {
-            Log.warn("Failure to parse 'stanza' value as XMPP for the message with ID {} from the archive of MUC room {}.", messageId, room, ex);
+            Log.warn("Failure to parse 'stanza' value as XMPP for the message with ID {} from the archive of MUC room {}.", messageId, room.getJID(), ex);
             return null;
         } finally {
             DbConnectionManager.closeConnection(rs, pstmt, connection);
@@ -360,7 +384,7 @@ public class MucMamPersistenceManager implements PersistenceManager {
                 return new Date(Long.parseLong(rs.getString(1).trim())).toInstant();
             }
         } catch (SQLException e) {
-            Log.error("SQL failure while trying to find the timestamp of the earliest message for room {} in MAM-MUC: ", room, e);
+            Log.error("SQL failure while trying to find the timestamp of the earliest message for room {} in MAM-MUC: ", room.getJID(), e);
         } finally {
             DbConnectionManager.closeConnection(rs, pstmt, connection);
         }
@@ -382,7 +406,7 @@ public class MucMamPersistenceManager implements PersistenceManager {
                 return new Date(Long.parseLong(rs.getString(1).trim())).toInstant();
             }
         } catch (SQLException e) {
-            Log.error("SQL failure while trying to find the timestamp of the latest message for room {} in MAM-MUC: ", room, e);
+            Log.error("SQL failure while trying to find the timestamp of the latest message for room {} in MAM-MUC: ", room.getJID(), e);
         } finally {
             DbConnectionManager.closeConnection(rs, pstmt, connection);
         }

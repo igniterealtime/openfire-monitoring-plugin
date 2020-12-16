@@ -7,10 +7,14 @@ import org.jivesoftware.openfire.XMPPServer;
 import org.jivesoftware.openfire.archive.ConversationManager;
 import org.jivesoftware.openfire.archive.MonitoringConstants;
 import org.jivesoftware.openfire.index.LuceneIndexer;
+import org.jivesoftware.openfire.muc.MultiUserChatManager;
 import org.jivesoftware.openfire.reporting.util.TaskEngine;
 import org.jivesoftware.util.JiveGlobals;
 import org.xmpp.packet.JID;
 
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+import javax.print.Doc;
 import java.io.File;
 import java.io.IOException;
 import java.sql.Connection;
@@ -32,7 +36,7 @@ import java.util.Date;
  */
 public class MessageIndexer extends LuceneIndexer
 {
-    public static final String ALL_MESSAGES = "SELECT fromJID, fromJIDResource, toJID, toJIDResource, sentDate, body, messageID "
+    public static final String ALL_MESSAGES = "SELECT fromJID, fromJIDResource, toJID, toJIDResource, sentDate, body, messageID, isPMforJID "
                                             + "FROM ofMessageArchive "
                                             + "WHERE body IS NOT NULL "
                                             + "AND messageID IS NOT NULL";
@@ -144,6 +148,18 @@ public class MessageIndexer extends LuceneIndexer
                     continue;
                 }
 
+                final String isPMforJIDValue = rs.getString("isPMforJID");
+                final JID isPMforJID;
+                if ( isPMforJIDValue == null ) {
+                    isPMforJID = null;
+                } else {
+                    try {
+                        isPMforJID = new JID(isPMforJIDValue);
+                    } catch (IllegalArgumentException ex) {
+                        Log.debug("Invalid isPMforJID value for messageID{}", messageID, ex);
+                        continue;
+                    }
+                }
                 final Instant sentDate = Instant.ofEpochMilli( Long.parseLong( rs.getString("sentDate") ));
 
                 final String body = DbConnectionManager.getLargeTextField(rs, 6);
@@ -153,22 +169,47 @@ public class MessageIndexer extends LuceneIndexer
                     continue;
                 }
 
-                // A message is potentially indexed twice: once for each participant, assuming that they're local users.
-                if ( XMPPServer.getInstance().isLocal( fromJID ) ) {
-                    final Document document = createDocument(fromJID.asBareJID(), messageID, fromJID, toJID, sentDate, body );
+                if ( XMPPServer.getInstance().getMultiUserChatManager().getMultiUserChatService(toJID) != null) {
+                    // Store in the archive of the chat room.
+                    final JID room = toJID.asBareJID();
+                    final JID pmFromJID = isPMforJID != null ? fromJID.asBareJID() : null; // only set if the message was a PM.
+                    final Document document = createMUCDocument(room, messageID, pmFromJID, isPMforJID, sentDate, body);
                     writer.addDocument(document);
 
                     if (sentDate.isAfter(latest)) {
                         latest = sentDate;
                     }
-                }
 
-                if ( XMPPServer.getInstance().isLocal( toJID ) ) {
-                    final Document document = createDocument(toJID.asBareJID(), messageID, fromJID, toJID, sentDate, body );
-                    writer.addDocument(document);
+                    // Store in the personal archive of the sender.
+                    if ( XMPPServer.getInstance().isLocal( fromJID ) ) {
+                        final Document personalDocument = createPersonalDocument(fromJID.asBareJID(), messageID, fromJID, toJID, sentDate, body);
+                        writer.addDocument(personalDocument);
 
-                    if (sentDate.isAfter(latest)) {
-                        latest = sentDate;
+                        if (sentDate.isAfter(latest)) {
+                            latest = sentDate;
+                        }
+                    }
+
+                } else {
+                    // Not a chat room
+                    if ( XMPPServer.getInstance().isLocal( fromJID ) ) {
+                        // Store in the personal archive of the sender.
+                        final Document document = createPersonalDocument(fromJID.asBareJID(), messageID, fromJID, toJID, sentDate, body);
+                        writer.addDocument(document);
+
+                        if (sentDate.isAfter(latest)) {
+                            latest = sentDate;
+                        }
+                    }
+
+                    if ( XMPPServer.getInstance().isLocal( toJID ) ) {
+                        // Store in the personal archive of the recipient.
+                        final Document document = createPersonalDocument(toJID.asBareJID(), messageID, fromJID, toJID, sentDate, body);
+                        writer.addDocument(document);
+
+                        if (sentDate.isAfter(latest)) {
+                            latest = sentDate;
+                        }
                     }
                 }
 
@@ -195,16 +236,21 @@ public class MessageIndexer extends LuceneIndexer
     }
 
     /**
-     * Creates a index document for one particular chat message.
+     * Creates a index document for one particular chat message for a particular users's personal archive.
      *
      * @param owner the (bare) JID of the owner of the archive.
      * @param messageID ID of the message that was exchanged.
-     * @param fromJID Bare or full JID of the author of the message (cannot be null).
-     * @param toJID Bare or full JID of the addressee of the message (cannot be null).
-     * @param sentDate Timestamp of the message (cannot be null).
-     * @param body Message text (cannot be null).
+     * @param fromJID Bare or full JID of the author of the message.
+     * @param toJID Bare or full JID of the addressee of the message.
+     * @param sentDate Timestamp of the message.
+     * @param body Message text.
      */
-    protected static Document createDocument( JID owner, long messageID, JID fromJID, JID toJID, Instant sentDate, String body)
+    protected static Document createPersonalDocument( @Nonnull final JID owner,
+                                              final long messageID,
+                                              @Nonnull final JID fromJID,
+                                              @Nonnull final JID toJID,
+                                              @Nonnull final Instant sentDate,
+                                              @Nonnull final String body)
     {
         // 'with' should be the entity that the owner of the archive is exchanging messages with.
         final JID with;
@@ -221,6 +267,40 @@ public class MessageIndexer extends LuceneIndexer
         document.add(new StringField("withBare", with.toBareJID(), Field.Store.NO));
         if ( with.getResource() != null ) {
             document.add(new StringField("withResource", with.getResource(), Field.Store.NO));
+        }
+        document.add(new NumericDocValuesField("sentDate", sentDate.toEpochMilli()));
+        document.add(new TextField("body", body, Field.Store.NO));
+        return document;
+    }
+
+    /**
+     * Creates a index document for one particular chat message exchanged in a MUC room.
+     *
+     * @param owner the (bare) JID of the owner of the archive.
+     * @param messageID ID of the message that was exchanged.
+     * @param pmFromJID Bare or full JID of the author of the message, if it is a PM
+     * @param pmToJID Bare or full JID of the addressee of the message, if it is a PM
+     * @param sentDate Timestamp of the message.
+     * @param body Message text.
+     */
+    protected static Document createMUCDocument( @Nonnull final JID owner,
+                                                  final long messageID,
+                                                  @Nullable final JID pmFromJID,
+                                                  @Nullable final JID pmToJID,
+                                                  @Nonnull final Instant sentDate,
+                                                  @Nonnull final String body)
+    {
+        final Document document = new Document();
+        document.add(new StoredField("messageID", messageID ) );
+        document.add(new NumericDocValuesField("messageIDRange", messageID));
+        document.add(new StringField("room", owner.toBareJID(), Field.Store.NO));
+        document.add(new StringField("isPrivateMessage", pmFromJID != null || pmToJID != null ? "true" : "false", Field.Store.NO));
+        if ( pmFromJID != null ) {
+            document.add(new StringField("pmFromJID", pmFromJID.toBareJID(), Field.Store.NO));
+        }
+
+        if (pmToJID != null) {
+            document.add(new StringField("pmToJID", pmToJID.toBareJID(), Field.Store.NO));
         }
         document.add(new NumericDocValuesField("sentDate", sentDate.toEpochMilli()));
         document.add(new TextField("body", body, Field.Store.NO));
