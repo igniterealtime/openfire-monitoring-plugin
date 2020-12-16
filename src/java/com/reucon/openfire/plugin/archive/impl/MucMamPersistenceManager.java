@@ -325,8 +325,14 @@ public class MucMamPersistenceManager implements PersistenceManager {
         try
         {
             connection = DbConnectionManager.getConnection();
-            pstmt = connection.prepareStatement( "SELECT messageId, stanza FROM ofMucConversationLog WHERE messageId IS NOT NULL AND roomID=? AND stanza LIKE ? AND stanza LIKE ?" );
-            pstmt.setLong( 1, room.getID() );
+            if (JiveGlobals.getBooleanProperty("conversation.database.use-openfire-tables", false ) ) {
+                pstmt = connection.prepareStatement( "SELECT messageId, stanza FROM ofMucConversationLog WHERE messageId IS NOT NULL AND roomID=? AND stanza LIKE ? AND stanza LIKE ?" );
+                pstmt.setLong( 1, room.getID() );
+            } else {
+                pstmt = connection.prepareStatement("SELECT messageId, stanza FROM ofMessageArchive WHERE messageID IS NOT NULL AND toJid LIKE ? AND stanza LIKE ? AND stanza LIKE ?");
+                pstmt.setString( 1, room.getJID().toBareJID());
+            }
+
             pstmt.setString( 2, "%"+value+"%" );
             pstmt.setString( 3, "%urn:xmpp:sid:%" ); // only match stanzas if some kind of XEP-0359 namespace is used.
 
@@ -377,8 +383,13 @@ public class MucMamPersistenceManager implements PersistenceManager {
 
         try {
             connection = DbConnectionManager.getConnection();
-            pstmt = connection.prepareStatement( "SELECT MIN(logTime) FROM ofMucConversationLog WHERE roomid = ?");
-            pstmt.setLong( 1, room.getID());
+            if (JiveGlobals.getBooleanProperty("conversation.database.use-openfire-tables", false ) ) {
+                pstmt = connection.prepareStatement("SELECT MIN(logTime) FROM ofMucConversationLog WHERE roomid = ?");
+                pstmt.setLong(1, room.getID());
+            } else {
+                pstmt = connection.prepareStatement("SELECT MIN(sentDate) FROM ofMessageArchive WHERE toJid LIKE ?");
+                pstmt.setString(1, room.getJID().toBareJID());
+            }
             rs = pstmt.executeQuery();
             if (rs.next()) {
                 return new Date(Long.parseLong(rs.getString(1).trim())).toInstant();
@@ -399,8 +410,13 @@ public class MucMamPersistenceManager implements PersistenceManager {
 
         try {
             connection = DbConnectionManager.getConnection();
-            pstmt = connection.prepareStatement( "SELECT MAX(logTime) FROM ofMucConversationLog WHERE roomid = ?");
-            pstmt.setLong( 1, room.getID());
+            if (JiveGlobals.getBooleanProperty("conversation.database.use-openfire-tables", false ) ) {
+                pstmt = connection.prepareStatement("SELECT MAX(logTime) FROM ofMucConversationLog WHERE roomid = ?");
+                pstmt.setLong(1, room.getID());
+            } else {
+                pstmt = connection.prepareStatement("SELECT MAX(sentDate) FROM ofMessageArchive WHERE toJid LIKE ?");
+                pstmt.setString(1, room.getJID().toBareJID());
+            }
             rs = pstmt.executeQuery();
             if (rs.next()) {
                 return new Date(Long.parseLong(rs.getString(1).trim())).toInstant();
