@@ -311,7 +311,9 @@ public class Conversation implements Externalizable {
                 }
                 Date date = new Date(rs.getLong(5));
                 String body = DbConnectionManager.getLargeTextField(rs, 6);
-                final JID isPMforJID = new JID(rs.getString(7));
+
+                final String isPMforJIDValue = rs.getString(7);
+                final JID isPMforJID = isPMforJIDValue == null ? null : new JID(isPMforJIDValue);
 
                 messages.add(new ArchivedMessage(conversationID, fromJID, toJID, date, body, false, isPMforJID));
             }
