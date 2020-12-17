@@ -138,7 +138,7 @@ public class GroupConversationInterceptor implements MUCEventListener, Startable
             final String senderNickname = message.getFrom().getResource();
             final Date now = new Date();
             if (ClusterManager.isSeniorClusterMember()) {
-                if (JiveGlobals.getBooleanProperty("conversation.roomArchiving.PMinPersonalArchive", true)) {
+                if (JiveGlobals.getBooleanProperty("conversation.roomArchiving.PMinPersonalArchive", false)) {
                     // Historically, private messages are saved as regular 'one-on-one' messages.
                     conversationManager.processMessage(fromJID, toJID, message.getBody(), message.toXML(), now);
                 }
@@ -151,7 +151,7 @@ public class GroupConversationInterceptor implements MUCEventListener, Startable
             else {
                 ConversationEventsQueue eventsQueue = conversationManager.getConversationEventsQueue();
 
-                if (JiveGlobals.getBooleanProperty("conversation.roomArchiving.PMinPersonalArchive", true)) {
+                if (JiveGlobals.getBooleanProperty("conversation.roomArchiving.PMinPersonalArchive", false)) {
                     eventsQueue.addChatEvent(
                         conversationManager.getConversationKey(fromJID, toJID),
                         ConversationEvent.chatMessageReceived(toJID, fromJID,
