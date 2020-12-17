@@ -28,6 +28,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Future;
 
+import org.dom4j.DocumentHelper;
 import org.jivesoftware.openfire.XMPPServer;
 import org.jivesoftware.openfire.plugin.MonitoringPlugin;
 import org.jivesoftware.openfire.user.UserManager;
@@ -50,6 +51,7 @@ import com.lowagie.text.Paragraph;
 import com.lowagie.text.pdf.PdfContentByte;
 import com.lowagie.text.pdf.PdfPageEventHelper;
 import com.lowagie.text.pdf.PdfWriter;
+import org.xmpp.packet.Message;
 
 /**
  * Utility class for asynchronous web calls for archiving tasks.
@@ -239,13 +241,18 @@ public class ConversationUtils {
             for (ArchivedMessage message : conversation.getMessages()) {
                 String time = JiveGlobals.formatTime(message.getSentDate());
                 String from = message.getFromJID().getNode();
+                String to = message.getIsPMforNickname(); // Only non-null when this is a Private Message sent in a MUC.
                 if (conversation.getRoom() != null) {
                     from = message.getToJID().getResource();
                 }
                 String body = message.getBody();
                 String prefix;
                 if (!message.isRoomEvent()) {
-                    prefix = "[" + time + "] " + from + ":  ";
+                    if (to == null) {
+                        prefix = "[" + time + "] " + from + ":  ";
+                    } else {
+                        prefix = "[" + time + "] " + from + " -> " + to + ":  ";
+                    }
                     Font font = colorMap.get(message.getFromJID().toString());
                     if (font == null) {
                         font = colorMap.get(message.getFromJID().toBareJID());
@@ -323,25 +330,27 @@ public class ConversationUtils {
         for (ArchivedMessage message : conversation.getMessages()) {
             String time = JiveGlobals.formatTime(message.getSentDate());
             String from = message.getFromJID().getNode();
+            String to = message.getIsPMforNickname(); // Only non-null when this is a Private Message sent in a MUC.
             if (conversation.getRoom() != null) {
                 from = message.getToJID().getResource();
             }
             from = StringUtils.escapeHTMLTags(from);
+            to = to == null ? null : StringUtils.escapeHTMLTags(to);
             String cssLabel = cssLabels.get(message.getFromJID().toBareJID());
             String body = StringUtils.escapeHTMLTags(message.getBody());
             builder.append("<tr valign=top>");
             if (!message.isRoomEvent()) {
-                builder.append("<td width=1% nowrap class=" + cssLabel + ">").append("[")
-                    .append(time).append("]").append("</td>");
-                builder.append("<td width=1% class=" + cssLabel + ">").append(from).append(": ")
-                    .append("</td>");
+                builder.append("<td width=1% nowrap class=" + cssLabel + ">").append("[").append(time).append("]").append("</td>");
+                builder.append("<td width=1% class=" + cssLabel + ">").append(from);
+                if (to != null) {
+                    builder.append("&rarr;").append(to);
+                }
+                builder.append(": ").append("</td>");
                 builder.append("<td class=conversation-body>").append(body).append("</td");
             }
             else {
-                builder.append("<td width=1% nowrap class=conversation-label3>").append("[")
-                    .append(time).append("]").append("</td>");
-                builder.append("<td colspan=2 class=conversation-label3><i>").append(body)
-                    .append("</i></td");
+                builder.append("<td width=1% nowrap class=conversation-label3>").append("[").append(time).append("]").append("</td>");
+                builder.append("<td colspan=2 class=conversation-label3><i>").append(body).append("</i></td");
             }
             builder.append("</tr>");
         }

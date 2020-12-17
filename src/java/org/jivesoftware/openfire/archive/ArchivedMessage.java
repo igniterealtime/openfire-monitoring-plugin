@@ -16,9 +16,13 @@
 
 package org.jivesoftware.openfire.archive;
 
+import org.dom4j.DocumentHelper;
 import org.jivesoftware.database.JiveID;
 import org.jivesoftware.database.SequenceManager;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.xmpp.packet.JID;
+import org.xmpp.packet.Message;
 
 import java.util.Date;
 
@@ -29,6 +33,8 @@ import java.util.Date;
  */
 @JiveID(604)
 public class ArchivedMessage {
+
+    private static final Logger Log = LoggerFactory.getLogger( ArchivedMessage.class );
 
     static {
         // Instantiate a sequence manager to ensure that a block size larger than the default value of '1' is used.
@@ -162,5 +168,29 @@ public class ArchivedMessage {
      */
     public JID getIsPMforJID() {
         return isPMforJID;
+    }
+
+    /**
+     * Returns the nickname of the occupant that this message was addressed at, in case the message was a Private Message
+     * exchanged in a MUC room.
+     *
+     * @return A nickname
+     */
+    public String getIsPMforNickname() {
+        String result = null;
+        if (isPMforJID != null) {
+            // Use the real JID as a fallback.
+            result= isPMforJID.toBareJID();
+            try {
+                // Prefer to use the nickname, which we can only get by parsing the original stanza.
+                if (stanza != null) {
+                    final org.dom4j.Document doc = DocumentHelper.parseText(stanza);
+                    result = new Message(doc.getRootElement()).getTo().getResource();
+                }
+            } catch (Exception e) {
+                Log.warn("Unable to parse then nickname from a private message with message ID {}", id);
+            }
+        }
+        return result;
     }
 }

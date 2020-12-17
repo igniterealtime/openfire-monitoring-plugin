@@ -69,7 +69,7 @@
     <% for (ArchivedMessage message : conversation.getMessages()) { %>
     <tr valign="top">
         <td width="1%" nowrap class="jive-description" style="color:<%= getColor(message.getFromJID()) %>">
-            [<%= JiveGlobals.formatTime(message.getSentDate())%>] <%= message.getFromJID().getNode()%>:</td>
+            [<%= JiveGlobals.formatTime(message.getSentDate())%>] <%= message.getFromJID().getNode()%><%= message.getIsPMforNickname() == null ? "" : " -> " + message.getIsPMforNickname()%>:</td>
         <td><span class="jive-description"><%= StringUtils.escapeHTMLTags(message.getBody())%></span></td>
     </tr>
     <%}%>
