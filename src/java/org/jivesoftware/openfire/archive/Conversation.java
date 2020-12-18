@@ -46,8 +46,8 @@ import org.slf4j.LoggerFactory;
 import org.xmpp.packet.JID;
 
 /**
- * Represents an IM conversation between two people. A conversation encompasses a series of messages sent back and forth. It may cover a single topic
- * or several. The start of a conversation occurs when the first message between two users is sent. It ends when either:
+ * Represents an IM conversation between people. A conversation encompasses a series of messages sent back and forth. It may cover a single topic
+ * or several. The start of a conversation occurs when the first message between users is sent. It ends when either:
  * <ul>
  * <li>No messages are sent between the users for a certain period of time (default of 10 minutes). The default value can be overridden by setting the
  * Openfire property <tt>conversation.idleTime</tt>.</li>
@@ -74,7 +74,7 @@ public class Conversation implements Externalizable {
             + "FROM ofConversation WHERE conversationID=?";
     private static final String LOAD_PARTICIPANTS = "SELECT bareJID, jidResource, nickname, joinedDate, leftDate FROM ofConParticipant "
             + "WHERE conversationID=? ORDER BY joinedDate";
-    private static final String LOAD_MESSAGES = "SELECT fromJID, fromJIDResource, toJID, toJIDResource, sentDate, body FROM ofMessageArchive WHERE conversationID=? "
+    private static final String LOAD_MESSAGES = "SELECT fromJID, fromJIDResource, toJID, toJIDResource, sentDate, body, stanza, isPMforJID FROM ofMessageArchive WHERE conversationID=? "
             + "ORDER BY sentDate";
 
     private transient ConversationManager conversationManager;
@@ -265,7 +265,10 @@ public class Conversation implements Externalizable {
 
     /**
      * Returns the number of messages that make up the conversation.
-     * 
+     *
+     * Note that this count includes private messages exchanged in a chat room, which might no be retrievable by all
+     * participants of the chat room.
+     *
      * @return the message count.
      */
     public int getMessageCount() {
@@ -308,7 +311,13 @@ public class Conversation implements Externalizable {
                 }
                 Date date = new Date(rs.getLong(5));
                 String body = DbConnectionManager.getLargeTextField(rs, 6);
-                messages.add(new ArchivedMessage(conversationID, fromJID, toJID, date, body, false));
+
+                String stanza = DbConnectionManager.getLargeTextField(rs, 7);
+
+                final String isPMforJIDValue = rs.getString(8);
+                final JID isPMforJID = isPMforJIDValue == null ? null : new JID(isPMforJIDValue);
+
+                messages.add(new ArchivedMessage(conversationID, fromJID, toJID, date, body, stanza,false, isPMforJID));
             }
         } catch (SQLException sqle) {
             Log.error(sqle.getMessage(), sqle);
@@ -346,9 +355,9 @@ public class Conversation implements Externalizable {
                         leftBody = LocaleUtils.getLocalizedString("muc.conversation.left", MonitoringConstants.NAME,
                                 Arrays.asList(participation.getNickname(), name));
                     }
-                    messages.add(new ArchivedMessage(conversationID, user, jid, participation.getJoined(), joinBody, true));
+                    messages.add(new ArchivedMessage(conversationID, user, jid, participation.getJoined(), joinBody, true, null));
                     if (participation.getLeft() != null) {
-                        messages.add(new ArchivedMessage(conversationID, user, jid, participation.getLeft(), leftBody, true));
+                        messages.add(new ArchivedMessage(conversationID, user, jid, participation.getLeft(), leftBody, true, null));
                     }
                 }
             }

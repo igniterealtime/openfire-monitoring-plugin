@@ -75,7 +75,7 @@ public class ConversationEvent implements Externalizable {
             conversationManager.joinedGroupConversation(roomJID, user, nickname, new Date(date.getTime() + 1));
         }
         else if (Type.roomMessageReceived == type) {
-            conversationManager.processRoomMessage(roomJID, user, nickname, body, stanza, date);
+            conversationManager.processRoomMessage(roomJID, user, receiver, nickname, body, stanza, date);
         }
     }
 
@@ -189,7 +189,7 @@ public class ConversationEvent implements Externalizable {
         return event;
     }
 
-    public static ConversationEvent roomMessageReceived(JID roomJID, JID user, String nickname, String body,
+    public static ConversationEvent roomMessageReceived(JID roomJID, JID user, JID receiverIfPM, String nickname, String body,
                                                         String stanza, Date date) {
         ConversationEvent event = new ConversationEvent();
         event.type = Type.roomMessageReceived;
@@ -199,6 +199,7 @@ public class ConversationEvent implements Externalizable {
         event.body = body;
         event.stanza = stanza;
         event.date = date;
+        event.receiver = receiverIfPM;
         return event;
     }
 

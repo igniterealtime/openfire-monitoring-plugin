@@ -21,6 +21,7 @@ import org.jivesoftware.openfire.cluster.ClusterManager;
 import org.jivesoftware.openfire.muc.MUCEventDispatcher;
 import org.jivesoftware.openfire.muc.MUCEventListener;
 import org.jivesoftware.openfire.muc.MUCRoom;
+import org.jivesoftware.util.JiveGlobals;
 import org.picocontainer.Startable;
 import org.xmpp.packet.JID;
 import org.xmpp.packet.Message;
@@ -42,10 +43,12 @@ public class GroupConversationInterceptor implements MUCEventListener, Startable
         this.conversationManager = conversationManager;
     }
 
+    @Override
     public void roomCreated(JID roomJID) {
         //Do nothing
     }
 
+    @Override
     public void roomDestroyed(JID roomJID) {
         // Process this event in the senior cluster member or local JVM when not in a cluster
         if (ClusterManager.isSeniorClusterMember()) {
@@ -58,6 +61,7 @@ public class GroupConversationInterceptor implements MUCEventListener, Startable
         }
     }
 
+    @Override
     public void occupantJoined(JID roomJID, JID user, String nickname) {
         // Process this event in the senior cluster member or local JVM when not in a cluster
         if (ClusterManager.isSeniorClusterMember()) {
@@ -70,11 +74,12 @@ public class GroupConversationInterceptor implements MUCEventListener, Startable
         }
     }
 
-    public void occupantLeft(JID roomJID, JID user) {
+    @Override
+    public void occupantLeft(JID roomJID, JID user, String nickname) {
         // Process this event in the senior cluster member or local JVM when not in a cluster
         if (ClusterManager.isSeniorClusterMember()) {
             conversationManager.leftGroupConversation(roomJID, user, new Date());
-            // If there are no more occupants then consider the group conversarion over
+            // If there are no more occupants then consider the group conversation over
             MUCRoom mucRoom = XMPPServer.getInstance().getMultiUserChatManager().getMultiUserChatService(roomJID).getChatRoom(roomJID.getNode());
             if (mucRoom != null &&  mucRoom.getOccupantsCount() == 0) {
                 conversationManager.roomConversationEnded(roomJID, new Date());
@@ -87,6 +92,7 @@ public class GroupConversationInterceptor implements MUCEventListener, Startable
         }
     }
 
+    @Override
     public void nicknameChanged(JID roomJID, JID user, String oldNickname, String newNickname) {
         // Process this event in the senior cluster member or local JVM when not in a cluster
         if (ClusterManager.isSeniorClusterMember()) {
@@ -106,10 +112,13 @@ public class GroupConversationInterceptor implements MUCEventListener, Startable
         }
     }
 
+    @Override
     public void messageReceived(JID roomJID, JID user, String nickname, Message message) {
+        final Date now = new Date();
+
         // Process this event in the senior cluster member or local JVM when not in a cluster
         if (ClusterManager.isSeniorClusterMember()) {
-            conversationManager.processRoomMessage(roomJID, user, nickname, message.getBody(), message.toXML(), new Date());
+            conversationManager.processRoomMessage(roomJID, user, null, nickname, message.getBody(), message.toXML(), now);
         }
         else {
             boolean withBody = conversationManager.isRoomArchivingEnabled() && (
@@ -118,34 +127,59 @@ public class GroupConversationInterceptor implements MUCEventListener, Startable
 
             ConversationEventsQueue eventsQueue = conversationManager.getConversationEventsQueue();
             eventsQueue.addGroupChatEvent(conversationManager.getRoomConversationKey(roomJID),
-                    ConversationEvent.roomMessageReceived(roomJID, user, nickname, withBody ? message.getBody() : null, message.toXML(), new Date()));
+                    ConversationEvent.roomMessageReceived(roomJID, user, null, nickname, withBody ? message.getBody() : null, message.toXML(), now));
         }
     }
 
+    @Override
     public void privateMessageRecieved(JID toJID, JID fromJID, Message message) {
         if(message.getBody() != null) {
+            final JID roomJID = message.getFrom().asBareJID();
+            final String senderNickname = message.getFrom().getResource();
+            final Date now = new Date();
             if (ClusterManager.isSeniorClusterMember()) {
-                conversationManager.processMessage(fromJID, toJID, message.getBody(), message.toXML(), new Date());
+                if (JiveGlobals.getBooleanProperty("conversation.roomArchiving.PMinPersonalArchive", false)) {
+                    // Historically, private messages are saved as regular 'one-on-one' messages.
+                    conversationManager.processMessage(fromJID, toJID, message.getBody(), message.toXML(), now);
+                }
+
+                if (JiveGlobals.getBooleanProperty("conversation.roomArchiving.PMinRoomArchive", true)) {
+                    // Since issue #133 they also get stored specifically as a PM in MUC context.
+                    conversationManager.processRoomMessage(roomJID, fromJID, toJID, senderNickname, message.getBody(), message.toXML(), now);
+                }
             }
             else {
                 ConversationEventsQueue eventsQueue = conversationManager.getConversationEventsQueue();
-                eventsQueue.addChatEvent(conversationManager.getConversationKey(fromJID, toJID),
-                                        ConversationEvent.chatMessageReceived(toJID, fromJID,
-                                            conversationManager.isMessageArchivingEnabled() ? message.getBody() : null,
-                                            conversationManager.isMessageArchivingEnabled() ? message.toXML() : null,
-                                            new Date()));
+
+                if (JiveGlobals.getBooleanProperty("conversation.roomArchiving.PMinPersonalArchive", false)) {
+                    eventsQueue.addChatEvent(
+                        conversationManager.getConversationKey(fromJID, toJID),
+                        ConversationEvent.chatMessageReceived(toJID, fromJID,
+                            conversationManager.isMessageArchivingEnabled() ? message.getBody() : null,
+                            conversationManager.isMessageArchivingEnabled() ? message.toXML() : null,
+                            now));
+                }
+
+                if (JiveGlobals.getBooleanProperty("conversation.roomArchiving.PMinRoomArchive", true)) {
+                    eventsQueue.addGroupChatEvent(
+                        conversationManager.getRoomConversationKey(roomJID),
+                        ConversationEvent.roomMessageReceived(roomJID, fromJID, toJID, senderNickname, conversationManager.isMessageArchivingEnabled() ? message.getBody() : null, message.toXML(), now));
+                }
              }
         }
     }
 
+    @Override
     public void roomSubjectChanged(JID roomJID, JID user, String newSubject) {
         // Do nothing
     }
 
+    @Override
     public void start() {
         MUCEventDispatcher.addListener(this);
     }
 
+    @Override
     public void stop() {
         MUCEventDispatcher.removeListener(this);
         conversationManager = null;

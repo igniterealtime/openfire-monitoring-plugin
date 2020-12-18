@@ -5,7 +5,6 @@ import com.reucon.openfire.plugin.archive.model.ArchivedMessage;
 import com.reucon.openfire.plugin.archive.model.ArchivedMessage.Direction;
 import com.reucon.openfire.plugin.archive.model.Conversation;
 import com.reucon.openfire.plugin.archive.model.Participant;
-import com.reucon.openfire.plugin.archive.util.StanzaIDUtil;
 import com.reucon.openfire.plugin.archive.xep0059.XmppResultSet;
 import org.dom4j.*;
 import org.jivesoftware.database.DbConnectionManager;
@@ -15,7 +14,6 @@ import org.jivesoftware.util.JiveGlobals;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.xmpp.packet.JID;
-import org.xmpp.packet.Message;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -24,7 +22,7 @@ import java.sql.SQLException;
 import java.util.*;
 
 /**
- * Manages database persistence.
+ * Manages database interactions to work with 'personal archives' for messages.
  */
 public class JdbcPersistenceManager implements PersistenceManager {
     private static final Logger Log = LoggerFactory.getLogger( JdbcPersistenceManager.class );
@@ -277,8 +275,10 @@ public class JdbcPersistenceManager implements PersistenceManager {
     }
 
     @Override
-    public Collection<ArchivedMessage> findMessages(Date startDate, Date endDate, JID owner, JID with, String query, XmppResultSet xmppResultSet, boolean useStableID) {
-
+    public Collection<ArchivedMessage> findMessages(Date startDate, Date endDate, JID owner, JID messageOwner, JID with, String query, XmppResultSet xmppResultSet, boolean useStableID) throws DataRetrievalException {
+        if ( !owner.equals(messageOwner)) {
+            throw new IllegalArgumentException("A personal archive can't be queried for messages of a different owner than the archive. Supplied archive owner: " + owner + ", supplied message owner: " + messageOwner);
+        }
         Log.debug( "Finding messages of owner '{}' with start date '{}', end date '{}' with '{}' and resultset '{}', useStableId '{}'.", owner, startDate, endDate, with, xmppResultSet, useStableID );
 
         if (startDate == null) {
@@ -467,7 +467,7 @@ public class JdbcPersistenceManager implements PersistenceManager {
             while (rs.next()) {
                 ArchivedMessage message;
 
-                message = extractMessage(rs);
+                message = extractMessage(owner, rs);
                 conversation.addMessage(message);
             }
         } catch (SQLException | DocumentException sqle) {
@@ -538,18 +538,17 @@ public class JdbcPersistenceManager implements PersistenceManager {
         return participants;
     }
 
-    static ArchivedMessage extractMessage(ResultSet rs) throws SQLException, DocumentException {
+    static ArchivedMessage extractMessage(final JID owner, ResultSet rs) throws SQLException, DocumentException {
         Date time = millisToDate(rs.getLong("sentDate"));
         String body = rs.getString("body");
         String stanza = rs.getString("stanza");
-        String bareJid = rs.getString("bareJID");
         String fromJid = rs.getString("fromJID");
         String fromJIDResource = rs.getString("fromJIDResource");
         String toJid = rs.getString("toJID");
         String toJIDResource = rs.getString("toJIDResource");
         Long id = rs.getLong( "messageID" );
 
-        return asArchivedMessage( new JID(bareJid), fromJid, fromJIDResource, toJid, toJIDResource, time, body, stanza, id );
+        return asArchivedMessage( owner, fromJid, fromJIDResource, toJid, toJIDResource, time, body, stanza, id );
     }
 
     /**
@@ -566,7 +565,7 @@ public class JdbcPersistenceManager implements PersistenceManager {
         ResultSet rs = null;
         try {
             connection = DbConnectionManager.getConnection();
-            final String query = "SELECT DISTINCT ofMessageArchive.fromJID, ofMessageArchive.fromJIDResource, ofMessageArchive.toJID, ofMessageArchive.toJIDResource, ofMessageArchive.sentDate, ofMessageArchive.body, ofMessageArchive.stanza, ofMessageArchive.messageID "
+            final String query = "SELECT ofMessageArchive.fromJID, ofMessageArchive.fromJIDResource, ofMessageArchive.toJID, ofMessageArchive.toJIDResource, ofMessageArchive.sentDate, ofMessageArchive.body, ofMessageArchive.stanza, ofMessageArchive.messageID "
                 + "FROM ofMessageArchive "
                 + "INNER JOIN ofConParticipant ON ofMessageArchive.conversationID = ofConParticipant.conversationID "
                 + "WHERE (ofMessageArchive.stanza IS NOT NULL OR ofMessageArchive.body IS NOT NULL) "

@@ -1,6 +1,7 @@
 package com.reucon.openfire.plugin.archive.xep0313;
 
 import com.reucon.openfire.plugin.archive.ArchiveProperties;
+import com.reucon.openfire.plugin.archive.impl.DataRetrievalException;
 import com.reucon.openfire.plugin.archive.model.ArchivedMessage;
 import com.reucon.openfire.plugin.archive.xep.AbstractIQHandler;
 import com.reucon.openfire.plugin.archive.xep0059.XmppResultSet;
@@ -111,25 +112,7 @@ abstract class IQQueryHandler extends AbstractIQHandler implements
         }
         Log.debug("Archive requested is: {}", archiveJid);
 
-        // Parse the request.
-        QueryRequest queryRequest = new QueryRequest(packet.getChildElement(), archiveJid);
-
-        if ( queryRequest.getDataForm() != null ) {
-            final List<String> supportedFieldNames = getSupportedFieldVariables();
-            final Set<String> unsupported = queryRequest.getDataForm().getFields().stream()
-                .filter( f -> f.getFirstValue() != null && !f.getFirstValue().isEmpty() ) // Allow unsupported, but empty fields.
-                .map(FormField::getVariable)
-                .filter(v -> !supportedFieldNames.contains(v))
-                .collect(Collectors.toSet());
-
-            Log.debug( "Found {} unsupported field names{}", unsupported.size(), unsupported.isEmpty() ? "." : ": " + String.join(", ", unsupported));
-
-            if ( !JiveGlobals.getBooleanProperty(PROP_ALLOW_UNRECOGNIZED_SEARCH_FIELDS, false) && !unsupported.isEmpty() ) {
-                return buildErrorResponse(packet, PacketError.Condition.bad_request, "Unsupported field(s): " + String.join(", ", unsupported));
-            }
-        }
-
-        // Now decide the type.
+        // Decide the type: is this a query for a personal archive, or a MUC archive?
         MultiUserChatService service = null;
         MUCRoom room = null;
         if (!XMPPServer.getInstance().isLocal(archiveJid)) {
@@ -149,7 +132,27 @@ abstract class IQQueryHandler extends AbstractIQHandler implements
             Log.debug("Archive '{}' relates to a user account on this domain.", archiveJid);
         }
 
-        JID requestor = packet.getFrom().asBareJID();
+        // The owner of the messages to be returned is the archive owner for requests to personal archives, or the requestor when querying a MUC archive.
+        final JID requestor = packet.getFrom().asBareJID();
+        final JID messageOwner = room == null ? archiveJid.asBareJID() : requestor.asBareJID();
+
+        // Parse the request.
+        QueryRequest queryRequest = new QueryRequest(packet.getChildElement(), archiveJid, messageOwner);
+
+        if ( queryRequest.getDataForm() != null ) {
+            final List<String> supportedFieldNames = getSupportedFieldVariables();
+            final Set<String> unsupported = queryRequest.getDataForm().getFields().stream()
+                .filter( f -> f.getFirstValue() != null && !f.getFirstValue().isEmpty() ) // Allow unsupported, but empty fields.
+                .map(FormField::getVariable)
+                .filter(v -> !supportedFieldNames.contains(v))
+                .collect(Collectors.toSet());
+
+            Log.debug( "Found {} unsupported field names{}", unsupported.size(), unsupported.isEmpty() ? "." : ": " + String.join(", ", unsupported));
+
+            if ( !JiveGlobals.getBooleanProperty(PROP_ALLOW_UNRECOGNIZED_SEARCH_FIELDS, false) && !unsupported.isEmpty() ) {
+                return buildErrorResponse(packet, PacketError.Condition.bad_request, "Unsupported field(s): " + String.join(", ", unsupported));
+            }
+        }
 
         // Auth checking.
         if(room != null) {
@@ -228,7 +231,8 @@ abstract class IQQueryHandler extends AbstractIQHandler implements
                 packet.getChildElement().addElement( seQName );
             }
         }
-        queryRequest = new QueryRequest(packet.getChildElement(), archiveJid);
+
+        queryRequest = new QueryRequest(packet.getChildElement(), archiveJid, messageOwner);
 
         // OF-1200: make sure that data is flushed to the database before retrieving it.
         final Optional<Plugin> plugin = XMPPServer.getInstance().getPluginManager().getPluginByName(MonitoringConstants.PLUGIN_NAME);
@@ -325,7 +329,7 @@ abstract class IQQueryHandler extends AbstractIQHandler implements
      * @param queryRequest The request (cannot be null).
      * @return A collection of messages (possibly empty, never null).
      */
-    private Collection<ArchivedMessage> retrieveMessages(QueryRequest queryRequest) throws NotFoundException {
+    private Collection<ArchivedMessage> retrieveMessages(QueryRequest queryRequest) throws NotFoundException, DataRetrievalException {
 
         JID withField = null;
         String startField = null;
@@ -365,7 +369,7 @@ abstract class IQQueryHandler extends AbstractIQHandler implements
             }
         }
 
-       try
+        try
         {
 	        ZonedDateTime nowDate = ZonedDateTime.now();
 	        ZonedDateTime newDate = nowDate.minusDays(conversationManager.getMaxRetrievable());
@@ -443,6 +447,7 @@ abstract class IQQueryHandler extends AbstractIQHandler implements
 	                startDate,
 	                endDate,
 	                queryRequest.getArchive().asBareJID(),
+	                queryRequest.getMessageOwner(),
 	                withField,
 	                textField,
 	                queryRequest.getResultSet(),
@@ -454,12 +459,17 @@ abstract class IQQueryHandler extends AbstractIQHandler implements
         }
         catch ( NotFoundException e )
         {
-            throw e; // Retrow exceptions that should result in an IQ error response.
+            throw e; // Rethrow exceptions that should result in an IQ error response.
         }
         catch (Exception e)
         {
-        	Log.error("An exception has occurred while retrieving messages: ",e);        	
-        	return new LinkedList<>();
+            // This controls if a message during message retrieval is ignored (leading to empty results) or triggers an XMPP error stanza response.
+            Log.error("An exception has occurred while retrieving messages: ", e);
+                if (JiveGlobals.getBooleanProperty("archive.ignore-retrieval-exceptions", false) ) {
+                return new LinkedList<>();
+            } else {
+                throw new DataRetrievalException(e);
+            }
         }
     }
 

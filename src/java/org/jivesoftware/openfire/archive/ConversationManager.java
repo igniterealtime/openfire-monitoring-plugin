@@ -74,8 +74,8 @@ public class ConversationManager implements Startable, ComponentEventListener{
 
     private static final String UPDATE_CONVERSATION = "UPDATE ofConversation SET lastActivity=?, messageCount=? WHERE conversationID=?";
     private static final String UPDATE_PARTICIPANT = "UPDATE ofConParticipant SET leftDate=? WHERE conversationID=? AND bareJID=? AND jidResource=? AND joinedDate=?";
-    private static final String INSERT_MESSAGE = "INSERT INTO ofMessageArchive(messageID, conversationID, fromJID, fromJIDResource, toJID, toJIDResource, sentDate, body, stanza) "
-            + "VALUES (?,?,?,?,?,?,?,?,?)";
+    private static final String INSERT_MESSAGE = "INSERT INTO ofMessageArchive(messageID, conversationID, fromJID, fromJIDResource, toJID, toJIDResource, sentDate, body, stanza, isPMforJID) "
+            + "VALUES (?,?,?,?,?,?,?,?,?,?)";
     private static final String CONVERSATION_COUNT = "SELECT COUNT(*) FROM ofConversation";
     private static final String MESSAGE_COUNT = "SELECT COUNT(*) FROM ofMessageArchive";
     private static final String DELETE_CONVERSATION_1 = "DELETE FROM ofMessageArchive WHERE conversationID=?";
@@ -696,7 +696,7 @@ public class ConversationManager implements Startable, ComponentEventListener{
             if (messageArchivingEnabled) {
                 if (body != null) {
                     /* OF-677 - Workaround to prevent null messages being archived */
-                    messageArchiver.archive(new ArchivedMessage(conversation.getConversationID(), sender, receiver, date, body, stanza, false) );
+                    messageArchiver.archive(new ArchivedMessage(conversation.getConversationID(), sender, receiver, date, body, stanza, false, null) );
                 }
             }
             // Notify listeners of the conversation update.
@@ -714,6 +714,8 @@ public class ConversationManager implements Startable, ComponentEventListener{
      *            the JID of the room where the group conversation is taking place.
      * @param sender
      *            the JID of the entity that sent the message.
+     * @param receiverIfPM
+     *            the JID of the entity that received the message when the message was a Private Message (otherwise null).
      * @param nickname
      *            nickname of the user in the room when the message was sent.
      * @param body
@@ -721,7 +723,7 @@ public class ConversationManager implements Startable, ComponentEventListener{
      * @param date
      *            date when the message was sent.
      */
-    void processRoomMessage(JID roomJID, JID sender, String nickname, String body, String stanza, Date date) {
+    void processRoomMessage(JID roomJID, JID sender, JID receiverIfPM, String nickname, String body, String stanza, Date date) {
         Log.trace("Processing room {} message from date {}.", roomJID, date );
         String conversationKey = getRoomConversationKey(roomJID);
         synchronized (conversationKey.intern()) {
@@ -760,7 +762,7 @@ public class ConversationManager implements Startable, ComponentEventListener{
                 JID jid = new JID(roomJID + "/" + nickname);
                 if (body != null) {
                     /* OF-677 - Workaround to prevent null messages being archived */
-                    messageArchiver.archive( new ArchivedMessage(conversation.getConversationID(), sender, jid, date, body, roomArchivingStanzasEnabled ? stanza : "", false));
+                    messageArchiver.archive( new ArchivedMessage(conversation.getConversationID(), sender, jid, date, body, roomArchivingStanzasEnabled ? stanza : "", false, receiverIfPM));
                 }
             }
             // Notify listeners of the conversation update.
@@ -1180,6 +1182,7 @@ public class ConversationManager implements Startable, ComponentEventListener{
                     pstmt.setLong(7, work.getSentDate().getTime());
                     DbConnectionManager.setLargeTextField(pstmt, 8, work.getBody());
                     DbConnectionManager.setLargeTextField(pstmt, 9, work.getStanza());
+                    pstmt.setString(10, work.getIsPMforJID() == null ? null : work.getIsPMforJID().toBareJID());
 
                     if ( DbConnectionManager.isBatchUpdatesSupported() )
                     {

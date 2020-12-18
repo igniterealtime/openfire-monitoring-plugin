@@ -82,7 +82,6 @@ public class MonitoringPlugin implements Plugin {
     private MutablePicoContainer picoContainer;
 
     private static MonitoringPlugin instance;
-    private boolean enabled = true;
     private PersistenceManager persistenceManager;
     private PersistenceManager mucPersistenceManager;
     private Xep0136Support xep0136Support;
@@ -133,7 +132,7 @@ public class MonitoringPlugin implements Plugin {
 
     /* enabled property */
     public boolean isEnabled() {
-        return this.enabled;
+        return JiveGlobals.getBooleanProperty(ArchiveProperties.ENABLED,false);
     }
 
     public PersistenceManager getPersistenceManager(JID jid) {
@@ -158,10 +157,6 @@ public class MonitoringPlugin implements Plugin {
 
     public void initializePlugin(PluginManager manager, File pluginDirectory) {
         Log = LoggerFactory.getLogger(MonitoringPlugin.class);
-
-        /* Configuration */
-        enabled = JiveGlobals.getBooleanProperty(ArchiveProperties.ENABLED,
-                false);
 
         // Issue #113: Migrate full JIDs in the database
         TaskEngine.getInstance().submit( new DatabaseUpdateSplitJIDsTask() );
