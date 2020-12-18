@@ -15,10 +15,8 @@
  */
 package org.jivesoftware.openfire.reporting.graph;
 
-import java.awt.Color;
-import java.awt.Font;
-import java.awt.Graphics2D;
-import java.awt.geom.Rectangle2D;
+import java.awt.*;
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.Arrays;
@@ -33,32 +31,42 @@ import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import com.itextpdf.io.font.PdfEncodings;
+import com.itextpdf.io.font.constants.StandardFonts;
+import com.itextpdf.kernel.events.PdfDocumentEvent;
+import com.itextpdf.kernel.font.PdfFont;
+import com.itextpdf.kernel.font.PdfFontFactory;
+import com.itextpdf.kernel.geom.PageSize;
+import com.itextpdf.kernel.pdf.PdfDocument;
+import com.itextpdf.kernel.pdf.PdfReader;
+import com.itextpdf.kernel.pdf.PdfWriter;
+import com.itextpdf.kernel.pdf.xobject.PdfFormXObject;
+import com.itextpdf.layout.Document;
+import com.itextpdf.layout.element.AreaBreak;
+import com.itextpdf.layout.element.Image;
+import com.itextpdf.layout.element.Paragraph;
+import com.itextpdf.layout.element.Text;
+import com.itextpdf.layout.property.AreaBreakType;
+import com.itextpdf.layout.property.HorizontalAlignment;
+import com.orsonpdf.PDFDocument;
+import com.orsonpdf.PDFGraphics2D;
+import com.orsonpdf.Page;
+import org.dom4j.DocumentException;
 import org.jfree.chart.JFreeChart;
 import org.jivesoftware.openfire.XMPPServer;
+import org.jivesoftware.openfire.archive.ConversationUtils;
 import org.jivesoftware.openfire.archive.MonitoringConstants;
 import org.jivesoftware.openfire.plugin.MonitoringPlugin;
 import org.jivesoftware.openfire.reporting.stats.StatsViewer;
 import org.jivesoftware.openfire.stats.Statistic;
 import org.jivesoftware.util.JiveGlobals;
-import org.jivesoftware.util.Log;
 import org.jivesoftware.util.ParamUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-import com.lowagie.text.Chunk;
-import com.lowagie.text.Document;
-import com.lowagie.text.DocumentException;
-import com.lowagie.text.FontFactory;
-import com.lowagie.text.Image;
-import com.lowagie.text.PageSize;
-import com.lowagie.text.Paragraph;
-import com.lowagie.text.pdf.DefaultFontMapper;
-import com.lowagie.text.pdf.PdfContentByte;
-import com.lowagie.text.pdf.PdfPageEventHelper;
-import com.lowagie.text.pdf.PdfTemplate;
-import com.lowagie.text.pdf.PdfWriter;
-
-/**
- */
 public class GraphServlet extends HttpServlet {
+
+    private static final Logger Log = LoggerFactory.getLogger(GraphServlet.class);
     private GraphEngine graphEngine;
     private StatsViewer statsViewer;
 
@@ -127,46 +135,46 @@ public class GraphServlet extends HttpServlet {
 
             writeImageContent(response, chart, "image/png");
         }
-
-
     }
 
     private void writePDFContent(HttpServletRequest request, HttpServletResponse response, JFreeChart[] charts, Statistic[] stats, long starttime, long endtime, int width, int height)
             throws IOException
     {
-
-        try {
-            Document document = new Document(PageSize.A4, 50, 50, 50, 50);
-            ByteArrayOutputStream baos = new ByteArrayOutputStream();
-            PdfWriter writer = PdfWriter.getInstance(document, baos);
-            writer.setPageEvent(new PDFEventListener(request));
-            document.open();
-
-
+        try (final ByteArrayOutputStream baos = new ByteArrayOutputStream();
+             final PdfWriter writer = new PdfWriter(baos);
+             final PdfDocument pdfDocument = new PdfDocument(writer)
+        )
+        {
+            pdfDocument.setDefaultPageSize( PageSize.A4 );
+            final Document document = new Document(pdfDocument);
+            pdfDocument.addEventHandler(PdfDocumentEvent.END_PAGE, new ConversationUtils.PDFEventListener(document));
 
             int index = 0;
             int chapIndex = 0;
-            for (Statistic stat : stats) {
+            for (int i = 0; i < stats.length; i++)
+            {
+                final Statistic stat = stats[i];
 
-                String serverName = XMPPServer.getInstance().getServerInfo().getXMPPDomain();
-                String dateName = JiveGlobals.formatDate(new Date(starttime)) + " - " +
-                        JiveGlobals.formatDate(new Date(endtime));
-                Paragraph paragraph  = new Paragraph(serverName,
-                    FontFactory.getFont(FontFactory.HELVETICA,
-                    18, Font.BOLD));
-                document.add(paragraph);
-                paragraph = new Paragraph(dateName,
-                    FontFactory.getFont(FontFactory.HELVETICA,
-                    14, Font.PLAIN));
-                document.add(paragraph);
-                document.add(Chunk.NEWLINE);
-                document.add(Chunk.NEWLINE);
+                final String serverName = XMPPServer.getInstance().getServerInfo().getXMPPDomain();
+                final String dateName = JiveGlobals.formatDate(new Date(starttime)) + " - " + JiveGlobals.formatDate(new Date(endtime));
 
-                Paragraph chapterTitle = new Paragraph(++chapIndex + ". " + stat.getName(),
-                    FontFactory.getFont(FontFactory.HELVETICA, 16,
-                    Font.BOLD));
+                document.add( new Paragraph(serverName)
+                    .setFont(PdfFontFactory.createFont(StandardFonts.HELVETICA_BOLD))
+                    .setFontSize( 18 )
+                );
 
-                document.add(chapterTitle);
+                document.add( new Paragraph(dateName)
+                    .setFontSize( 14 )
+                );
+
+                document.add( new Paragraph().add(new Text("\n")) );
+                document.add( new Paragraph().add(new Text("\n")) );
+
+                document.add( new Paragraph(++chapIndex + ". " + stat.getName())
+                    .setFont(PdfFontFactory.createFont(StandardFonts.HELVETICA_BOLD))
+                    .setFontSize( 16 )
+                );
+
                 // total hack: no idea what tags people are going to use in the description
                 // possibly recommend that we only use a <p> tag?
                 String[] paragraphs = stat.getDescription().split("<p>");
@@ -174,17 +182,20 @@ public class GraphServlet extends HttpServlet {
                     Paragraph p = new Paragraph(s);
                     document.add(p);
                 }
-                document.add(Chunk.NEWLINE);
+                document.add( new Paragraph().add(new Text("\n")) );
 
-                PdfContentByte contentByte = writer.getDirectContent();
-                PdfTemplate template = contentByte.createTemplate(width, height);
-                Graphics2D graphs2D = template.createGraphics(width, height, new DefaultFontMapper());
-                Rectangle2D rectangle2D = new Rectangle2D.Double(0, 0, width, height);
-                charts[index++].draw(graphs2D, rectangle2D);
-                graphs2D.dispose();
-                float x = (document.getPageSize().width() / 2) - (width / 2);
-                contentByte.addTemplate(template, x, writer.getVerticalPosition(true) - height);
-                document.newPage();
+                // Use OrsonPDF to generate PDF data from JFreeChart, then import it into iText. See https://jfree.github.io/orsonpdf/
+                final PdfReader reader = new PdfReader(new ByteArrayInputStream(generateChartPDF(charts[index++], width, height)));
+                final PdfDocument chartDoc = new PdfDocument(reader);
+                final PdfFormXObject chart = chartDoc.getFirstPage().copyAsFormXObject(pdfDocument);
+                final Image chartImage = new Image(chart);
+                chartImage.setHorizontalAlignment(HorizontalAlignment.CENTER);
+                document.add(chartImage);
+
+                // Ensure each graph is on a new page.
+                if ( i < stats.length - 1 ) {
+                    document.add(new AreaBreak(AreaBreakType.NEXT_PAGE));
+                }
             }
 
             document.close();
@@ -201,10 +212,27 @@ public class GraphServlet extends HttpServlet {
             ServletOutputStream out = response.getOutputStream();
             baos.writeTo(out);
             out.flush();
-        } catch (DocumentException e) {
-            Log.error("error creating PDF document: " + e.getMessage());
-
+        } catch (Exception e) {
+            Log.error("error creating PDF document", e);
         }
+    }
+
+    /**
+     * Transform the JFreeChart data into a byte array of PDF image data.
+     *
+     * @param chart The chart to transform.
+     * @param width width of the PDF image object.
+     * @param height height of the PDF image object.
+     * @return PDF image data.
+     */
+    private static byte[] generateChartPDF(final JFreeChart chart, final int width, final int height) {
+        // here we use OrsonPDF to generate PDF in a byte array
+        PDFDocument doc = new PDFDocument();
+        Rectangle bounds = new Rectangle(width,height);
+        Page page = doc.createPage(bounds);
+        PDFGraphics2D g2 = page.getGraphics2D();
+        chart.draw(g2, bounds);
+        return doc.getPDFBytes();
     }
 
     private static void writeImageContent(HttpServletResponse response, byte[] imageData, String contentType)
@@ -216,34 +244,4 @@ public class GraphServlet extends HttpServlet {
         os.flush();
         os.close();
     }
-
-    class PDFEventListener extends PdfPageEventHelper {
-        private HttpServletRequest request;
-        public PDFEventListener(HttpServletRequest request) {
-            this.request = request;
-        }
-        @Override
-        public void onEndPage(PdfWriter writer, Document document) {
-            PdfContentByte cb = writer.getDirectContent();
-
-            try {
-                cb.setColorStroke(new Color(156,156,156));
-                cb.setLineWidth(2);
-                cb.moveTo(document.leftMargin(), document.bottomMargin() + 32);
-                cb.lineTo(document.getPageSize().width() - document.rightMargin(), document.bottomMargin() + 32);
-                cb.stroke();
-
-                Image gif = Image.getInstance("http://" + request.getServerName() +
-                    ":" + request.getServerPort() + "/plugins/"+MonitoringConstants.NAME+"/images/pdf_generatedbyof.gif");
-                cb.addImage(gif, 221, 0, 0, 28, (int)document.leftMargin(), (int)document.bottomMargin());
-
-            } catch (Exception e) {
-                Log.error("error drawing PDF footer: " + e.getMessage());
-            }
-            cb.saveState();
-            
-        }
-    }
-
-
 }
