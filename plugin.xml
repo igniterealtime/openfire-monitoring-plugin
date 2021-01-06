@@ -4,7 +4,7 @@
     <class>org.jivesoftware.openfire.plugin.MonitoringPlugin</class>
     <name>Monitoring Service</name>
     <description>Monitors conversations and statistics of the server.</description>
-    <author>IgniteRealtime // Jive Software</author>
+    <author>Ignite Realtime</author>
     <version>${project.version}</version>
     <date>09/10/2020</date>
     <minServerVersion>4.4.0</minServerVersion>
