@@ -234,7 +234,7 @@ public class MucMamPersistenceManager implements PersistenceManager {
                 pstmt.setLong( 1, messageId );
                 pstmt.setLong( 2, room.getID());
             } else {
-                pstmt = connection.prepareStatement("SELECT fromJid, toJidResource, sentdate, fromJidResource, body, stanza, messageId FROM ofMessageArchive WHERE messageID = ? and toJid LIKE ?");
+                pstmt = connection.prepareStatement("SELECT fromJid, toJidResource, sentdate, fromJidResource, body, stanza, messageId FROM ofMessageArchive WHERE messageID = ? and toJid=?");
                 pstmt.setLong( 1, messageId );
                 pstmt.setString( 2, room.getJID().toBareJID());
             }
@@ -329,7 +329,7 @@ public class MucMamPersistenceManager implements PersistenceManager {
                 pstmt = connection.prepareStatement( "SELECT messageId, stanza FROM ofMucConversationLog WHERE messageId IS NOT NULL AND roomID=? AND stanza LIKE ? AND stanza LIKE ?" );
                 pstmt.setLong( 1, room.getID() );
             } else {
-                pstmt = connection.prepareStatement("SELECT messageId, stanza FROM ofMessageArchive WHERE messageID IS NOT NULL AND toJid LIKE ? AND stanza LIKE ? AND stanza LIKE ?");
+                pstmt = connection.prepareStatement("SELECT messageId, stanza FROM ofMessageArchive WHERE messageID IS NOT NULL AND toJid=? AND stanza LIKE ? AND stanza LIKE ?");
                 pstmt.setString( 1, room.getJID().toBareJID());
             }
 
@@ -387,7 +387,7 @@ public class MucMamPersistenceManager implements PersistenceManager {
                 pstmt = connection.prepareStatement("SELECT MIN(logTime) FROM ofMucConversationLog WHERE roomid = ?");
                 pstmt.setLong(1, room.getID());
             } else {
-                pstmt = connection.prepareStatement("SELECT MIN(sentDate) FROM ofMessageArchive WHERE toJid LIKE ?");
+                pstmt = connection.prepareStatement("SELECT MIN(sentDate) FROM ofMessageArchive WHERE toJid=?");
                 pstmt.setString(1, room.getJID().toBareJID());
             }
             rs = pstmt.executeQuery();
@@ -414,7 +414,7 @@ public class MucMamPersistenceManager implements PersistenceManager {
                 pstmt = connection.prepareStatement("SELECT MAX(logTime) FROM ofMucConversationLog WHERE roomid = ?");
                 pstmt.setLong(1, room.getID());
             } else {
-                pstmt = connection.prepareStatement("SELECT MAX(sentDate) FROM ofMessageArchive WHERE toJid LIKE ?");
+                pstmt = connection.prepareStatement("SELECT MAX(sentDate) FROM ofMessageArchive WHERE toJid=?");
                 pstmt.setString(1, room.getJID().toBareJID());
             }
             rs = pstmt.executeQuery();
