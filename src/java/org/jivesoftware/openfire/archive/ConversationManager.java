@@ -46,6 +46,7 @@ import org.xmpp.packet.IQ;
 import org.xmpp.packet.JID;
 import org.xmpp.packet.Message;
 
+import java.lang.reflect.Field;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -126,6 +127,7 @@ public class ConversationManager implements Startable, ComponentEventListener{
     private List<String> gateways;
     private XMPPServerInfo serverInfo;
 
+    private ArchiveManager archiveManager;
     private Archiver<Conversation> conversationArchiver;
     private Archiver<ArchivedMessage> messageArchiver;
     private Archiver<RoomParticipant> participantArchiver;
@@ -166,9 +168,33 @@ public class ConversationManager implements Startable, ComponentEventListener{
         conversationArchiver = new ConversationArchivingRunnable( "MonitoringPlugin Conversations" );
         messageArchiver = new MessageArchivingRunnable( "MonitoringPlugin Messages" );
         participantArchiver = new ParticipantArchivingRunnable( "MonitoringPlugin Participants" );
-        XMPPServer.getInstance().getArchiveManager().add( conversationArchiver );
-        XMPPServer.getInstance().getArchiveManager().add( messageArchiver );
-        XMPPServer.getInstance().getArchiveManager().add( participantArchiver );
+
+        // Issue #155: Don't use Openfire's ArchiveManager (XMPPServer.getInstance().getArchiveManager()) as this retains
+        // a reference to the Runnables even after they're shut down (most likely because of Thread instances that are not
+        // shut down immediately). This prevents the plugin classloader to be garbage collected, which in turn causes
+        // class cast exceptions, when the new plugin classloader of the reloaded plugin references the same classes.
+        // This is prevented by running an ArchiveManager specifically for this plugin (which gets set up and teared down
+        // with this plugin).
+        archiveManager = new ArchiveManager();
+        archiveManager.initialize(XMPPServer.getInstance());
+
+        try {
+            // ArchiveManager's implementation uses a default thread name prefix. If we re-use the instance, it will
+            // likely generate names for threads that are already used. This can't be good. To prevent that, reflection-based
+            // hackery is employed to replace the default executorservice with one that uses different thread name prefixes.
+            // TODO remove this after this plugin requires a version of Openfire (or later) that contains a fix for OF-2193.
+            final Field executorField = archiveManager.getClass().getDeclaredField("executor");
+            executorField.setAccessible(true);
+            ((ExecutorService) executorField.get(archiveManager)).shutdown();
+            executorField.set(archiveManager, Executors.newCachedThreadPool(new NamedThreadFactory("archive-monitoring-service-worker-", null, null, null)));
+            executorField.setAccessible(false);
+        } catch (Exception e) {
+            throw new IllegalStateException("An exception occurred while configuring the ArchiveManager.", e);
+        }
+
+        archiveManager.add( conversationArchiver );
+        archiveManager.add( messageArchiver );
+        archiveManager.add( participantArchiver );
 
         if (JiveGlobals.getProperty("conversation.maxTimeDebug") != null) {
             Log.info("Monitoring plugin max time value deleted. Must be left over from stalled userCreation plugin run.");
@@ -288,9 +314,9 @@ public class ConversationManager implements Startable, ComponentEventListener{
         serverInfo = null;
         InternalComponentManager.getInstance().removeListener(this);
 
-        XMPPServer.getInstance().getArchiveManager().remove( conversationArchiver );
-        XMPPServer.getInstance().getArchiveManager().remove( messageArchiver );
-        XMPPServer.getInstance().getArchiveManager().remove( participantArchiver );
+        archiveManager.remove( conversationArchiver );
+        archiveManager.remove( messageArchiver );
+        archiveManager.remove( participantArchiver );
     }
 
     /**
