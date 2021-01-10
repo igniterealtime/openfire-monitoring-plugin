@@ -5,8 +5,8 @@ import org.jivesoftware.database.DbConnectionManager;
 import org.jivesoftware.openfire.XMPPServer;
 import org.jivesoftware.openfire.muc.MUCRoom;
 import org.jivesoftware.openfire.muc.MultiUserChatService;
-import org.jivesoftware.util.JiveGlobals;
 import org.jivesoftware.util.StringUtils;
+import org.jivesoftware.util.SystemProperty;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.xmpp.packet.JID;
@@ -37,15 +37,13 @@ import java.util.stream.Collectors;
 @Produces( MediaType.APPLICATION_JSON)
 public class LogAPI
 {
-// TODO replace this when SystemProperty instances work nice together with Plugins (probably in Openfire 4.5.1).
-//    public static final SystemProperty<Boolean> PROP_ENABLED = SystemProperty.Builder.ofType( Boolean.class )
-//        .setKey("archive.settings.logapi.enabled" )
-//        .setDefaultValue( true )
-//        .setDynamic( true )
-//        .setPlugin( "monitoring" )
-//        .build();
 
-    public static final String PROP_ENABLED = "archive.settings.logapi.enabled";
+   public static final SystemProperty<Boolean> PROP_ENABLED = SystemProperty.Builder.ofType( Boolean.class )
+       .setKey("archive.settings.logapi.enabled" )
+       .setDefaultValue( true )
+       .setDynamic( true )
+       .setPlugin( "monitoring" )
+       .build();
 
     private static final Logger Log = LoggerFactory.getLogger(LogAPI.class);
 
@@ -56,7 +54,7 @@ public class LogAPI
     @Path("/")
     public Response getLoggedServiceNames()
     {
-        if (!JiveGlobals.getBooleanProperty(PROP_ENABLED, false) ) {
+        if (!PROP_ENABLED.getValue()) {
             Log.debug( "Denying access to service that's configured by configuration.");
             return Response.status(Response.Status.FORBIDDEN).build();
         }
@@ -78,7 +76,7 @@ public class LogAPI
     @Path("/{serviceName}")
     public Response getLoggedServiceNames( @PathParam("serviceName") String serviceName )
     {
-        if (!JiveGlobals.getBooleanProperty(PROP_ENABLED, false) ) {
+        if (!PROP_ENABLED.getValue()) {
             Log.debug( "Denying access to service that's configured by configuration.");
             return Response.status(Response.Status.FORBIDDEN).build();
         }
@@ -105,7 +103,7 @@ public class LogAPI
     @Path("/{serviceName}/{roomName}")
     public Response getLoggedDates( @PathParam("serviceName") String serviceName, @PathParam("roomName") String roomName  )
     {
-        if (!JiveGlobals.getBooleanProperty(PROP_ENABLED, false) ) {
+        if (!PROP_ENABLED.getValue()) {
             Log.debug( "Denying access to service that's configured by configuration.");
             return Response.status(Response.Status.FORBIDDEN).build();
         }
@@ -150,7 +148,7 @@ public class LogAPI
     @Path("/{serviceName}/{roomName}/{date}")
     public Response getMessages( @PathParam("serviceName") String serviceName, @PathParam("roomName") String roomName, @PathParam("date") String date )
     {
-        if (!JiveGlobals.getBooleanProperty(PROP_ENABLED, false) ) {
+        if (!PROP_ENABLED.getValue()) {
             Log.debug( "Denying access to service that's configured by configuration.");
             return Response.status(Response.Status.FORBIDDEN).build();
         }

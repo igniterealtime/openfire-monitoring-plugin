@@ -21,7 +21,7 @@ import org.jivesoftware.openfire.cluster.ClusterManager;
 import org.jivesoftware.openfire.muc.MUCEventDispatcher;
 import org.jivesoftware.openfire.muc.MUCEventListener;
 import org.jivesoftware.openfire.muc.MUCRoom;
-import org.jivesoftware.util.JiveGlobals;
+import org.jivesoftware.util.SystemProperty;
 import org.xmpp.packet.JID;
 import org.xmpp.packet.Message;
 
@@ -37,6 +37,20 @@ public class GroupConversationInterceptor implements MUCEventListener {
 
 
     private ConversationManager conversationManager;
+
+    private static final SystemProperty<Boolean> PM_IN_PERSONAL_ARCHIVE = SystemProperty.Builder.ofType( Boolean.class )
+       .setKey("conversation.roomArchiving.PMinPersonalArchive" )
+       .setDefaultValue( false )
+       .setDynamic( true )
+       .setPlugin( "monitoring" )
+       .build();
+
+    private static final SystemProperty<Boolean> PM_IN_ROOM_ARCHIVE = SystemProperty.Builder.ofType( Boolean.class )
+       .setKey("conversation.roomArchiving.PMinRoomArchive" )
+       .setDefaultValue( true )
+       .setDynamic( true )
+       .setPlugin( "monitoring" )
+       .build();
 
     public GroupConversationInterceptor(ConversationManager conversationManager) {
         this.conversationManager = conversationManager;
@@ -142,12 +156,12 @@ public class GroupConversationInterceptor implements MUCEventListener {
             final String senderNickname = message.getFrom().getResource();
             final Date now = new Date();
             if (ClusterManager.isSeniorClusterMember()) {
-                if (JiveGlobals.getBooleanProperty("conversation.roomArchiving.PMinPersonalArchive", false)) {
+                if (PM_IN_PERSONAL_ARCHIVE.getValue()) {
                     // Historically, private messages are saved as regular 'one-on-one' messages.
                     conversationManager.processMessage(fromJID, toJID, message.getBody(), message.toXML(), now);
                 }
 
-                if (JiveGlobals.getBooleanProperty("conversation.roomArchiving.PMinRoomArchive", true)) {
+                if (PM_IN_ROOM_ARCHIVE.getValue()) {
                     // Since issue #133 they also get stored specifically as a PM in MUC context.
                     conversationManager.processRoomMessage(roomJID, fromJID, toJID, senderNickname, message.getBody(), message.toXML(), now);
                 }
@@ -155,7 +169,7 @@ public class GroupConversationInterceptor implements MUCEventListener {
             else {
                 ConversationEventsQueue eventsQueue = conversationManager.getConversationEventsQueue();
 
-                if (JiveGlobals.getBooleanProperty("conversation.roomArchiving.PMinPersonalArchive", false)) {
+                if (PM_IN_PERSONAL_ARCHIVE.getValue()) {
                     eventsQueue.addChatEvent(
                         conversationManager.getConversationKey(fromJID, toJID),
                         ConversationEvent.chatMessageReceived(toJID, fromJID,
@@ -164,7 +178,7 @@ public class GroupConversationInterceptor implements MUCEventListener {
                             now));
                 }
 
-                if (JiveGlobals.getBooleanProperty("conversation.roomArchiving.PMinRoomArchive", true)) {
+                if (PM_IN_ROOM_ARCHIVE.getValue()) {
                     eventsQueue.addGroupChatEvent(
                         conversationManager.getRoomConversationKey(roomJID),
                         ConversationEvent.roomMessageReceived(roomJID, fromJID, toJID, senderNickname, conversationManager.isMessageArchivingEnabled() ? message.getBody() : null, message.toXML(), now));

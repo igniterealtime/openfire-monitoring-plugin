@@ -11,7 +11,7 @@ import org.apache.lucene.search.*;
 import org.jivesoftware.openfire.XMPPServer;
 import org.jivesoftware.openfire.archive.MonitoringConstants;
 import org.jivesoftware.openfire.plugin.MonitoringPlugin;
-import org.jivesoftware.util.JiveGlobals;
+import org.jivesoftware.util.SystemProperty;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.xmpp.packet.JID;
@@ -25,6 +25,13 @@ import java.util.List;
 public class PaginatedMessageLuceneQuery
 {
     private static final Logger Log = LoggerFactory.getLogger( PaginatedMessageLuceneQuery.class );
+
+    private static SystemProperty<Boolean> IGNORE_RETRIEVAL_EXCEPTIONS = SystemProperty.Builder.ofType(Boolean.class)
+        .setKey("archive.ignore-retrieval-exceptions")
+        .setDefaultValue(false)
+        .setDynamic(true)
+        .setPlugin("monitoring")
+        .build();
 
     private final Date startDate;
     private final Date endDate;
@@ -76,7 +83,7 @@ public class PaginatedMessageLuceneQuery
         }
         catch ( Exception e ) {
             Log.warn( "An exception occurred while trying to query the Lucene index to get messages from archive of owner {}.", owner, e );
-            if (!JiveGlobals.getBooleanProperty("archive.ignore-retrieval-exceptions", false)) {
+            if (!IGNORE_RETRIEVAL_EXCEPTIONS.getValue()) {
                 throw new DataRetrievalException(e);
             }
         }

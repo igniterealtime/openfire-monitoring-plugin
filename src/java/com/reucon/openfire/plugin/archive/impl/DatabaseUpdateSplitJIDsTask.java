@@ -2,7 +2,7 @@ package com.reucon.openfire.plugin.archive.impl;
 
 import org.jivesoftware.database.DbConnectionManager;
 import org.jivesoftware.openfire.cluster.ClusterManager;
-import org.jivesoftware.util.JiveGlobals;
+import org.jivesoftware.util.SystemProperty;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.xmpp.packet.JID;
@@ -39,11 +39,17 @@ import java.util.Set;
 public class DatabaseUpdateSplitJIDsTask implements Runnable
 {
     private static Logger Log = LoggerFactory.getLogger(DatabaseUpdateSplitJIDsTask.class );
+    private static SystemProperty<Boolean> JID_COLUMNS_HAVE_BEEN_MIGRATED = SystemProperty.Builder.ofType(Boolean.class)
+        .setKey("conversation.database.jid-columns-have-been-migrated")
+        .setDefaultValue(false)
+        .setDynamic(true)
+        .setPlugin("monitoring")
+        .build();
 
     @Override
     public void run()
     {
-        if ( JiveGlobals.getBooleanProperty("conversation.database.jid-columns-have-been-migrated", false ) )
+        if ( JID_COLUMNS_HAVE_BEEN_MIGRATED.getValue() )
         {
             Log.debug( "No need to run database table migration to split full JID values into bare JID and resource-part components: configuration indicates that migration already occurred." );
             return;
@@ -117,7 +123,7 @@ public class DatabaseUpdateSplitJIDsTask implements Runnable
             }
 
             Log.info( "Successfully finished running a database table migration to split full JID values into bare JID and resource-part components." );
-            JiveGlobals.setProperty( "conversation.database.jid-columns-have-been-migrated", Boolean.toString(true) );
+            JID_COLUMNS_HAVE_BEEN_MIGRATED.setValue(true);
         }
         catch ( Exception e )
         {

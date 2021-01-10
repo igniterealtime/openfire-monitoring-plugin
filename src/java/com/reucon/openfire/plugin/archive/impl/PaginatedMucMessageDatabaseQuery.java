@@ -17,7 +17,7 @@ package com.reucon.openfire.plugin.archive.impl;
 import com.reucon.openfire.plugin.archive.model.ArchivedMessage;
 import org.dom4j.DocumentException;
 import org.jivesoftware.database.DbConnectionManager;
-import org.jivesoftware.util.JiveGlobals;
+import org.jivesoftware.util.SystemProperty;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.xmpp.packet.JID;
@@ -42,6 +42,13 @@ import java.util.List;
 public class PaginatedMucMessageDatabaseQuery
 {
     private static final Logger Log = LoggerFactory.getLogger(PaginatedMucMessageDatabaseQuery.class );
+
+    private static SystemProperty<Boolean> IGNORE_RETRIEVAL_EXCEPTIONS = SystemProperty.Builder.ofType(Boolean.class)
+        .setKey("archive.ignore-retrieval-exceptions")
+        .setDefaultValue(false)
+        .setDynamic(true)
+        .setPlugin("monitoring")
+        .build();
 
     @Nonnull
     private final Date startDate;
@@ -180,7 +187,7 @@ public class PaginatedMucMessageDatabaseQuery
             }
         } catch (SQLException e) {
             Log.error("SQL failure during MUC MAM for room {}, message owner: {}", this.archiveOwner, this.messageOwner, e);
-            if (!JiveGlobals.getBooleanProperty("archive.ignore-retrieval-exceptions", false)) {
+            if (!IGNORE_RETRIEVAL_EXCEPTIONS.getValue()) {
                 throw new DataRetrievalException(e);
             }
         } catch (DocumentException e) {

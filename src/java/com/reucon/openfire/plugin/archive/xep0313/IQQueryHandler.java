@@ -1,6 +1,5 @@
 package com.reucon.openfire.plugin.archive.xep0313;
 
-import com.reucon.openfire.plugin.archive.ArchiveProperties;
 import com.reucon.openfire.plugin.archive.impl.DataRetrievalException;
 import com.reucon.openfire.plugin.archive.model.ArchivedMessage;
 import com.reucon.openfire.plugin.archive.xep.AbstractIQHandler;
@@ -44,14 +43,26 @@ abstract class IQQueryHandler extends AbstractIQHandler implements
 
     private static final Logger Log = LoggerFactory.getLogger(IQQueryHandler.class);
 
-    // TODO replace this when SystemProperty instances work nice together with Plugins (probably in Openfire 4.5.1).
-//    public static final SystemProperty<Boolean> PROP_ALLOW_UNRECOGNIZED_SEARCH_FIELDS = SystemProperty.Builder.ofType( Boolean.class )
-//        .setKey( "monitoring.search.allow-unrecognized-fields" )
-//        .setDynamic(true)
-//        .setDefaultValue(false)
-//        .setPlugin("monitoring")
-//        .build();
-    public static final String PROP_ALLOW_UNRECOGNIZED_SEARCH_FIELDS = "monitoring.search.allow-unrecognized-fields";
+    private static SystemProperty<Boolean> IGNORE_RETRIEVAL_EXCEPTIONS = SystemProperty.Builder.ofType(Boolean.class)
+        .setKey("archive.ignore-retrieval-exceptions")
+        .setDefaultValue(false)
+        .setDynamic(true)
+        .setPlugin("monitoring")
+        .build();
+
+    public static final SystemProperty<Boolean> PROP_ALLOW_UNRECOGNIZED_SEARCH_FIELDS = SystemProperty.Builder.ofType( Boolean.class )
+        .setKey( "monitoring.search.allow-unrecognized-fields" )
+        .setDynamic(true)
+        .setDefaultValue(false)
+        .setPlugin("monitoring")
+        .build();
+
+    public static final SystemProperty<Boolean> FORCE_RSM = SystemProperty.Builder.ofType( Boolean.class )
+        .setKey( "archive.FORCE_RSM" )
+        .setDynamic(true)
+        .setDefaultValue(true)
+        .setPlugin("monitoring")
+        .build();
 
     protected final String NAMESPACE;
     protected ExecutorService executorService;
@@ -149,7 +160,7 @@ abstract class IQQueryHandler extends AbstractIQHandler implements
 
             Log.debug( "Found {} unsupported field names{}", unsupported.size(), unsupported.isEmpty() ? "." : ": " + String.join(", ", unsupported));
 
-            if ( !JiveGlobals.getBooleanProperty(PROP_ALLOW_UNRECOGNIZED_SEARCH_FIELDS, false) && !unsupported.isEmpty() ) {
+            if ( !PROP_ALLOW_UNRECOGNIZED_SEARCH_FIELDS.getValue() && !unsupported.isEmpty() ) {
                 return buildErrorResponse(packet, PacketError.Condition.bad_request, "Unsupported field(s): " + String.join(", ", unsupported));
             }
         }
@@ -225,7 +236,7 @@ abstract class IQQueryHandler extends AbstractIQHandler implements
         sendMidQuery(packet);
 
         // Modify original request to force result set management to be applied.
-        if ( JiveGlobals.getBooleanProperty( ArchiveProperties.FORCE_RSM, true ) ) {
+        if ( FORCE_RSM.getValue() ) {
             final QName seQName = QName.get("set", XmppResultSet.NAMESPACE);
             if ( packet.getChildElement().element(seQName ) == null ) {
                 packet.getChildElement().addElement( seQName );
@@ -465,7 +476,7 @@ abstract class IQQueryHandler extends AbstractIQHandler implements
         {
             // This controls if a message during message retrieval is ignored (leading to empty results) or triggers an XMPP error stanza response.
             Log.error("An exception has occurred while retrieving messages: ", e);
-                if (JiveGlobals.getBooleanProperty("archive.ignore-retrieval-exceptions", false) ) {
+                if (IGNORE_RETRIEVAL_EXCEPTIONS.getValue()) {
                 return new LinkedList<>();
             } else {
                 throw new DataRetrievalException(e);

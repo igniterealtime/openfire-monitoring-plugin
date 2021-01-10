@@ -148,6 +148,69 @@ public class ConversationManager implements ComponentEventListener{
     private Archiver<ArchivedMessage> messageArchiver;
     private Archiver<RoomParticipant> participantArchiver;
 
+    public static SystemProperty<Boolean> METADATA_ARCHIVING_ENABLED = SystemProperty.Builder.ofType(Boolean.class)
+        .setKey("conversation.metadataArchiving")
+        .setDefaultValue(true)
+        .setDynamic(true)
+        .setPlugin("monitoring")
+        .build();
+
+    public static SystemProperty<Boolean> MESSAGE_ARCHIVING_ENABLED = SystemProperty.Builder.ofType(Boolean.class)
+        .setKey("conversation.messageArchiving")
+        .setDefaultValue(false)
+        .setDynamic(true)
+        .setPlugin("monitoring")
+        .build();
+
+    public static SystemProperty<Boolean> ROOM_ARCHIVING_ENABLED = SystemProperty.Builder.ofType(Boolean.class)
+        .setKey("conversation.roomArchiving")
+        .setDefaultValue(false)
+        .setDynamic(true)
+        .setPlugin("monitoring")
+        .build();
+
+    public static SystemProperty<Boolean> ROOM_STANZA_ARCHIVING_ENABLED = SystemProperty.Builder.ofType(Boolean.class)
+        .setKey("conversation.roomArchivingStanzas")
+        .setDefaultValue(false)
+        .setDynamic(true)
+        .setPlugin("monitoring")
+        .build();
+
+    public static SystemProperty<String> ROOMS_ARCHIVED = SystemProperty.Builder.ofType(String.class)
+        .setKey("conversation.roomsArchived")
+        .setDefaultValue("")
+        .setDynamic(true)
+        .setPlugin("monitoring")
+        .build();
+
+    public static SystemProperty<Integer> IDLE_TIME = SystemProperty.Builder.ofType(Integer.class)
+        .setKey("conversation.idleTime")
+        .setDefaultValue(DEFAULT_IDLE_TIME)
+        .setDynamic(true)
+        .setPlugin("monitoring")
+        .build();
+
+    public static SystemProperty<Integer> MAX_TIME = SystemProperty.Builder.ofType(Integer.class)
+        .setKey("conversation.maxTime")
+        .setDefaultValue(DEFAULT_MAX_TIME)
+        .setDynamic(true)
+        .setPlugin("monitoring")
+        .build();
+    
+    public static SystemProperty<Integer> MAX_AGE = SystemProperty.Builder.ofType(Integer.class)
+        .setKey("conversation.maxAge")
+        .setDefaultValue(DEFAULT_MAX_AGE)
+        .setDynamic(true)
+        .setPlugin("monitoring")
+        .build();
+
+    public static SystemProperty<Integer> MAX_RETRIEVABLE = SystemProperty.Builder.ofType(Integer.class)
+        .setKey("conversation.maxRetrievable")
+        .setDefaultValue(DEFAULT_MAX_RETRIEVABLE)
+        .setDynamic(true)
+        .setPlugin("monitoring")
+        .build();
+
     public ConversationManager(TaskEngine taskEngine) {
         this.taskEngine = taskEngine;
         this.gateways = new CopyOnWriteArrayList<>();
@@ -156,24 +219,24 @@ public class ConversationManager implements ComponentEventListener{
     }
 
     public void start() {
-        metadataArchivingEnabled = JiveGlobals.getBooleanProperty("conversation.metadataArchiving", true);
-        messageArchivingEnabled = JiveGlobals.getBooleanProperty("conversation.messageArchiving", false);
+        metadataArchivingEnabled = METADATA_ARCHIVING_ENABLED.getValue();
+        messageArchivingEnabled = MESSAGE_ARCHIVING_ENABLED.getValue();
         if (messageArchivingEnabled && !metadataArchivingEnabled) {
             Log.warn("Metadata archiving must be enabled when message archiving is enabled. Overriding setting.");
             metadataArchivingEnabled = true;
         }
-        roomArchivingEnabled = JiveGlobals.getBooleanProperty("conversation.roomArchiving", false);
-        roomArchivingStanzasEnabled = JiveGlobals.getBooleanProperty("conversation.roomArchivingStanzas", false);
-        roomsArchived = StringUtils.stringToCollection(JiveGlobals.getProperty("conversation.roomsArchived", ""));
+        roomArchivingEnabled = ROOM_ARCHIVING_ENABLED.getValue();
+        roomArchivingStanzasEnabled = ROOM_STANZA_ARCHIVING_ENABLED.getValue();
+        roomsArchived = StringUtils.stringToCollection(ROOMS_ARCHIVED.getValue());
         if (roomArchivingEnabled && !metadataArchivingEnabled) {
             Log.warn("Metadata archiving must be enabled when room archiving is enabled. Overriding setting.");
             metadataArchivingEnabled = true;
         }
-        idleTime = JiveGlobals.getIntProperty("conversation.idleTime", DEFAULT_IDLE_TIME) * JiveConstants.MINUTE;
-        maxTime = JiveGlobals.getIntProperty("conversation.maxTime", DEFAULT_MAX_TIME) * JiveConstants.MINUTE;
+        idleTime = IDLE_TIME.getValue() * JiveConstants.MINUTE;
+        maxTime = MAX_TIME.getValue() * JiveConstants.MINUTE;
 
-        maxAge = JiveGlobals.getIntProperty("conversation.maxAge", DEFAULT_MAX_AGE) * JiveConstants.DAY;
-        maxRetrievable = JiveGlobals.getIntProperty("conversation.maxRetrievable", DEFAULT_MAX_RETRIEVABLE) * JiveConstants.DAY;
+        maxAge = MAX_AGE.getValue() * JiveConstants.DAY;
+        maxRetrievable = MAX_RETRIEVABLE.getValue() * JiveConstants.DAY;
 
         // Listen for any changes to the conversation properties.
         propertyListener = new ConversationPropertyListener();
@@ -330,7 +393,7 @@ public class ConversationManager implements ComponentEventListener{
      */
     public void setMetadataArchivingEnabled(boolean enabled) {
         this.metadataArchivingEnabled = enabled;
-        JiveGlobals.setProperty("conversation.metadataArchiving", Boolean.toString(enabled));
+        METADATA_ARCHIVING_ENABLED.setValue(enabled);
     }
 
     /**
@@ -362,7 +425,7 @@ public class ConversationManager implements ComponentEventListener{
      */
     public void setMessageArchivingEnabled(boolean enabled) {
         this.messageArchivingEnabled = enabled;
-        JiveGlobals.setProperty("conversation.messageArchiving", Boolean.toString(enabled));
+        MESSAGE_ARCHIVING_ENABLED.setValue(enabled);
         // Force metadata archiving enabled.
         if (enabled) {
             this.metadataArchivingEnabled = true;
@@ -395,7 +458,7 @@ public class ConversationManager implements ComponentEventListener{
      */
     public void setRoomArchivingEnabled(boolean enabled) {
         this.roomArchivingEnabled = enabled;
-        JiveGlobals.setProperty("conversation.roomArchiving", Boolean.toString(enabled));
+        ROOM_ARCHIVING_ENABLED.setValue(enabled);
         // Force metadata archiving enabled.
         if (enabled) {
             this.metadataArchivingEnabled = true;
@@ -404,7 +467,7 @@ public class ConversationManager implements ComponentEventListener{
     
     public void setRoomArchivingStanzasEnabled(boolean enabled) {
         this.roomArchivingStanzasEnabled = enabled;
-        JiveGlobals.setProperty("conversation.roomArchivingStanzas", Boolean.toString(enabled));
+        ROOM_STANZA_ARCHIVING_ENABLED.setValue(enabled);
         // Force metadata archiving enabled.
     }
     /**
@@ -426,7 +489,7 @@ public class ConversationManager implements ComponentEventListener{
      */
     public void setRoomsArchived(Collection<String> roomsArchived) {
         this.roomsArchived = roomsArchived;
-        JiveGlobals.setProperty("conversation.roomsArchived", StringUtils.collectionToString(roomsArchived));
+        ROOMS_ARCHIVED.setValue(StringUtils.collectionToString(roomsArchived));
     }
 
     /**
@@ -450,7 +513,7 @@ public class ConversationManager implements ComponentEventListener{
         if (idleTime < 1) {
             throw new IllegalArgumentException("Idle time less than 1 is not valid: " + idleTime);
         }
-        JiveGlobals.setProperty("conversation.idleTime", Integer.toString(idleTime));
+        IDLE_TIME.setValue(idleTime);
         this.idleTime = idleTime * JiveConstants.MINUTE;
     }
 
@@ -477,7 +540,7 @@ public class ConversationManager implements ComponentEventListener{
         if (maxTime < 1) {
             throw new IllegalArgumentException("Max time less than 1 is not valid: " + maxTime);
         }
-        JiveGlobals.setProperty("conversation.maxTime", Integer.toString(maxTime));
+        MAX_TIME.setValue(maxTime);
         this.maxTime = maxTime * JiveConstants.MINUTE;
     }
 
@@ -489,7 +552,7 @@ public class ConversationManager implements ComponentEventListener{
         if (maxAge < 0) {
             throw new IllegalArgumentException("Max age less than 0 is not valid: " + maxAge);
         }
-        JiveGlobals.setProperty("conversation.maxAge", Integer.toString(maxAge));
+        MAX_AGE.setValue(maxAge);
         this.maxAge = maxAge * JiveConstants.DAY;
     }
 
@@ -501,7 +564,7 @@ public class ConversationManager implements ComponentEventListener{
         if (maxRetrievable < 0) {
             throw new IllegalArgumentException("Max retrievable less than 0 is not valid: " + maxRetrievable);
         }
-        JiveGlobals.setProperty("conversation.maxRetrievable", Integer.toString(maxRetrievable));
+        MAX_RETRIEVABLE.setValue(maxRetrievable);
         this.maxRetrievable = maxRetrievable * JiveConstants.DAY;
     }
 
@@ -1133,12 +1196,33 @@ public class ConversationManager implements ComponentEventListener{
      */
     private static class ConversationArchivingRunnable extends Archiver<Conversation>
     {
+        public static SystemProperty<Integer> CONVERSATION_MAX_WORK_QUEUE_SIZE = SystemProperty.Builder.ofType(Integer.class)
+            .setKey("conversation.archiver.conversation.max-work-queue-size")
+            .setDefaultValue(500)
+            .setDynamic(true)
+            .setPlugin("monitoring")
+            .build();
+
+        public static SystemProperty<Long> CONVERSATION_MAX_PURGE_INTERVAL = SystemProperty.Builder.ofType(Long.class)
+            .setKey("conversation.archiver.conversation.max-purge-interval")
+            .setDefaultValue((long) 1000)
+            .setDynamic(true)
+            .setPlugin("monitoring")
+            .build();
+
+        public static SystemProperty<Long> CONVERSATION_GRACE_PERIOD = SystemProperty.Builder.ofType(Long.class)
+            .setKey("conversation.archiver.conversation.grace-period")
+            .setDefaultValue((long) 50)
+            .setDynamic(true)
+            .setPlugin("monitoring")
+            .build();
+
         ConversationArchivingRunnable( String id )
         {
             super( id,
-                JiveGlobals.getIntProperty("conversation.archiver.conversation.max-work-queue-size", 500),
-                Duration.ofMillis( JiveGlobals.getLongProperty("conversation.archiver.conversation.max-purge-interval", 1000)),
-                Duration.ofMillis( JiveGlobals.getLongProperty("conversation.archiver.conversation.grace-period", 50))
+                CONVERSATION_MAX_WORK_QUEUE_SIZE.getValue(),
+                Duration.ofMillis( CONVERSATION_MAX_PURGE_INTERVAL.getValue() ),
+                Duration.ofMillis( CONVERSATION_GRACE_PERIOD.getValue() )
             );
         }
 
@@ -1193,12 +1277,33 @@ public class ConversationManager implements ComponentEventListener{
      */
     private static class MessageArchivingRunnable extends Archiver<ArchivedMessage>
     {
+        public static SystemProperty<Integer> MESSAGE_MAX_WORK_QUEUE_SIZE = SystemProperty.Builder.ofType(Integer.class)
+            .setKey("conversation.archiver.message.max-work-queue-size")
+            .setDefaultValue(500)
+            .setDynamic(true)
+            .setPlugin("monitoring")
+            .build();
+
+        public static SystemProperty<Long> MESSAGE_MAX_PURGE_INTERVAL = SystemProperty.Builder.ofType(Long.class)
+            .setKey("conversation.archiver.message.max-purge-interval")
+            .setDefaultValue((long) 1000)
+            .setDynamic(true)
+            .setPlugin("monitoring")
+            .build();
+
+        public static SystemProperty<Long> MESSAGE_GRACE_PERIOD = SystemProperty.Builder.ofType(Long.class)
+            .setKey("conversation.archiver.message.grace-period")
+            .setDefaultValue((long) 50)
+            .setDynamic(true)
+            .setPlugin("monitoring")
+            .build();
+            
         MessageArchivingRunnable( String id )
         {
             super( id,
-                JiveGlobals.getIntProperty("conversation.archiver.message.max-work-queue-size", 500),
-                Duration.ofMillis( JiveGlobals.getLongProperty("conversation.archiver.message.max-purge-interval", 1000)),
-                Duration.ofMillis( JiveGlobals.getLongProperty("conversation.archiver.message.grace-period", 50))
+                MESSAGE_MAX_WORK_QUEUE_SIZE.getValue(),
+                Duration.ofMillis( MESSAGE_MAX_PURGE_INTERVAL.getValue() ),
+                Duration.ofMillis( MESSAGE_GRACE_PERIOD.getValue() )
             );
         }
 
@@ -1262,12 +1367,33 @@ public class ConversationManager implements ComponentEventListener{
      */
     private static class ParticipantArchivingRunnable extends Archiver<RoomParticipant>
     {
+        public static SystemProperty<Integer> PARTICIPANT_MAX_WORK_QUEUE_SIZE = SystemProperty.Builder.ofType(Integer.class)
+            .setKey("conversation.archiver.participant.max-work-queue-size")
+            .setDefaultValue(500)
+            .setDynamic(true)
+            .setPlugin("monitoring")
+            .build();
+
+        public static SystemProperty<Long> PARTICIPANT_MAX_PURGE_INTERVAL = SystemProperty.Builder.ofType(Long.class)
+            .setKey("conversation.archiver.participant.max-purge-interval")
+            .setDefaultValue((long) 1000)
+            .setDynamic(true)
+            .setPlugin("monitoring")
+            .build();
+
+        public static SystemProperty<Long> PARTICIPANT_GRACE_PERIOD = SystemProperty.Builder.ofType(Long.class)
+            .setKey("conversation.archiver.participant.grace-period")
+            .setDefaultValue((long) 50)
+            .setDynamic(true)
+            .setPlugin("monitoring")
+            .build();
+            
         ParticipantArchivingRunnable( String id )
         {
             super( id,
-                JiveGlobals.getIntProperty("conversation.archiver.participant.max-work-queue-size", 500),
-                Duration.ofMillis( JiveGlobals.getLongProperty("conversation.archiver.participant.max-purge-interval", 1000)),
-                Duration.ofMillis( JiveGlobals.getLongProperty("conversation.archiver.participant.grace-period", 50))
+                PARTICIPANT_MAX_WORK_QUEUE_SIZE.getValue(),
+                Duration.ofMillis( PARTICIPANT_MAX_PURGE_INTERVAL.getValue() ),
+                Duration.ofMillis( PARTICIPANT_GRACE_PERIOD.getValue() )
             );
         }
 

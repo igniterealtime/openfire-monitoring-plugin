@@ -10,7 +10,6 @@ import org.dom4j.*;
 import org.jivesoftware.database.DbConnectionManager;
 import org.jivesoftware.openfire.archive.ConversationManager;
 import org.jivesoftware.util.JiveConstants;
-import org.jivesoftware.util.JiveGlobals;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.xmpp.packet.JID;
@@ -71,8 +70,7 @@ public class JdbcPersistenceManager implements PersistenceManager {
             + "WHERE ofConversation.conversationID = ? ORDER BY ofConversation.startDate";
 
     public Date getAuditedStartDate(Date startDate) {
-        long maxRetrievable = JiveGlobals.getIntProperty("conversation.maxRetrievable", ConversationManager.DEFAULT_MAX_RETRIEVABLE)
-                * JiveConstants.DAY;
+        long maxRetrievable = ConversationManager.MAX_RETRIEVABLE.getValue() * JiveConstants.DAY;
         Date result = startDate;
         if (maxRetrievable > 0) {
             Date now = new Date();

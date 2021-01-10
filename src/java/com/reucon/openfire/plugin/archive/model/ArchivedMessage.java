@@ -4,7 +4,7 @@ import com.reucon.openfire.plugin.archive.util.StanzaIDUtil;
 import org.dom4j.*;
 import org.jivesoftware.database.JiveID;
 import org.jivesoftware.openfire.XMPPServer;
-import org.jivesoftware.util.JiveGlobals;
+import org.jivesoftware.util.SystemProperty;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.xmpp.packet.JID;
@@ -23,6 +23,13 @@ import java.util.Date;
 public class ArchivedMessage {
 
     public static final Logger Log = LoggerFactory.getLogger( ArchivedMessage.class );
+
+    private static SystemProperty<Boolean> OF1804_DISABLE = SystemProperty.Builder.ofType(Boolean.class)
+        .setKey("conversation.OF-1804.disable")
+        .setDefaultValue(false)
+        .setDynamic(true)
+        .setPlugin("monitoring")
+        .build();
 
     public enum Direction {
         /**
@@ -91,7 +98,7 @@ public class ArchivedMessage {
             this.stanza = null;
         }
 
-        if ( this.stanza != null && !JiveGlobals.getBooleanProperty( "conversation.OF-1804.disable", false ) )
+        if ( this.stanza != null && !OF1804_DISABLE.getValue() )
         {
             // Prior to OF-1804 (Openfire 4.4.0), the stanza was logged with a formatter applied.
             // This causes message formatting to be modified (notably, new lines could be altered).

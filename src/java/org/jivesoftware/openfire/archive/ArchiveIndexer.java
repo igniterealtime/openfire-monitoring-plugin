@@ -39,7 +39,7 @@ import java.util.*;
  * this class does nothing. The search index is maintained in the <tt>monitoring/search</tt>
  * directory of the Openfire home directory. It's automatically updated with the latest
  * conversation content as long as conversation archiving is enabled. The index update
- * interval is controlled by the Jive property "conversation.search.updateInterval" and
+ * interval is controlled by the System Property "conversation.search.updateInterval" and
  * the default value is 15 minutes.
  *
  * @see ArchiveSearcher

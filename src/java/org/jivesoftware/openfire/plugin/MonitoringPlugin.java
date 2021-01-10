@@ -48,8 +48,8 @@ import org.jivesoftware.openfire.reporting.stats.StatsEngine;
 import org.jivesoftware.openfire.reporting.stats.StatsViewer;
 import org.jivesoftware.openfire.reporting.util.TaskEngine;
 import org.jivesoftware.util.JiveGlobals;
+import org.jivesoftware.util.SystemProperty;
 
-import com.reucon.openfire.plugin.archive.ArchiveProperties;
 import com.reucon.openfire.plugin.archive.PersistenceManager;
 import com.reucon.openfire.plugin.archive.xep0136.Xep0136Support;
 import com.reucon.openfire.plugin.archive.xep0313.Xep0313Support;
@@ -68,6 +68,13 @@ public class MonitoringPlugin implements Plugin {
      * The context root of the URL under which the public web endpoints are exposed.
      */
     public static final String CONTEXT_ROOT = "monitoring";
+
+    private static final SystemProperty<Boolean> MOCK_VIEWER_ENABLED = SystemProperty.Builder.ofType( Boolean.class )
+       .setKey("stats.mock.viewer" )
+       .setDefaultValue( false )
+       .setDynamic( true )
+       .setPlugin( "monitoring" )
+       .build();
 
     private final String[] publicResources = new String[]
         {
@@ -110,7 +117,7 @@ public class MonitoringPlugin implements Plugin {
         // Stats and Graphing classes
         taskEngine = TaskEngine.getInstance();
         statsEngine = new StatsEngine();
-        if (JiveGlobals.getBooleanProperty("stats.mock.viewer", false)) {
+        if (MOCK_VIEWER_ENABLED.getValue()) {
             statsViewer = new MockStatsViewer(statsEngine);
         } else {
             statsViewer = new DefaultStatsViewer(statsEngine);
@@ -134,7 +141,7 @@ public class MonitoringPlugin implements Plugin {
 
     /* enabled property */
     public boolean isEnabled() {
-        return JiveGlobals.getBooleanProperty(ArchiveProperties.ENABLED,false);
+        return ConversationManager.METADATA_ARCHIVING_ENABLED.getValue();
     }
 
     public PersistenceManager getPersistenceManager(JID jid) {

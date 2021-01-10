@@ -13,7 +13,7 @@ import org.dom4j.io.XMLWriter;
 import org.jivesoftware.openfire.archive.ArchiveIndexer;
 import org.jivesoftware.openfire.reporting.util.TaskEngine;
 import org.jivesoftware.util.JiveConstants;
-import org.jivesoftware.util.JiveGlobals;
+import org.jivesoftware.util.SystemProperty;
 import org.jivesoftware.util.XMLProperties;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -45,6 +45,13 @@ public abstract class LuceneIndexer
     private boolean stopped = false;
     private boolean rebuildInProgress = false;
     private TimerTask indexUpdater;
+
+    private static final SystemProperty<Integer> UPDATE_INTERVAL = SystemProperty.Builder.ofType( Integer.class )
+       .setKey("conversation.search.updateInterval" )
+       .setDefaultValue( 5 )
+       .setDynamic( true )
+       .setPlugin( "monitoring" )
+       .build();
 
     public LuceneIndexer(TaskEngine taskEngine, File searchDir, String logName, int schemaVersion)
     {
@@ -154,7 +161,7 @@ public abstract class LuceneIndexer
                 updateIndex();
             }
         };
-        final int updateInterval = JiveGlobals.getIntProperty("conversation.search.updateInterval", 5);
+        final int updateInterval = UPDATE_INTERVAL.getValue();
         taskEngine.schedule(indexUpdater, JiveConstants.MINUTE * 1, JiveConstants.MINUTE * updateInterval);
     }
 

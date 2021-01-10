@@ -294,7 +294,7 @@
         boolean publicLogs = request.getParameter("publicLogs") != null;
 
         if (errors.isEmpty()) {
-            JiveGlobals.setProperty(LogAPI.PROP_ENABLED, Boolean.toString(publicLogs));
+            LogAPI.PROP_ENABLED.setValue(publicLogs);
 
             webManager.logEvent("Changed public logs settings (monitoring plugin)",
                                 "Expose public room logs API: " + publicLogs);
@@ -451,7 +451,7 @@
         <tr>
             <td width="90%"><label class="jive-label" for="publicLogs"><fmt:message key="archive.settings.logs.public.enable"/>:</label><br>
                 <fmt:message key="archive.settings.logs.public.enable.description"/></td>
-            <td><input type="checkbox" id="publicLogs" name="publicLogs" <%= JiveGlobals.getBooleanProperty(LogAPI.PROP_ENABLED, false) ? "checked" : "" %> /></td>
+            <td><input type="checkbox" id="publicLogs" name="publicLogs" <%= LogAPI.PROP_ENABLED.getValue() ? "checked" : "" %> /></td>
         </tr>
         </tbody>
     </table>
