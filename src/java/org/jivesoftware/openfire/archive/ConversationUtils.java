@@ -77,7 +77,7 @@ public class ConversationUtils {
             (MonitoringPlugin)XMPPServer.getInstance().getPluginManager().getPlugin(
                     MonitoringConstants.NAME);
 
-        ArchiveIndexer archiveIndexer = (ArchiveIndexer)plugin.getModule(ArchiveIndexer.class);
+        ArchiveIndexer archiveIndexer = plugin.getArchiveIndexer();
 
         Future<Integer> future = archiveIndexer.getIndexRebuildProgress();
         if (future != null) {
@@ -101,8 +101,7 @@ public class ConversationUtils {
             (MonitoringPlugin)XMPPServer.getInstance().getPluginManager().getPlugin(
                     MonitoringConstants.NAME);
 
-        ConversationManager conversationmanager =
-            (ConversationManager)plugin.getModule(ConversationManager.class);
+        ConversationManager conversationmanager = plugin.getConversationManager();
 
         try {
             Conversation conversation = conversationmanager.getConversation(conversationID);
@@ -125,8 +124,7 @@ public class ConversationUtils {
         Map<String, ConversationInfo> cons = new HashMap<String, ConversationInfo>();
         MonitoringPlugin plugin = (MonitoringPlugin)XMPPServer.getInstance().getPluginManager()
             .getPlugin(MonitoringConstants.NAME);
-        ConversationManager conversationManager =
-            (ConversationManager)plugin.getModule(ConversationManager.class);
+        ConversationManager conversationManager = plugin.getConversationManager();
         Collection<Conversation> conversations = conversationManager.getConversations();
         List<Conversation> lConversations =
             Arrays.asList(conversations.toArray(new Conversation[conversations.size()]));

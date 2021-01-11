@@ -67,7 +67,7 @@ public class SendConversationEventsTask implements ClusterTask<Void> {
             Log.error("Unable to execute cluster task! The Monitoring plugin does not appear to be loaded on this machine.");
             return;
         }
-        final ConversationManager conversationManager = (ConversationManager) ((MonitoringPlugin)plugin.get()).getModule(ConversationManager.class);
+        final ConversationManager conversationManager = ((MonitoringPlugin)plugin.get()).getConversationManager();
         for (final ConversationEvent event : events) {
             try {
                 event.run(conversationManager);

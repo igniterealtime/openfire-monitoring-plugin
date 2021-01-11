@@ -15,7 +15,6 @@ import org.jivesoftware.openfire.reporting.util.TaskEngine;
 import org.jivesoftware.util.JiveConstants;
 import org.jivesoftware.util.JiveGlobals;
 import org.jivesoftware.util.XMLProperties;
-import org.picocontainer.Startable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -31,7 +30,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-public abstract class LuceneIndexer implements Startable
+public abstract class LuceneIndexer
 {
     protected final Logger Log;
 

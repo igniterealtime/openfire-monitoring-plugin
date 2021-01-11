@@ -75,8 +75,8 @@ public class GraphServlet extends HttpServlet {
         // load dependencies
         MonitoringPlugin plugin =
                 (MonitoringPlugin) XMPPServer.getInstance().getPluginManager().getPlugin(MonitoringConstants.NAME);
-        this.graphEngine = (GraphEngine) plugin.getModule(GraphEngine.class);
-        this.statsViewer = (StatsViewer)plugin.getModule(StatsViewer.class);
+        this.graphEngine = plugin.getGraphEngine();
+        this.statsViewer = plugin.getStatsViewer();
     }
 
     @Override

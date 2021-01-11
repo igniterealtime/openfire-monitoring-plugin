@@ -62,7 +62,7 @@ public class GetConversationTask implements ClusterTask<Conversation>
             Log.error("Unable to execute cluster task! The Monitoring plugin does not appear to be loaded on this machine.");
             return;
         }
-        final ConversationManager conversationManager = (ConversationManager) ((MonitoringPlugin)plugin.get()).getModule(ConversationManager.class);
+        final ConversationManager conversationManager = ((MonitoringPlugin)plugin.get()).getConversationManager();
         try {
             conversation = conversationManager.getConversation(conversationID);
         } catch (NotFoundException e) {

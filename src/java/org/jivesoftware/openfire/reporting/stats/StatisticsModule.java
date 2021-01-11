@@ -26,7 +26,6 @@ import org.jivesoftware.openfire.session.Session;
 import org.jivesoftware.openfire.stats.Statistic;
 import org.jivesoftware.openfire.stats.StatisticsManager;
 import org.jivesoftware.openfire.stats.i18nStatistic;
-import org.picocontainer.Startable;
 import org.xmpp.packet.Packet;
 
 /**
@@ -39,7 +38,7 @@ import org.xmpp.packet.Packet;
  *
  * @author Derek DeMoro
  */
-public class StatisticsModule implements Startable {
+public class StatisticsModule {
     public static final String MUC_ROOMS_KEY = "active_group_chats";
     public static final String SERVER_2_SERVER_SESSIONS_KEY = "server_sessions";
     public static final String SESSIONS_KEY = "sessions";

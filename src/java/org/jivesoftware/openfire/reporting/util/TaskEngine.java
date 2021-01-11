@@ -17,7 +17,6 @@
 package org.jivesoftware.openfire.reporting.util;
 
 import org.jivesoftware.util.NamedThreadFactory;
-import org.picocontainer.Disposable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -34,7 +33,7 @@ import java.util.concurrent.*;
  *
  * @author Matt Tucker
  */
-public class TaskEngine implements Disposable {
+public class TaskEngine {
 
     private static final Logger Log = LoggerFactory.getLogger( TaskEngine.class );
 

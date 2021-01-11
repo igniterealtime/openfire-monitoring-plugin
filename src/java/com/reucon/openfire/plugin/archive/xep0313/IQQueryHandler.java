@@ -239,7 +239,7 @@ abstract class IQQueryHandler extends AbstractIQHandler implements
         if (!plugin.isPresent()) {
             throw new IllegalStateException("Unable to handle IQ stanza. The Monitoring plugin does not appear to be loaded on this machine.");
         }
-        final ConversationManager conversationManager = (ConversationManager) ((MonitoringPlugin)plugin.get()).getModule(ConversationManager.class);
+        final ConversationManager conversationManager = ((MonitoringPlugin)plugin.get()).getConversationManager();
         final Instant targetEndDate = Instant.now(); // TODO or, the timestamp of the element referenced by 'before' from RSM, if that's set.
 
         final QueryRequest finalQueryRequest = queryRequest;
@@ -339,7 +339,7 @@ abstract class IQQueryHandler extends AbstractIQHandler implements
         if (!plugin.isPresent()) {
             throw new IllegalStateException("Unable to retrieve messages. The Monitoring plugin does not appear to be loaded on this machine.");
         }
-        final ConversationManager conversationManager = (ConversationManager) ((MonitoringPlugin)plugin.get()).getModule(ConversationManager.class);
+        final ConversationManager conversationManager = ((MonitoringPlugin)plugin.get()).getConversationManager();
         
         DataForm dataForm = queryRequest.getDataForm();
         if(dataForm != null) {

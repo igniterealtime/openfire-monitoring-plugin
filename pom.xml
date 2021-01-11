@@ -90,12 +90,6 @@
             <version>1.7</version>
         </dependency>
         <dependency>
-            <groupId>org.picocontainer</groupId>
-            <artifactId>picocontainer</artifactId>
-            <!-- NB. Later versions are available but require code changes -->
-            <version>1.2</version>
-        </dependency>
-        <dependency>
             <groupId>rome</groupId>
             <artifactId>rome</artifactId>
             <version>1.0</version>

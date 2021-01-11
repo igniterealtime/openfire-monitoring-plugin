@@ -19,12 +19,8 @@
     // Get handle on the Monitoring plugin
     MonitoringPlugin plugin = (MonitoringPlugin) XMPPServer.getInstance().getPluginManager().getPlugin(
             "monitoring");
-    ArchiveSearcher archiveSearcher = (ArchiveSearcher) plugin.getModule(
-            ArchiveSearcher.class);
-
-    ConversationManager conversationManager = (ConversationManager) plugin.getModule(
-            ConversationManager.class);
-
+    ArchiveSearcher archiveSearcher = plugin.getArchiveSearcher();
+    ConversationManager conversationManager = plugin.getConversationManager();
 
     boolean submit = request.getParameter("submitForm") != null;
     if (!submit) {
