@@ -21,7 +21,6 @@ import org.dom4j.DocumentException;
 import org.dom4j.DocumentHelper;
 import org.dom4j.Element;
 import org.jivesoftware.database.DbConnectionManager;
-import org.jivesoftware.database.SequenceManager;
 import org.jivesoftware.openfire.XMPPServer;
 import org.jivesoftware.openfire.XMPPServerInfo;
 import org.jivesoftware.openfire.archive.cluster.GetConversationCountTask;
@@ -33,6 +32,7 @@ import org.jivesoftware.openfire.component.ComponentEventListener;
 import org.jivesoftware.openfire.component.InternalComponentManager;
 import org.jivesoftware.openfire.muc.MultiUserChatService;
 import org.jivesoftware.openfire.plugin.MonitoringPlugin;
+import org.jivesoftware.openfire.plugin.ForceClosingThreadPoolExecutor;
 import org.jivesoftware.openfire.reporting.util.TaskEngine;
 import com.reucon.openfire.plugin.archive.util.StanzaIDUtil;
 import org.jivesoftware.openfire.stats.Statistic;
@@ -182,11 +182,18 @@ public class ConversationManager implements Startable, ComponentEventListener{
             // ArchiveManager's implementation uses a default thread name prefix. If we re-use the instance, it will
             // likely generate names for threads that are already used. This can't be good. To prevent that, reflection-based
             // hackery is employed to replace the default executorservice with one that uses different thread name prefixes.
-            // TODO remove this after this plugin requires a version of Openfire (or later) that contains a fix for OF-2193.
+            // Also, to prevent ClassCastExeption issues (see issue #155), the ExecutorService is wrapped in an instance that
+            // coerces its threads to clean up immediately after the executor service is closed.
             final Field executorField = archiveManager.getClass().getDeclaredField("executor");
             executorField.setAccessible(true);
             ((ExecutorService) executorField.get(archiveManager)).shutdown();
-            executorField.set(archiveManager, Executors.newCachedThreadPool(new NamedThreadFactory("archive-monitoring-service-worker-", null, null, null)));
+            executorField.set(archiveManager,
+                new ForceClosingThreadPoolExecutor(
+                    Executors.newCachedThreadPool(
+                        new NamedThreadFactory("archive-monitoring-service-worker-", null, null, null)
+                    )
+                )
+            );
             executorField.setAccessible(false);
         } catch (Exception e) {
             throw new IllegalStateException("An exception occurred while configuring the ArchiveManager.", e);
@@ -317,6 +324,8 @@ public class ConversationManager implements Startable, ComponentEventListener{
         archiveManager.remove( conversationArchiver );
         archiveManager.remove( messageArchiver );
         archiveManager.remove( participantArchiver );
+
+        archiveManager.destroy();
     }
 
     /**
