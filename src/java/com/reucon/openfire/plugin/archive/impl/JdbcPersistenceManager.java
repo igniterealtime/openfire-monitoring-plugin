@@ -9,7 +9,6 @@ import com.reucon.openfire.plugin.archive.xep0059.XmppResultSet;
 import org.dom4j.*;
 import org.jivesoftware.database.DbConnectionManager;
 import org.jivesoftware.openfire.archive.ConversationManager;
-import org.jivesoftware.util.JiveConstants;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.xmpp.packet.JID;
@@ -18,6 +17,7 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.time.Duration;
 import java.util.*;
 
 /**
@@ -70,11 +70,11 @@ public class JdbcPersistenceManager implements PersistenceManager {
             + "WHERE ofConversation.conversationID = ? ORDER BY ofConversation.startDate";
 
     public Date getAuditedStartDate(Date startDate) {
-        long maxRetrievable = ConversationManager.MAX_RETRIEVABLE.getValue() * JiveConstants.DAY;
+        Duration maxRetrievable = ConversationManager.MAX_RETRIEVABLE.getValue();
         Date result = startDate;
-        if (maxRetrievable > 0) {
+        if (maxRetrievable.compareTo(Duration.ZERO) > 0) {
             Date now = new Date();
-            Date maxRetrievableDate = new Date(now.getTime() - maxRetrievable);
+            Date maxRetrievableDate = new Date(now.getTime() - maxRetrievable.toDays());
             if (startDate == null) {
                 result = maxRetrievableDate;
             } else if (startDate.before(maxRetrievableDate)) {

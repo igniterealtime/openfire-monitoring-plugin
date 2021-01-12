@@ -7,6 +7,7 @@
 <%@ page import="org.jivesoftware.util.StringUtils" %>
 <%@ page import="org.jivesoftware.util.CookieUtils" %>
 <%@ page import="org.jivesoftware.util.ParamUtils" %>
+<%@ page import="java.time.Duration" %>
 <%@ page import="java.util.HashMap" %>
 <%@ page import="java.util.Map" %>
 <%@ page import="com.reucon.openfire.plugin.archive.impl.MucIndexer" %>
@@ -182,11 +183,11 @@
     boolean messageArchiving = conversationManager.isMessageArchivingEnabled();
     boolean roomArchiving = conversationManager.isRoomArchivingEnabled();
     boolean roomArchivingStanzas = conversationManager.isRoomArchivingStanzasEnabled();
-    int idleTime = ParamUtils.getIntParameter(request, "idleTime", conversationManager.getIdleTime());
-    int maxTime = ParamUtils.getIntParameter(request, "maxTime", conversationManager.getMaxTime());
+    Duration idleTime = Duration.ofMinutes(ParamUtils.getLongParameter(request, "idleTime", conversationManager.getIdleTime().toMinutes()));
+    Duration maxTime = Duration.ofMinutes(ParamUtils.getLongParameter(request, "maxTime", conversationManager.getMaxTime().toMinutes()));
     
-    int maxAge = ParamUtils.getIntParameter(request, "maxAge", conversationManager.getMaxAge());
-    int maxRetrievable = ParamUtils.getIntParameter(request, "maxRetrievable", conversationManager.getMaxRetrievable());
+    Duration maxAge = Duration.ofDays(ParamUtils.getLongParameter(request, "maxAge", conversationManager.getMaxAge().toDays()));
+    Duration maxRetrievable = Duration.ofDays(ParamUtils.getLongParameter(request, "maxRetrievable", conversationManager.getMaxRetrievable().toDays()));
     
     boolean rebuildIndex = request.getParameter("rebuild") != null;
     boolean calculateCounts = request.getParameter("calculateCounts") != null;
@@ -238,11 +239,11 @@
         String roomsArchived = request.getParameter("roomsArchived");
 
         // Validate params
-        if (idleTime < 1) {
+        if (idleTime.toMinutes() < 1) {
             errors.put("idleTime", "");
             errorMessage = "Idle Time must be greater than 0.";
         }
-        if (maxTime < 1) {
+        if (maxTime.toMinutes() < 1) {
             errors.put("maxTime", "");
             errorMessage = "Max Time must be greater than 0.";
         }
@@ -250,11 +251,11 @@
             errors.put("roomsArchived", "");
             errorMessage = "Only name of local rooms should be specified.";
         }
-        if (maxAge < 0) {
+        if (maxAge.toDays() < 0) {
             errors.put("maxAge", "");
             errorMessage = "Max Age must be greater than or equal to 0.";
         }
-        if (maxRetrievable < 0) {
+        if (maxRetrievable.toDays() < 0) {
             errors.put("maxRetrievable", "");
             errorMessage = "Max Retrievable must be greater than or equal to 0.";
         }
@@ -277,10 +278,10 @@
                                     + ", Room Archiving Enabled: " + roomArchiving
                                     + ", Room Archiving Stanzas Enabled: " + roomArchivingStanzas
                                     + ", RoomsArchived: " + StringUtils.stringToCollection(roomsArchived)
-                                    + ", Idle Time: " + idleTime
-                                    + ", Max Time: " + maxTime
-                                    + ", Max Age: " + maxAge
-                                    + ", Max Retrievable: " + maxRetrievable );
+                                    + ", Idle Time: " + idleTime.toMinutes()
+                                    + ", Max Time: " + maxTime.toMinutes()
+                                    + ", Max Age: " + maxAge.toDays()
+                                    + ", Max Retrievable: " + maxRetrievable.toDays() );
 
 %>
 <div class="success">
@@ -365,13 +366,13 @@
             <tr>
                 <td><label class="jive-label"><fmt:message key="archive.settings.idle.time"/>:</label><br>
                 <fmt:message key="archive.settings.idle.time.description"/></td>
-                <td><input type="text" name="idleTime" size="10" maxlength="10" value="<%= conversationManager.getIdleTime()%>" /></td>
+                <td><input type="text" name="idleTime" size="10" maxlength="10" value="<%= conversationManager.getIdleTime().toMinutes()%>" /></td>
                 <td></td>
             </tr>
             <tr>
                 <td><label class="jive-label"><fmt:message key="archive.settings.max.time"/>:</label><br>
                 <fmt:message key="archive.settings.max.time.description"/><br><br></td>
-                <td><input type="text" name="maxTime" size="10" maxlength="10" value="<%= conversationManager.getMaxTime()%>" /></td>
+                <td><input type="text" name="maxTime" size="10" maxlength="10" value="<%= conversationManager.getMaxTime().toMinutes()%>" /></td>
                 <td></td>
             </tr>
             
@@ -379,14 +380,14 @@
                 <td><label class="jive-label"><fmt:message key="archive.settings.max.age"/>:</label><br>
                 <fmt:message key="archive.settings.max.age.description"/><br><br>
                 <font color="FF0000"><fmt:message key="archive.settings.max.age.warning"/></font><br><br></td>
-                <td><input type="text" name="maxAge" size="10" maxlength="10" value="<%= conversationManager.getMaxAge()%>" /></td>
+                <td><input type="text" name="maxAge" size="10" maxlength="10" value="<%= conversationManager.getMaxAge().toDays()%>" /></td>
                 <td></td>
             </tr>
             
             <tr>
                 <td><label class="jive-label"><fmt:message key="archive.settings.max.retrievable"/>:</label><br>
                 <fmt:message key="archive.settings.max.retrievable.description"/><br><br></td>
-                <td><input type="text" name="maxRetrievable" size="10" maxlength="10" value="<%= conversationManager.getMaxRetrievable()%>" /></td>
+                <td><input type="text" name="maxRetrievable" size="10" maxlength="10" value="<%= conversationManager.getMaxRetrievable().toDays()%>" /></td>
                 <td></td>
             </tr>
             

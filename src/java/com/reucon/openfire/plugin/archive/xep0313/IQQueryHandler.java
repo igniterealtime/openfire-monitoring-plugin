@@ -383,7 +383,7 @@ abstract class IQQueryHandler extends AbstractIQHandler implements
         try
         {
 	        ZonedDateTime nowDate = ZonedDateTime.now();
-	        ZonedDateTime newDate = nowDate.minusDays(conversationManager.getMaxRetrievable());
+	        ZonedDateTime newDate = nowDate.minusDays(conversationManager.getMaxRetrievable().toDays());
    
 	        Date startDate = null;
 	        Date endDate = null;
@@ -397,7 +397,7 @@ abstract class IQQueryHandler extends AbstractIQHandler implements
 	        	*/
 	        	if (startField==null)
 	        	{
-	        		if (conversationManager.getMaxRetrievable()>0)
+	        		if (conversationManager.getMaxRetrievable().toDays()>0)
 	        		{
 	        			// we have maxRetrievable set
 	        			startDate = Date.from(newDate.toInstant());
@@ -418,7 +418,7 @@ abstract class IQQueryHandler extends AbstractIQHandler implements
 	        	   if No: use the client start date
 	        	*/
 	        	{
-	        		if (conversationManager.getMaxRetrievable()>0)
+	        		if (conversationManager.getMaxRetrievable().toDays()>0)
 	        		{
 	        			// we have maxRetrievable set
 	        			ZonedDateTime date = ZonedDateTime.ofInstant(xmppDateTimeFormat.parseString(startField).toInstant(),ZoneId.systemDefault());
