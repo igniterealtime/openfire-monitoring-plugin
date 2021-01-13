@@ -32,8 +32,7 @@ import java.text.ParseException;
 import java.time.*;
 import java.util.*;
 import java.util.LinkedList;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.concurrent.*;
 import java.util.stream.Collectors;
 
 /**
@@ -68,7 +67,9 @@ abstract class IQQueryHandler extends AbstractIQHandler implements
     public void initialize( XMPPServer server )
     {
         super.initialize( server );
-        executorService = Executors.newCachedThreadPool( new NamedThreadFactory( "message-archive-handler-", null, null, null ) );
+        final ThreadFactory threadFactory = new NamedThreadFactory( "message-archive-handler-", null, null, null );
+        executorService = new ThreadPoolExecutor(0, Integer.MAX_VALUE,0, TimeUnit.SECONDS, new SynchronousQueue<>(), threadFactory);
+        //executorService = Executors.newCachedThreadPool( new NamedThreadFactory( "message-archive-handler-", null, null, null ) );
         router = server.getPacketRouter();
     }
 

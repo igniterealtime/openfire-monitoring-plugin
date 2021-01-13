@@ -188,11 +188,12 @@ public class ConversationManager implements Startable, ComponentEventListener{
             executorField.setAccessible(true);
             ((ExecutorService) executorField.get(archiveManager)).shutdown();
             executorField.set(archiveManager,
-                new ForceClosingThreadPoolExecutor(
-                    Executors.newCachedThreadPool(
-                        new NamedThreadFactory("archive-monitoring-service-worker-", null, null, null)
-                    )
-                )
+                new ThreadPoolExecutor(0, Integer.MAX_VALUE,0, TimeUnit.SECONDS, new SynchronousQueue<>(), new NamedThreadFactory("archive-monitoring-service-worker-", null, null, null) )
+//                new ForceClosingThreadPoolExecutor(
+//                    Executors.newCachedThreadPool(
+//                        new NamedThreadFactory("archive-monitoring-service-worker-", null, null, null)
+//                    )
+//                )
             );
             executorField.setAccessible(false);
         } catch (Exception e) {

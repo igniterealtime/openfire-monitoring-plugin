@@ -60,7 +60,8 @@ public class TaskEngine implements Disposable {
     private TaskEngine() {
         timer = new Timer("timer-monitoring", true);
         final ThreadFactory threadFactory = new NamedThreadFactory( "pool-monitoring", true, Thread.NORM_PRIORITY, Thread.currentThread().getThreadGroup(), 0L );
-        executor = new ForceClosingThreadPoolExecutor( Executors.newCachedThreadPool(threadFactory) );
+//        executor = new ForceClosingThreadPoolExecutor( Executors.newCachedThreadPool(threadFactory) );
+        executor = new ThreadPoolExecutor(0, Integer.MAX_VALUE,0, TimeUnit.SECONDS, new SynchronousQueue<>(), threadFactory);
     }
 
     /**
