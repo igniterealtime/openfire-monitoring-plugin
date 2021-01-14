@@ -17,6 +17,7 @@ package com.reucon.openfire.plugin.archive.impl;
 import com.reucon.openfire.plugin.archive.model.ArchivedMessage;
 import org.dom4j.DocumentException;
 import org.jivesoftware.database.DbConnectionManager;
+import org.jivesoftware.openfire.archive.MonitoringConstants;
 import org.jivesoftware.util.SystemProperty;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -47,7 +48,7 @@ public class PaginatedMucMessageDatabaseQuery
         .setKey("archive.ignore-retrieval-exceptions")
         .setDefaultValue(false)
         .setDynamic(true)
-        .setPlugin("monitoring")
+        .setPlugin(MonitoringConstants.PLUGIN_NAME)
         .build();
 
     @Nonnull

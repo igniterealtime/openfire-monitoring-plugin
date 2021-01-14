@@ -47,21 +47,21 @@ abstract class IQQueryHandler extends AbstractIQHandler implements
         .setKey("archive.ignore-retrieval-exceptions")
         .setDefaultValue(false)
         .setDynamic(true)
-        .setPlugin("monitoring")
+        .setPlugin(MonitoringConstants.PLUGIN_NAME)
         .build();
 
     public static final SystemProperty<Boolean> PROP_ALLOW_UNRECOGNIZED_SEARCH_FIELDS = SystemProperty.Builder.ofType( Boolean.class )
         .setKey( "monitoring.search.allow-unrecognized-fields" )
         .setDynamic(true)
         .setDefaultValue(false)
-        .setPlugin("monitoring")
+        .setPlugin(MonitoringConstants.PLUGIN_NAME)
         .build();
 
     public static final SystemProperty<Boolean> FORCE_RSM = SystemProperty.Builder.ofType( Boolean.class )
         .setKey( "archive.FORCE_RSM" )
         .setDynamic(true)
         .setDefaultValue(true)
-        .setPlugin("monitoring")
+        .setPlugin(MonitoringConstants.PLUGIN_NAME)
         .build();
 
     protected final String NAMESPACE;

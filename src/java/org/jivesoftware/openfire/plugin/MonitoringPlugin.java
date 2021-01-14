@@ -73,7 +73,7 @@ public class MonitoringPlugin implements Plugin {
        .setKey("stats.mock.viewer" )
        .setDefaultValue( false )
        .setDynamic( true )
-       .setPlugin( "monitoring" )
+       .setPlugin(MonitoringConstants.PLUGIN_NAME)
        .build();
 
     private final String[] publicResources = new String[]

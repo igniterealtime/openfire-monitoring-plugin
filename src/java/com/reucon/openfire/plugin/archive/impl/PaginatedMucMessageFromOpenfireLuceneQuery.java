@@ -30,7 +30,7 @@ public class PaginatedMucMessageFromOpenfireLuceneQuery
         .setKey("archive.ignore-retrieval-exceptions")
         .setDefaultValue(false)
         .setDynamic(true)
-        .setPlugin("monitoring")
+        .setPlugin(MonitoringConstants.PLUGIN_NAME)
         .build();
 
     private final Date startDate;

@@ -11,6 +11,7 @@ import org.dom4j.DocumentFactory;
 import org.dom4j.io.OutputFormat;
 import org.dom4j.io.XMLWriter;
 import org.jivesoftware.openfire.archive.ArchiveIndexer;
+import org.jivesoftware.openfire.archive.MonitoringConstants;
 import org.jivesoftware.openfire.reporting.util.TaskEngine;
 import org.jivesoftware.util.SystemProperty;
 import org.jivesoftware.util.XMLProperties;
@@ -51,7 +52,7 @@ public abstract class LuceneIndexer
        .setDefaultValue( Duration.ofMinutes(5) )
        .setChronoUnit(ChronoUnit.MINUTES)
        .setDynamic( true )
-       .setPlugin( "monitoring" )
+       .setPlugin(MonitoringConstants.PLUGIN_NAME)
        .build();
 
     public LuceneIndexer(TaskEngine taskEngine, File searchDir, String logName, int schemaVersion)

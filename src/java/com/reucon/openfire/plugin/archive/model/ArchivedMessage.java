@@ -4,6 +4,7 @@ import com.reucon.openfire.plugin.archive.util.StanzaIDUtil;
 import org.dom4j.*;
 import org.jivesoftware.database.JiveID;
 import org.jivesoftware.openfire.XMPPServer;
+import org.jivesoftware.openfire.archive.MonitoringConstants;
 import org.jivesoftware.util.SystemProperty;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -28,7 +29,7 @@ public class ArchivedMessage {
         .setKey("conversation.OF-1804.disable")
         .setDefaultValue(false)
         .setDynamic(true)
-        .setPlugin("monitoring")
+        .setPlugin(MonitoringConstants.PLUGIN_NAME)
         .build();
 
     public enum Direction {

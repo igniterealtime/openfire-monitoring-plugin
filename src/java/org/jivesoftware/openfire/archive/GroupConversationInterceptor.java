@@ -42,14 +42,14 @@ public class GroupConversationInterceptor implements MUCEventListener {
        .setKey("conversation.roomArchiving.PMinPersonalArchive" )
        .setDefaultValue( false )
        .setDynamic( true )
-       .setPlugin( "monitoring" )
+       .setPlugin(MonitoringConstants.PLUGIN_NAME)
        .build();
 
     private static final SystemProperty<Boolean> PM_IN_ROOM_ARCHIVE = SystemProperty.Builder.ofType( Boolean.class )
        .setKey("conversation.roomArchiving.PMinRoomArchive" )
        .setDefaultValue( true )
        .setDynamic( true )
-       .setPlugin( "monitoring" )
+       .setPlugin(MonitoringConstants.PLUGIN_NAME)
        .build();
 
     public GroupConversationInterceptor(ConversationManager conversationManager) {

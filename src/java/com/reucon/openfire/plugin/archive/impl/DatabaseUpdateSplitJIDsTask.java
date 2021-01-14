@@ -1,6 +1,7 @@
 package com.reucon.openfire.plugin.archive.impl;
 
 import org.jivesoftware.database.DbConnectionManager;
+import org.jivesoftware.openfire.archive.MonitoringConstants;
 import org.jivesoftware.openfire.cluster.ClusterManager;
 import org.jivesoftware.util.SystemProperty;
 import org.slf4j.Logger;
@@ -43,7 +44,7 @@ public class DatabaseUpdateSplitJIDsTask implements Runnable
         .setKey("conversation.database.jid-columns-have-been-migrated")
         .setDefaultValue(false)
         .setDynamic(true)
-        .setPlugin("monitoring")
+        .setPlugin(MonitoringConstants.PLUGIN_NAME)
         .build();
 
     @Override

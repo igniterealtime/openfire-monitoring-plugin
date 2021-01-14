@@ -3,6 +3,7 @@ package org.jivesoftware.openfire.plugin.service;
 import com.reucon.openfire.plugin.archive.impl.MucMamPersistenceManager;
 import org.jivesoftware.database.DbConnectionManager;
 import org.jivesoftware.openfire.XMPPServer;
+import org.jivesoftware.openfire.archive.MonitoringConstants;
 import org.jivesoftware.openfire.muc.MUCRoom;
 import org.jivesoftware.openfire.muc.MultiUserChatService;
 import org.jivesoftware.util.StringUtils;
@@ -42,7 +43,7 @@ public class LogAPI
        .setKey("archive.settings.logapi.enabled" )
        .setDefaultValue( true )
        .setDynamic( true )
-       .setPlugin( "monitoring" )
+       .setPlugin(MonitoringConstants.PLUGIN_NAME)
        .build();
 
     private static final Logger Log = LoggerFactory.getLogger(LogAPI.class);
