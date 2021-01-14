@@ -74,7 +74,7 @@ public class JdbcPersistenceManager implements PersistenceManager {
         Date result = startDate;
         if (maxRetrievable.compareTo(Duration.ZERO) > 0) {
             Date now = new Date();
-            Date maxRetrievableDate = new Date(now.getTime() - maxRetrievable.toDays());
+            Date maxRetrievableDate = new Date(now.getTime() - maxRetrievable.toMillis());
             if (startDate == null) {
                 result = maxRetrievableDate;
             } else if (startDate.before(maxRetrievableDate)) {
