@@ -41,7 +41,7 @@ public class LogAPI
 
    public static final SystemProperty<Boolean> PROP_ENABLED = SystemProperty.Builder.ofType( Boolean.class )
        .setKey("archive.settings.logapi.enabled" )
-       .setDefaultValue( true )
+       .setDefaultValue( false )
        .setDynamic( true )
        .setPlugin(MonitoringConstants.PLUGIN_NAME)
        .build();
