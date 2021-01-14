@@ -72,12 +72,10 @@ public class JdbcPersistenceManager implements PersistenceManager {
     public Date getAuditedStartDate(Date startDate) {
         Duration maxRetrievable = ConversationManager.MAX_RETRIEVABLE.getValue();
         Date result = startDate;
-        if (maxRetrievable.compareTo(Duration.ZERO) > 0) {
+        if (maxRetrievable.toDays() > 0) {
             Date now = new Date();
             Date maxRetrievableDate = new Date(now.getTime() - maxRetrievable.toMillis());
-            if (startDate == null) {
-                result = maxRetrievableDate;
-            } else if (startDate.before(maxRetrievableDate)) {
+            if (startDate == null || startDate.before(maxRetrievableDate)) {
                 result = maxRetrievableDate;
             }
         }
