@@ -1516,26 +1516,26 @@ public class ConversationManager implements ComponentEventListener{
 
         public void propertyDeleted(String property, Map<String, Object> params) {
             if (property.equals("conversation.metadataArchiving")) {
-                metadataArchivingEnabled = true;
+                setMetadataArchivingEnabled(METADATA_ARCHIVING_ENABLED.getDefaultValue());
             } else if (property.equals("conversation.messageArchiving")) {
-                messageArchivingEnabled = false;
+                setMessageArchivingEnabled(MESSAGE_ARCHIVING_ENABLED.getDefaultValue());
             } else if (property.equals("conversation.roomArchiving")) {
-                roomArchivingEnabled = false;
+                setRoomArchivingEnabled(ROOM_ARCHIVING_ENABLED.getDefaultValue());
             } else if (property.equals("conversation.roomArchivingStanzas")) {
-                roomArchivingStanzasEnabled = false;
+                setRoomArchivingStanzasEnabled(ROOM_STANZA_ARCHIVING_ENABLED.getDefaultValue());
             } else if (property.equals("conversation.roomsArchived")) {
-                roomsArchived = Collections.emptyList();
+                setRoomsArchived(StringUtils.stringToCollection(ROOMS_ARCHIVED.getDefaultValue()));
             } else if (property.equals("conversation.idleTime")) {
-                idleTime = DEFAULT_IDLE_TIME;
+                setIdleTime(IDLE_TIME.getDefaultValue());
             } else if (property.equals("conversation.maxTime")) {
-                maxTime = DEFAULT_MAX_TIME;
+                setMaxTime(MAX_TIME.getDefaultValue());
             } else if (property.equals("conversation.maxAge")) {
-                maxAge = DEFAULT_MAX_AGE;
+                setMaxAge(MAX_AGE.getDefaultValue());
             } else if (property.equals("conversation.maxRetrievable")) {
-                maxRetrievable = DEFAULT_MAX_RETRIEVABLE;
+                setMaxRetrievable(MAX_RETRIEVABLE.getDefaultValue());
             }  else if (property.equals("conversation.maxTimeDebug")) {
                 Log.info("Monitoring plugin max time reset back to " + DEFAULT_MAX_TIME + " minutes");
-                maxTime = DEFAULT_MAX_TIME;
+                setMaxTime(MAX_TIME.getDefaultValue());
             }
         }
 
