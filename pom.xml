@@ -13,7 +13,7 @@
     <description>Monitors conversations and statistics of the server.</description>
 
     <properties>
-        <jackson.version>1.9.11</jackson.version>
+        <jackson.version>2.12.1</jackson.version>
         <!-- Consider moving to the org.glassfish.jersey set of artefacts -->
         <jersey.version>1.19.4</jersey.version>
     </properties>
@@ -44,13 +44,13 @@
             <version>${jersey.version}</version>
         </dependency>
         <dependency>
-            <groupId>org.codehaus.jackson</groupId>
-            <artifactId>jackson-xc</artifactId>
+            <groupId>com.fasterxml.jackson.module</groupId>
+            <artifactId>jackson-module-jaxb-annotations</artifactId>
             <version>${jackson.version}</version>
         </dependency>
         <dependency>
-            <groupId>org.codehaus.jackson</groupId>
-            <artifactId>jackson-jaxrs</artifactId>
+            <groupId>com.fasterxml.jackson.jaxrs</groupId>
+            <artifactId>jackson-jaxrs-json-provider</artifactId>
             <version>${jackson.version}</version>
         </dependency>
         <dependency>
