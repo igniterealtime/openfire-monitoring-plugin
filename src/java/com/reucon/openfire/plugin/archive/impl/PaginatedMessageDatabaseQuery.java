@@ -29,6 +29,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 
@@ -157,6 +158,9 @@ public class PaginatedMessageDatabaseQuery
             while (rs.next()) {
                 final ArchivedMessage archivedMessage = JdbcPersistenceManager.extractMessage(owner, rs);
                 archivedMessages.add(archivedMessage);
+            }
+            if(isPagingBackwards){
+                Collections.reverse(archivedMessages);
             }
         } catch (SQLException e) {
             Log.error("SQL failure during MAM for owner: {}", this.owner, e);

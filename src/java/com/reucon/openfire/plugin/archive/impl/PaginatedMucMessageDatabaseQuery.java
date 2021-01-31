@@ -29,6 +29,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 
@@ -173,6 +174,9 @@ public class PaginatedMucMessageDatabaseQuery
             while (rs.next()) {
                 final ArchivedMessage archivedMessage = JdbcPersistenceManager.extractMessage(archiveOwner, rs);
                 archivedMessages.add(archivedMessage);
+            }
+            if(isPagingBackwards){
+                Collections.reverse(archivedMessages);
             }
         } catch (SQLException e) {
             Log.error("SQL failure during MUC MAM for room {}, message owner: {}", this.archiveOwner, this.messageOwner, e);
