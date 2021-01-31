@@ -77,9 +77,16 @@ public class ArchivedMessage {
         this.with = with;
         this.body = body;
 
-        if ( stanza != null) {
-            final Document doc = DocumentHelper.parseText( stanza );
-            this.stanza = new Message( doc.getRootElement() );
+        if ( stanza != null && stanza.length() > 0 ) {
+            Message stanzaResult;
+            try {
+                final Document doc = DocumentHelper.parseText( stanza );
+                stanzaResult = new Message( doc.getRootElement() );
+            } catch (DocumentException de) {
+                Log.debug("Unable to parse (non-empty) stanza (id: {})", id, de);
+                stanzaResult = null;
+            }
+            this.stanza = stanzaResult;
         } else {
             this.stanza = null;
         }
