@@ -47,7 +47,7 @@ public class PaginatedMucMessageFromOpenfireLuceneQuery
         if (!plugin.isPresent()) {
             throw new IllegalStateException("Unable to obtain Lucene Index Searcher! The Monitoring plugin does not appear to be loaded on this machine.");
         }
-        final MucIndexer mucIndexer = (MucIndexer) ((MonitoringPlugin)plugin.get()).getModule(MucIndexer.class);
+        final MucIndexer mucIndexer = ((MonitoringPlugin)plugin.get()).getMucIndexer();
         final IndexSearcher searcher = mucIndexer.getSearcher();
         return searcher;
     }

@@ -24,7 +24,7 @@
     UserManager userManager = server.getUserManager();
     MonitoringPlugin plugin = (MonitoringPlugin) server.getPluginManager().getPlugin("monitoring");
 
-    ConversationManager conversationmanager = (ConversationManager) plugin.getModule(ConversationManager.class);
+    ConversationManager conversationmanager = plugin.getConversationManager();
     List<String[]> values = new ArrayList<String[]>();
     JID room = null;
     String roomName = "";

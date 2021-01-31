@@ -48,9 +48,6 @@ import org.jivesoftware.openfire.reporting.stats.StatsEngine;
 import org.jivesoftware.openfire.reporting.stats.StatsViewer;
 import org.jivesoftware.openfire.reporting.util.TaskEngine;
 import org.jivesoftware.util.JiveGlobals;
-import org.jivesoftware.util.JiveProperties;
-import org.picocontainer.MutablePicoContainer;
-import org.picocontainer.defaults.DefaultPicoContainer;
 
 import com.reucon.openfire.plugin.archive.ArchiveProperties;
 import com.reucon.openfire.plugin.archive.PersistenceManager;
@@ -79,8 +76,6 @@ public class MonitoringPlugin implements Plugin {
 
     private WebAppContext context = null;
 
-    private MutablePicoContainer picoContainer;
-
     private static MonitoringPlugin instance;
     private PersistenceManager persistenceManager;
     private PersistenceManager mucPersistenceManager;
@@ -90,40 +85,47 @@ public class MonitoringPlugin implements Plugin {
     private Xep0313Support2 xep0313Support2;
     private Logger Log;
 
+    // Stats and Graphing classes
+    private TaskEngine taskEngine;
+    private StatsEngine statsEngine;
+    private StatsViewer statsViewer;
+    private GraphEngine graphEngine;
+    private StatisticsModule statisticsModule;
+
+    // Archive classes
+    private ConversationManager conversationManager;
+    private ArchiveInterceptor archiveInterceptor;
+    private GroupConversationInterceptor groupConversationInterceptor;
+    private ArchiveIndexer archiveIndexer;
+    private ArchiveSearcher archiveSearcher;
+    private MucIndexer mucIndexer;
+    private MessageIndexer messageIndexer;
+
     public MonitoringPlugin() {
         instance = this;
 
-        // Enable AWT headless mode so that stats will work in headless
-        // environments.
+        // Enable AWT headless mode so that stats will work in headless environments.
         System.setProperty("java.awt.headless", "true");
 
-        picoContainer = new DefaultPicoContainer();
-        picoContainer.registerComponentInstance(TaskEngine.getInstance());
-        picoContainer.registerComponentInstance(JiveProperties.getInstance());
-
         // Stats and Graphing classes
-        picoContainer.registerComponentImplementation(StatsEngine.class);
-        picoContainer.registerComponentImplementation(GraphEngine.class);
-        picoContainer.registerComponentImplementation(StatisticsModule.class);
-        picoContainer.registerComponentImplementation(StatsViewer.class,
-                getStatsViewerImplementation());
+        taskEngine = TaskEngine.getInstance();
+        statsEngine = new StatsEngine();
+        if (JiveGlobals.getBooleanProperty("stats.mock.viewer", false)) {
+            statsViewer = new MockStatsViewer(statsEngine);
+        } else {
+            statsViewer = new DefaultStatsViewer(statsEngine);
+        }
+        graphEngine = new GraphEngine(statsViewer);
+        statisticsModule = new StatisticsModule();
 
         // Archive classes
-        picoContainer.registerComponentImplementation(ConversationManager.class);
-        picoContainer.registerComponentImplementation(ArchiveInterceptor.class);
-        picoContainer.registerComponentImplementation(GroupConversationInterceptor.class);
-        picoContainer.registerComponentImplementation(ArchiveSearcher.class);
-        picoContainer.registerComponentImplementation(ArchiveIndexer.class);
-        picoContainer.registerComponentImplementation(MucIndexer.class);
-        picoContainer.registerComponentImplementation(MessageIndexer.class);
-    }
-
-    private Class<? extends StatsViewer> getStatsViewerImplementation() {
-        if (JiveGlobals.getBooleanProperty("stats.mock.viewer", false)) {
-            return MockStatsViewer.class;
-        } else {
-            return DefaultStatsViewer.class;
-        }
+        conversationManager = new ConversationManager(taskEngine);
+        archiveInterceptor = new ArchiveInterceptor(conversationManager);
+        groupConversationInterceptor = new GroupConversationInterceptor(conversationManager);
+        archiveIndexer = new ArchiveIndexer(conversationManager, taskEngine);
+        archiveSearcher = new ArchiveSearcher(conversationManager, archiveIndexer);
+        mucIndexer = new MucIndexer(taskEngine, conversationManager);
+        messageIndexer = new MessageIndexer(taskEngine, conversationManager);
     }
 
     public static MonitoringPlugin getInstance() {
@@ -142,17 +144,6 @@ public class MonitoringPlugin implements Plugin {
             return mucPersistenceManager;
         }
         return persistenceManager;
-    }
-
-    /**
-     * Returns the instance of a module registered with the Monitoring plugin.
-     *
-     * @param clazz
-     *            the module class.
-     * @return the instance of the module.
-     */
-    public Object getModule(Class<?> clazz) {
-        return picoContainer.getComponentInstanceOfType(clazz);
     }
 
     public void initializePlugin(PluginManager manager, File pluginDirectory) {
@@ -202,7 +193,15 @@ public class MonitoringPlugin implements Plugin {
 
         loadPublicWeb(pluginDirectory);
 
-        picoContainer.start();
+        statsEngine.start();
+        statisticsModule.start();
+        conversationManager.start();
+        archiveInterceptor.start();
+        groupConversationInterceptor.start();
+        archiveIndexer.start();
+        archiveSearcher.start();
+        mucIndexer.start();
+        messageIndexer.start();
     }
 
     public void destroyPlugin() {
@@ -212,12 +211,63 @@ public class MonitoringPlugin implements Plugin {
 
         unloadPublicWeb();
 
-        if (picoContainer != null) {
-            picoContainer.stop();
-            picoContainer.dispose();
-            picoContainer = null;
+        if (messageIndexer != null) {
+            messageIndexer.stop();
+            messageIndexer = null;
         }
-        
+
+        if (mucIndexer != null) {
+            mucIndexer.stop();
+            mucIndexer = null;
+        }
+
+        if (archiveSearcher != null) {
+            archiveSearcher.stop();
+            archiveSearcher = null;
+        }
+
+        if (archiveIndexer != null) {
+            archiveIndexer.stop();
+            archiveIndexer = null;
+        }
+
+        if (groupConversationInterceptor != null) {
+            groupConversationInterceptor.stop();
+            groupConversationInterceptor = null;
+        }
+
+        if (archiveInterceptor != null) {
+            archiveInterceptor.stop();
+            archiveInterceptor = null;
+        }
+
+        if (conversationManager != null) {
+            conversationManager.stop();
+            conversationManager = null;
+        }
+
+        if (statisticsModule != null) {
+            statisticsModule.stop();
+            statisticsModule = null;
+        }
+
+        if (graphEngine != null) {
+            graphEngine = null;
+        }
+
+        if (statsViewer != null) {
+            statsViewer = null;
+        }
+
+        if (statsEngine != null) {
+            statsEngine.stop();
+            statsEngine = null;
+        }
+
+        if (taskEngine != null) {
+            taskEngine.dispose();
+            taskEngine = null;
+        }
         xep0136Support.stop();
         xep0313Support.stop();
         xep0313Support1.stop();
@@ -263,5 +313,33 @@ public class MonitoringPlugin implements Plugin {
             Log.debug( "Removing Authorization-Check filter exemptions." );
             AuthCheckFilter.removeExclude( publicResource );
         }
+    }
+
+    public ArchiveSearcher getArchiveSearcher() {
+        return archiveSearcher;
+    }
+
+    public MessageIndexer getMessageIndexer() {
+        return messageIndexer;
+    }
+
+    public ArchiveIndexer getArchiveIndexer() {
+        return archiveIndexer;
+    }
+
+    public MucIndexer getMucIndexer() {
+        return mucIndexer;
+    }
+
+    public ConversationManager getConversationManager() {
+        return conversationManager;
+    }
+
+    public GraphEngine getGraphEngine() {
+        return graphEngine;
+    }
+
+    public StatsViewer getStatsViewer() {
+        return statsViewer;
     }
 }

@@ -61,7 +61,7 @@
         <dependency>
             <groupId>org.jrobin</groupId>
             <artifactId>jrobin</artifactId>
-            <version>1.5.9</version>
+            <version>1.6.0</version>
         </dependency>
         <dependency>
             <groupId>jfree</groupId>
@@ -88,12 +88,6 @@
             <groupId>com.orsonpdf</groupId>
             <artifactId>orsonpdf</artifactId>
             <version>1.7</version>
-        </dependency>
-        <dependency>
-            <groupId>org.picocontainer</groupId>
-            <artifactId>picocontainer</artifactId>
-            <!-- NB. Later versions are available but require code changes -->
-            <version>1.2</version>
         </dependency>
         <dependency>
             <groupId>rome</groupId>
@@ -129,6 +123,13 @@
             <id>igniterealtime</id>
             <name>Ignite Realtime Repository</name>
             <url>https://igniterealtime.org/archiva/repository/maven/</url>
+        </repository>
+
+        <!-- For jrobin -->
+        <repository>
+            <id>opennms-repo</id>
+            <name>OpenNMS Release Repository</name>
+            <url>https://repo.opennms.org/maven2/</url>
         </repository>
     </repositories>
 

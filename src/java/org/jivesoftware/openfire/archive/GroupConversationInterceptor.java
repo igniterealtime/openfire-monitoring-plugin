@@ -22,7 +22,6 @@ import org.jivesoftware.openfire.muc.MUCEventDispatcher;
 import org.jivesoftware.openfire.muc.MUCEventListener;
 import org.jivesoftware.openfire.muc.MUCRoom;
 import org.jivesoftware.util.JiveGlobals;
-import org.picocontainer.Startable;
 import org.xmpp.packet.JID;
 import org.xmpp.packet.Message;
 
@@ -34,7 +33,7 @@ import java.util.Date;
  *
  * @author Gaston Dombiak
  */
-public class GroupConversationInterceptor implements MUCEventListener, Startable {
+public class GroupConversationInterceptor implements MUCEventListener {
 
 
     private ConversationManager conversationManager;
@@ -174,12 +173,10 @@ public class GroupConversationInterceptor implements MUCEventListener, Startable
         // Do nothing
     }
 
-    @Override
     public void start() {
         MUCEventDispatcher.addListener(this);
     }
 
-    @Override
     public void stop() {
         MUCEventDispatcher.removeListener(this);
         conversationManager = null;

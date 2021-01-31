@@ -39,7 +39,6 @@ import org.jivesoftware.openfire.stats.Statistic;
 import org.jivesoftware.openfire.stats.StatisticsManager;
 import org.jivesoftware.util.*;
 import org.jivesoftware.util.cache.CacheFactory;
-import org.picocontainer.Startable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.xmpp.packet.IQ;
@@ -68,7 +67,7 @@ import java.util.stream.Stream;
  *
  * @author Matt Tucker
  */
-public class ConversationManager implements Startable, ComponentEventListener{
+public class ConversationManager implements ComponentEventListener{
 
     private static final Logger Log = LoggerFactory.getLogger(ConversationManager.class);
 
@@ -210,7 +209,7 @@ public class ConversationManager implements Startable, ComponentEventListener{
                         ArchiveSearch search = new ArchiveSearch();
                         search.setDateRangeMax(maxAgeDate);
                         MonitoringPlugin plugin = (MonitoringPlugin) XMPPServer.getInstance().getPluginManager().getPlugin(MonitoringConstants.NAME);
-                        ArchiveSearcher archiveSearcher = (ArchiveSearcher) plugin.getModule(ArchiveSearcher.class);
+                        ArchiveSearcher archiveSearcher = plugin.getArchiveSearcher();
                         Collection<Conversation> conversations = archiveSearcher.search(search);
                         int conversationDeleted = 0;
                         for (Conversation conversation : conversations) {

@@ -47,7 +47,7 @@ public class PaginatedMucMessageLuceneQuery
     protected IndexSearcher getSearcher() throws IOException
     {
         final MonitoringPlugin plugin = (MonitoringPlugin) XMPPServer.getInstance().getPluginManager().getPlugin(MonitoringConstants.NAME);
-        final MessageIndexer archiveIndexer = (MessageIndexer) plugin.getModule(MessageIndexer.class);
+        final MessageIndexer archiveIndexer = plugin.getMessageIndexer();
         final IndexSearcher searcher = archiveIndexer.getSearcher();
         return searcher;
     }

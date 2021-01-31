@@ -22,8 +22,8 @@
 <%
     String sessionKey = StatisticsModule.SESSIONS_KEY;
     MonitoringPlugin plugin = (MonitoringPlugin) XMPPServer.getInstance().getPluginManager().getPlugin("monitoring");
-    ConversationManager conversationManager = (ConversationManager)plugin.getModule(ConversationManager.class);
-    StatsViewer viewer = (StatsViewer)plugin.getModule(StatsViewer.class);
+    ConversationManager conversationManager = plugin.getConversationManager();
+    StatsViewer viewer = plugin.getStatsViewer();
 
     String timePeriod = "last60minutes";
     Cookie timePeriodCookie = CookieUtils.getCookie(request, COOKIE_TIMEPERIOD);

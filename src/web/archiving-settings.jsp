@@ -22,12 +22,10 @@
 <%
     // Get handle on the Monitoring plugin
     MonitoringPlugin plugin = (MonitoringPlugin) XMPPServer.getInstance().getPluginManager().getPlugin("monitoring");
-    ConversationManager conversationManager = (ConversationManager) plugin.getModule(
-            ConversationManager.class);
-
-    ArchiveIndexer archiveIndexer = (ArchiveIndexer) plugin.getModule(ArchiveIndexer.class);
-    MucIndexer mucIndexer = (MucIndexer) plugin.getModule(MucIndexer.class);
-    MessageIndexer messageIndexer = (MessageIndexer) plugin.getModule(MessageIndexer.class);
+    ConversationManager conversationManager = plugin.getConversationManager();
+    ArchiveIndexer archiveIndexer = plugin.getArchiveIndexer();
+    MucIndexer mucIndexer = plugin.getMucIndexer();
+    MessageIndexer messageIndexer = plugin.getMessageIndexer();
 
     ByteFormat byteFormatter = new ByteFormat();
     String indexSize = byteFormatter.format(archiveIndexer.getIndexSize() + mucIndexer.getIndexSize() + messageIndexer.getIndexSize());

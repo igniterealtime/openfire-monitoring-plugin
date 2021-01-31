@@ -42,7 +42,6 @@ import org.jrobin.core.RrdDb;
 import org.jrobin.core.RrdDef;
 import org.jrobin.core.RrdException;
 import org.jrobin.core.Sample;
-import org.picocontainer.Startable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -53,7 +52,7 @@ import org.slf4j.LoggerFactory;
  *
  * @author Alexander Wenckus
  */
-public class StatsEngine implements Startable {
+public class StatsEngine {
 
     private static final Logger Log = LoggerFactory.getLogger(StatsEngine.class);
     
@@ -71,11 +70,9 @@ public class StatsEngine implements Startable {
 
     /**
      * The default constructor used by the plugin container.
-     *
-     * @param taskEngine Used to execute tasks.
      */
-    public StatsEngine(TaskEngine taskEngine) {
-        this.taskEngine = taskEngine;
+    public StatsEngine() {
+        this.taskEngine = TaskEngine.getInstance();
         statsManager = StatisticsManager.getInstance();
     }
 

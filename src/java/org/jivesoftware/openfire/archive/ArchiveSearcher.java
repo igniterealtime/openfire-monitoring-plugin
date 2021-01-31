@@ -31,7 +31,6 @@ import org.apache.lucene.queryparser.classic.QueryParser;
 import org.apache.lucene.search.*;
 import org.jivesoftware.database.CachedPreparedStatement;
 import org.jivesoftware.database.DbConnectionManager;
-import org.picocontainer.Startable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.xmpp.packet.JID;
@@ -46,7 +45,7 @@ import org.xmpp.packet.JID;
  * @see ArchiveIndexer
  * @author Matt Tucker
  */
-public class ArchiveSearcher implements Startable {
+public class ArchiveSearcher {
 
     private static final Logger Log = LoggerFactory.getLogger(ArchiveSearch.class);
 

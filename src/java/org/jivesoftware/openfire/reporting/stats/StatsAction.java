@@ -85,7 +85,7 @@ public class StatsAction {
 
     private Map getUpdatedStat(String statkey, long[] timePeriod) {
         MonitoringPlugin plugin = (MonitoringPlugin)XMPPServer.getInstance().getPluginManager().getPlugin(MonitoringConstants.NAME);
-        StatsViewer viewer = (StatsViewer)plugin.getModule(StatsViewer.class);
+        StatsViewer viewer = plugin.getStatsViewer();
         String[] lowHigh = getLowAndHigh(statkey, timePeriod);
         Map stat = new HashMap();
         stat.put("low", lowHigh[0]);
@@ -107,7 +107,7 @@ public class StatsAction {
         // TODO Fix plugin name 2 lines below and missing classes
         List<Map<String, Long>> cons = new ArrayList<Map<String, Long>>();
         MonitoringPlugin plugin = (MonitoringPlugin)XMPPServer.getInstance().getPluginManager().getPlugin(MonitoringConstants.NAME);
-        ConversationManager conversationManager = (ConversationManager)plugin.getModule(ConversationManager.class);
+        ConversationManager conversationManager = plugin.getConversationManager();
         Collection<Conversation> conversations = conversationManager.getConversations();
         List<Conversation> lConversations = Arrays.asList(conversations.toArray(new Conversation[conversations.size()]));
         Collections.sort(lConversations, conversationComparator);
@@ -166,7 +166,7 @@ public class StatsAction {
      */
     public static String[] getLowAndHigh(String key,  long[] timePeriod) {
         MonitoringPlugin plugin = (MonitoringPlugin)XMPPServer.getInstance().getPluginManager().getPlugin(MonitoringConstants.NAME);
-        StatsViewer viewer = (StatsViewer)plugin.getModule(StatsViewer.class);
+        StatsViewer viewer = plugin.getStatsViewer();
         Statistic.Type type = viewer.getStatistic(key)[0].getStatType();
         double[] lows = viewer.getMin(key, timePeriod[0], timePeriod[1], (int)timePeriod[2]);
         double[] highs = viewer.getMax(key, timePeriod[0], timePeriod[1], (int)timePeriod[2]);

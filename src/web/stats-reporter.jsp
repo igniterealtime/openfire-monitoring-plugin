@@ -573,7 +573,7 @@
     public StatsViewer getStatsViewer() {
         if (statsViewer == null) {
             MonitoringPlugin plugin = (MonitoringPlugin) XMPPServer.getInstance().getPluginManager().getPlugin("monitoring");
-            statsViewer = (StatsViewer) plugin.getModule(StatsViewer.class);
+            statsViewer = plugin.getStatsViewer();
         }
         return statsViewer;
     }

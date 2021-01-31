@@ -21,7 +21,6 @@ import org.jivesoftware.openfire.interceptor.InterceptorManager;
 import org.jivesoftware.openfire.interceptor.PacketInterceptor;
 import org.jivesoftware.openfire.interceptor.PacketRejectedException;
 import org.jivesoftware.openfire.session.Session;
-import org.picocontainer.Startable;
 import org.xmpp.packet.JID;
 import org.xmpp.packet.Message;
 import org.xmpp.packet.Packet;
@@ -40,7 +39,7 @@ import java.util.Date;
  *
  * @author Matt Tucker
  */
-public class ArchiveInterceptor implements PacketInterceptor, Startable {
+public class ArchiveInterceptor implements PacketInterceptor {
 
     private ConversationManager conversationManager;
 

@@ -605,7 +605,7 @@ public class Conversation implements Externalizable {
         if (!plugin.isPresent()) {
             throw new IllegalStateException("Unable to handle IQ stanza. The Monitoring plugin does not appear to be loaded on this machine.");
         }
-        conversationManager = (ConversationManager) ((MonitoringPlugin)plugin.get()).getModule(ConversationManager.class);
+        conversationManager = ((MonitoringPlugin)plugin.get()).getConversationManager();
 
         this.participants = new ConcurrentHashMap<>();
 

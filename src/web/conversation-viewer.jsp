@@ -16,7 +16,7 @@
     MonitoringPlugin plugin = (MonitoringPlugin)XMPPServer.getInstance().getPluginManager().getPlugin(
         "monitoring");
 
-    ConversationManager conversationManager = (ConversationManager)plugin.getModule(ConversationManager.class);
+    ConversationManager conversationManager = plugin.getConversationManager();
 
     long conversationID = ParamUtils.getLongParameter(request, "conversationID", -1);
 
