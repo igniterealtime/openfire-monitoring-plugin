@@ -1,5 +1,5 @@
 
-INSERT INTO ofVersion (name, version) VALUES ('monitoring', 7);
+INSERT INTO ofVersion (name, version) VALUES ('monitoring', 8);
 
 CREATE TABLE ofConversation (
   conversationID        INTEGER       NOT NULL,
