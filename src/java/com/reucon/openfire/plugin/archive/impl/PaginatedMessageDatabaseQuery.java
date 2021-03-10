@@ -224,65 +224,72 @@ public class PaginatedMessageDatabaseQuery
 
     private String buildQueryForMessages( @Nullable final Long after, @Nullable final Long before, final int maxResults, final boolean isPagingBackwards )
     {
-        // What SQL keyword should be used to limit the result set: TOP() or LIMIT ?
-        final boolean useTopNotLimit = DbConnectionManager.getDatabaseType().equals(DbConnectionManager.DatabaseType.sqlserver);
+       // What SQL keyword should be used to limit the result set: TOP() or LIMIT or ROWNUM ?
+       final boolean useTopClause = DbConnectionManager.getDatabaseType().equals(DbConnectionManager.DatabaseType.sqlserver);
+       final boolean useRowNumClause = DbConnectionManager.getDatabaseType().equals(DbConnectionManager.DatabaseType.oracle);
+       final boolean useLimitClause = !useTopClause && !useRowNumClause;
 
-        String sql = "SELECT";
-        if (useTopNotLimit) {
-            sql += " TOP(" + maxResults + ")";
-        }
-        sql += " fromJID, fromJIDResource, toJID, toJIDResource, sentDate, body, stanza, messageID"
-            + " FROM ofMessageArchive"
-            + " WHERE (stanza IS NOT NULL OR body IS NOT NULL)";
+       String sql = "SELECT";
 
-        // Ignore legacy messages
-        sql += " AND messageID IS NOT NULL";
+       if (useTopClause) {
+          sql += " TOP(" + maxResults + ")";
+       }
 
-        sql += " AND sentDate >= ?";
-        sql += " AND sentDate <= ?";
+       sql += " fromJID, fromJIDResource, toJID, toJIDResource, sentDate, body, stanza, messageID"
+           + " FROM ofMessageArchive"
+           + " WHERE (stanza IS NOT NULL OR body IS NOT NULL)";
 
-        /* Database table 'ofMessageArchive' content examples:
-         *
-         *   Scenario       | fromJID | toJID | isPMforJID
-         * A sends B a 1:1  |    A    |   B   |   null
-         * B sends A a 1:1  |    B    |   A   |   null
-         * A sends MUC msg  |    A    |  MUC  |   null
-         * B sends MUC msg  |    B    |  MUC  |   null
-         * A sends B a PM   |    A    |  MUC  |    B
-         * B sends A a PM   |    B    |  MUC  |    A
-         *
-         * To get messages from the personal archive of 'A':
-         * - fromJID = OWNER OR toJID = OWNER (to get all 1:1 messages)
-         * - fromJID = OWNER (to get all messages A sent to (local?) MUCs - including PMs that A sent)
-         * - isPMForJID = OWNER (to get all PMs (in local MUCs) that A received).
-         */
+       // Ignore legacy messages
+       sql += " AND messageID IS NOT NULL";
 
-        // Query for a personal archive.
-        sql += " AND (fromJID = ? OR toJID = ? OR isPMforJID = ?) ";
+       sql += " AND sentDate >= ?";
+       sql += " AND sentDate <= ?";
 
-        if( with != null )
-        {
-            // XEP-0313 specifies: If (and only if) the supplied JID is a bare JID (i.e. no resource is present), then the server SHOULD return messages if their bare to/from address for a user archive, or from address otherwise, would match it.
-            if (with.getResource() == null) {
-                sql += " AND ( toJID = ? OR fromJID = ? )";
-            } else {
-                sql += " AND ( ( toJID = ? AND toJIDResource = ? ) OR ( fromJID = ? AND fromJIDResource = ? ) )";
-            }
-        }
+       if (useRowNumClause) {
+          sql += " AND ROWNUM <= " + maxResults;
+       }
 
-        if ( after != null ) {
-            sql += " AND messageID > ?";
-        }
-        if ( before != null ) {
-            sql += " AND messageID < ?";
-        }
+       /* Database table 'ofMessageArchive' content examples:
+        *
+        *   Scenario       | fromJID | toJID | isPMforJID
+        * A sends B a 1:1  |    A    |   B   |   null
+        * B sends A a 1:1  |    B    |   A   |   null
+        * A sends MUC msg  |    A    |  MUC  |   null
+        * B sends MUC msg  |    B    |  MUC  |   null
+        * A sends B a PM   |    A    |  MUC  |    B
+        * B sends A a PM   |    B    |  MUC  |    A
+        *
+        * To get messages from the personal archive of 'A':
+        * - fromJID = OWNER OR toJID = OWNER (to get all 1:1 messages)
+        * - fromJID = OWNER (to get all messages A sent to (local?) MUCs - including PMs that A sent)
+        * - isPMForJID = OWNER (to get all PMs (in local MUCs) that A received).
+        */
 
-        sql += " ORDER BY sentDate " + (isPagingBackwards ? "DESC" : "ASC");
+       // Query for a personal archive.
+       sql += " AND (fromJID = ? OR toJID = ? OR isPMforJID = ?) ";
 
-        if (!useTopNotLimit) {
-            sql += " LIMIT " + maxResults;
-        }
-        return sql;
+       if ( with != null) {
+          // XEP-0313 specifies: If (and only if) the supplied JID is a bare JID (i.e. no resource is present), then the server SHOULD return messages if their bare to/from address for a user archive, or from address otherwise, would match it.
+          if ( with.getResource() == null) {
+             sql += " AND ( toJID = ? OR fromJID = ? )";
+          } else {
+             sql += " AND ( ( toJID = ? AND toJIDResource = ? ) OR ( fromJID = ? AND fromJIDResource = ? ) )";
+          }
+       }
+
+       if (after != null) {
+          sql += " AND messageID > ?";
+       }
+       if (before != null) {
+          sql += " AND messageID < ?";
+       }
+
+       sql += " ORDER BY sentDate " + (isPagingBackwards ? "DESC" : "ASC");
+
+       if (useLimitClause) {
+          sql += " LIMIT " + maxResults;
+       }
+       return sql;
     }
 
     private String buildQueryForTotalCount()
