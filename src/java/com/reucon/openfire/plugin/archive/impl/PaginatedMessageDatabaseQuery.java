@@ -226,8 +226,8 @@ public class PaginatedMessageDatabaseQuery
     {
        // What SQL keyword should be used to limit the result set: TOP() or LIMIT or ROWNUM ?
        final boolean useTopClause = DbConnectionManager.getDatabaseType().equals(DbConnectionManager.DatabaseType.sqlserver);
-       final boolean useRowNumClause = DbConnectionManager.getDatabaseType().equals(DbConnectionManager.DatabaseType.oracle);
-       final boolean useLimitClause = !useTopClause && !useRowNumClause;
+       final boolean useFetchFirstClause = DbConnectionManager.getDatabaseType().equals(DbConnectionManager.DatabaseType.oracle);
+       final boolean useLimitClause = !useTopClause && !useFetchFirstClause;
 
        String sql = "SELECT";
 
@@ -244,10 +244,7 @@ public class PaginatedMessageDatabaseQuery
 
        sql += " AND sentDate >= ?";
        sql += " AND sentDate <= ?";
-
-       if (useRowNumClause) {
-          sql += " AND ROWNUM <= " + maxResults;
-       }
+       
 
        /* Database table 'ofMessageArchive' content examples:
         *
@@ -288,8 +285,11 @@ public class PaginatedMessageDatabaseQuery
 
        if (useLimitClause) {
           sql += " LIMIT " + maxResults;
+       } else if(useFetchFirstClause) {
+          sql += " FETCH FIRST " + maxResults + " ROWS ONLY ";          
        }
-       return sql;
+       
+       return sql; 
     }
 
     private String buildQueryForTotalCount()
