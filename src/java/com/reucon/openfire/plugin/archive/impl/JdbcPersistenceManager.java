@@ -9,8 +9,6 @@ import com.reucon.openfire.plugin.archive.xep0059.XmppResultSet;
 import org.dom4j.*;
 import org.jivesoftware.database.DbConnectionManager;
 import org.jivesoftware.openfire.archive.ConversationManager;
-import org.jivesoftware.util.JiveConstants;
-import org.jivesoftware.util.JiveGlobals;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.xmpp.packet.JID;
@@ -19,6 +17,7 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.time.Duration;
 import java.util.*;
 
 /**
@@ -71,15 +70,12 @@ public class JdbcPersistenceManager implements PersistenceManager {
             + "WHERE ofConversation.conversationID = ? ORDER BY ofConversation.startDate";
 
     public Date getAuditedStartDate(Date startDate) {
-        long maxRetrievable = JiveGlobals.getIntProperty("conversation.maxRetrievable", ConversationManager.DEFAULT_MAX_RETRIEVABLE)
-                * JiveConstants.DAY;
+        Duration maxRetrievable = ConversationManager.MAX_RETRIEVABLE.getValue();
         Date result = startDate;
-        if (maxRetrievable > 0) {
+        if (maxRetrievable.toDays() > 0) {
             Date now = new Date();
-            Date maxRetrievableDate = new Date(now.getTime() - maxRetrievable);
-            if (startDate == null) {
-                result = maxRetrievableDate;
-            } else if (startDate.before(maxRetrievableDate)) {
+            Date maxRetrievableDate = new Date(now.getTime() - maxRetrievable.toMillis());
+            if (startDate == null || startDate.before(maxRetrievableDate)) {
                 result = maxRetrievableDate;
             }
         }
@@ -285,13 +281,16 @@ public class JdbcPersistenceManager implements PersistenceManager {
             Log.debug( "Request for message archive of user '{}' did not specify a start date. Using EPOCH.", owner );
             startDate = new Date(0L);
         }
+        Log.debug("1");
         if (endDate == null) {
             Log.debug( "Request for message archive of user '{}' did not specify an end date. Using the current timestamp.", owner );
             endDate = new Date();
         }
+        Log.debug("2");
 
         // Limit history, if so configured.
         startDate = getAuditedStartDate(startDate);
+        Log.debug("3");
 
         final Long after;
         final Long before;
@@ -308,6 +307,7 @@ public class JdbcPersistenceManager implements PersistenceManager {
         } else {
             after = null;
         }
+        Log.debug("4");
         if (xmppResultSet.getBefore() != null) {
             if ( useStableID ) {
                 before = ConversationManager.getMessageIdForStableId( owner, xmppResultSet.getBefore() );
@@ -317,13 +317,15 @@ public class JdbcPersistenceManager implements PersistenceManager {
         } else {
             before = null;
         }
-
+        Log.debug("5");
         final int maxResults = xmppResultSet.getMax() != null ? xmppResultSet.getMax() : DEFAULT_MAX;
         final boolean isPagingBackwards = xmppResultSet.isPagingBackwards();
 
         final List<ArchivedMessage> msgs;
         final int totalCount;
+        Log.debug("6");
         if ( query != null && !query.isEmpty() ) {
+            Log.debug("7a");
             final PaginatedMessageLuceneQuery paginatedMessageLuceneQuery = new PaginatedMessageLuceneQuery( startDate, endDate, owner, with, query );
             Log.debug("Request for message archive of user '{}' resulted in the following query data: {}", owner, paginatedMessageLuceneQuery);
             totalCount = paginatedMessageLuceneQuery.getTotalCount();
@@ -333,6 +335,7 @@ public class JdbcPersistenceManager implements PersistenceManager {
                 msgs = paginatedMessageLuceneQuery.getPage(after, before, maxResults, isPagingBackwards);
             }
         } else {
+            Log.debug("7b startDate {}, endDate {}, owner {}, with {}", startDate, endDate, owner, with);
             final PaginatedMessageDatabaseQuery paginatedMessageDatabaseQuery = new PaginatedMessageDatabaseQuery(startDate, endDate, owner, with );
             Log.debug("Request for message archive of user '{}' resulted in the following query data: {}", owner, paginatedMessageDatabaseQuery);
             totalCount = paginatedMessageDatabaseQuery.getTotalCount();

@@ -17,7 +17,8 @@ package com.reucon.openfire.plugin.archive.impl;
 import com.reucon.openfire.plugin.archive.model.ArchivedMessage;
 import org.dom4j.DocumentException;
 import org.jivesoftware.database.DbConnectionManager;
-import org.jivesoftware.util.JiveGlobals;
+import org.jivesoftware.openfire.archive.MonitoringConstants;
+import org.jivesoftware.util.SystemProperty;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.xmpp.packet.JID;
@@ -43,6 +44,13 @@ public class PaginatedMessageDatabaseQuery
 {
     private static final Logger Log = LoggerFactory.getLogger(PaginatedMessageDatabaseQuery.class );
 
+    private static SystemProperty<Boolean> IGNORE_RETRIEVAL_EXCEPTIONS = SystemProperty.Builder.ofType(Boolean.class)
+        .setKey("archive.ignore-retrieval-exceptions")
+        .setDefaultValue(false)
+        .setDynamic(true)
+        .setPlugin(MonitoringConstants.PLUGIN_NAME)
+        .build();
+
     @Nonnull
     private final Date startDate;
 
@@ -65,10 +73,12 @@ public class PaginatedMessageDatabaseQuery
      */
     public PaginatedMessageDatabaseQuery(@Nullable final Date startDate, @Nullable final Date endDate, @Nonnull final JID owner, @Nullable final JID with)
     {
+        Log.debug("Making a PaginatedMessageDatabaseQuery");
         this.startDate = startDate == null ? new Date( 0L ) : startDate ;
         this.endDate = endDate == null ? new Date() : endDate;
         this.owner = owner;
         this.with = with;
+        Log.debug("Made a PaginatedMessageDatabaseQuery");
     }
 
     @Nonnull
@@ -164,7 +174,7 @@ public class PaginatedMessageDatabaseQuery
             }
         } catch (SQLException e) {
             Log.error("SQL failure during MAM for owner: {}", this.owner, e);
-            if (!JiveGlobals.getBooleanProperty("archive.ignore-retrieval-exceptions", false)) {
+            if (!IGNORE_RETRIEVAL_EXCEPTIONS.getValue()) {
                 throw new DataRetrievalException(e);
             }
         } catch (DocumentException e) {
