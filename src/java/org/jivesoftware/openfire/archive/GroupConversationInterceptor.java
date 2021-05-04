@@ -124,9 +124,25 @@ public class GroupConversationInterceptor implements MUCEventListener {
                     conversationManager.getRoomsArchived().isEmpty() ||
                             conversationManager.getRoomsArchived().contains(roomJID.getNode()));
 
-            ConversationEventsQueue eventsQueue = conversationManager.getConversationEventsQueue();
-            eventsQueue.addGroupChatEvent(conversationManager.getRoomConversationKey(roomJID),
+            if (withBody)
+            {
+                ConversationEventsQueue eventsQueue = conversationManager.getConversationEventsQueue();
+                eventsQueue.addGroupChatEvent(conversationManager.getRoomConversationKey(roomJID),
                     ConversationEvent.roomMessageReceived(roomJID, user, null, nickname, withBody ? message.getBody() : null, message.toXML(), now));
+            }
+            else
+            {
+                String stanza = message.toXML();
+                ChatMarker.TYPE markertype = ChatMarker.searchForXep0333(stanza);
+
+                if (markertype!=ChatMarker.TYPE.NONE)
+                {
+                    ConversationEventsQueue eventsQueue = conversationManager.getConversationEventsQueue();
+                    eventsQueue.addGroupChatEvent(conversationManager.getRoomConversationKey(roomJID),
+                            ConversationEvent.chatmarkerMessageReceived(roomJID, user, markertype,stanza,
+                                    new Date()));
+                }
+            }
         }
     }
 

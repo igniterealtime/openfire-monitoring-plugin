@@ -216,10 +216,13 @@ public class ConversationUtils {
                 String prefix;
 
                 if (!message.isRoomEvent()) {
+                    /*
+                     * If body is null, then it is a chatmarker, so we add the ressource to see which device has sent the marker.
+                     * */
                     if (to == null) {
-                        prefix = "[" + time + "] " + from + ":  ";
+                        prefix = "[" + time + "] " + from+(body==null?(" ("+message.getToJID().getResource()+")"):"")+ ":  ";
                     } else {
-                        prefix = "[" + time + "] " + from + " -> " + to + ":  ";
+                        prefix = "[" + time + "] " + from+(body==null?(" ("+message.getToJID().getResource()+")"):"")+ " -> " + to + ":  ";
                     }
                     Color color = colorMap.get(message.getFromJID());
                     if (color == null) {
@@ -230,12 +233,35 @@ public class ConversationUtils {
                     }
 
                     messageParagraph.add(new Text(prefix).setFont(PdfFontFactory.createFont(StandardFonts.HELVETICA_BOLD)).setFontColor(color));
-                    messageParagraph.add(new Text(body).setFontColor(ColorConstants.BLACK));
+                    messageParagraph.add(new Text(body==null?"":body).setFontColor(ColorConstants.BLACK));
                 }
                 else {
                     prefix = "[" + time + "] ";
                     messageParagraph.add( new Text(prefix)).setFont(PdfFontFactory.createFont(StandardFonts.HELVETICA_OBLIQUE)).setFontColor(ColorConstants.MAGENTA);
-                    messageParagraph.add( new Text(body).setFont(PdfFontFactory.createFont(StandardFonts.HELVETICA_OBLIQUE)).setFontColor(ColorConstants.MAGENTA));
+                    messageParagraph.add( new Text(body==null?"":body).setFont(PdfFontFactory.createFont(StandardFonts.HELVETICA_OBLIQUE)).setFontColor(ColorConstants.MAGENTA));
+                }
+
+                if (body==null)
+                {
+                    ChatMarker.TYPE chatmarker = ChatMarker.searchForXep0333(message.getStanza());
+                    switch (chatmarker)
+                    {
+                        case NONE:
+                                messageParagraph.add("--unknown message--");
+                            break;
+                        case MARKABLE:
+                                messageParagraph.add("--message markable--");
+                            break;
+                        case RECEIVED:
+                                messageParagraph.add("--message received--");
+                            break;
+                        case DISPLAYED:
+                                messageParagraph.add("--message displayed--");
+                            break;
+                        case ACKNOWLEGED:
+                                messageParagraph.add("--message acknowleged--");
+                            break;
+                    }
                 }
                 messageParagraph.add(new Text("\n"));
             }
@@ -305,10 +331,36 @@ public class ConversationUtils {
             if (conversation.getRoom() != null) {
                 from = message.getToJID().getResource();
             }
-            from = StringUtils.escapeHTMLTags(from);
+            /*
+             * If body is null, then it is a chatmarker, so we add the ressource to see which device has sent the marker.
+             * */
+            from = StringUtils.escapeHTMLTags(from)+(message.getBody()==null?(" ("+message.getFromJID().getResource()+")"):"");
             to = to == null ? null : StringUtils.escapeHTMLTags(to);
             String cssLabel = cssLabels.get(message.getFromJID().toBareJID());
             String body = StringUtils.escapeHTMLTags(message.getBody());
+
+            if (body==null)
+            {
+                ChatMarker.TYPE chatmarker = ChatMarker.searchForXep0333(message.getStanza());
+                switch (chatmarker)
+                {
+                    case NONE:
+                            body="--unknown message--";
+                        break;
+                    case MARKABLE:
+                            body="--message markable--";
+                        break;
+                    case RECEIVED:
+                            body="--message received--";
+                        break;
+                    case DISPLAYED:
+                            body="--message displayed--";
+                        break;
+                    case ACKNOWLEGED:
+                            body="--message acknowleged--";
+                        break;
+                }
+            }
             builder.append("<tr valign=top>");
             if (!message.isRoomEvent()) {
                 builder.append("<td width=1% nowrap class=" + cssLabel + ">").append("[").append(time).append("]").append("</td>");
