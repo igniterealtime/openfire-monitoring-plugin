@@ -240,62 +240,65 @@ public class PaginatedMucMessageDatabaseQuery
 
     private String buildQueryForMessages( @Nullable final Long after, @Nullable final Long before, final int maxResults, final boolean isPagingBackwards )
     {
-        // What SQL keyword should be used to limit the result set: TOP() or LIMIT ?
-        final boolean useTopNotLimit = DbConnectionManager.getDatabaseType().equals(DbConnectionManager.DatabaseType.sqlserver);
+       // What SQL keyword should be used to limit the result set: TOP() or LIMIT ?
+       final boolean useTopClause = DbConnectionManager.getDatabaseType().equals(DbConnectionManager.DatabaseType.sqlserver);
+       final boolean useFetchFirstClause = DbConnectionManager.getDatabaseType().equals(DbConnectionManager.DatabaseType.oracle);
+       final boolean useLimitClause = !useTopClause && !useFetchFirstClause;
 
-        String sql = "SELECT";
-        if (useTopNotLimit) {
-            sql += " TOP(" + maxResults + ")";
-        }
-        sql += " fromJID, fromJIDResource, toJID, toJIDResource, sentDate, body, stanza, messageID"
-            + " FROM ofMessageArchive"
-            + " WHERE (stanza IS NOT NULL OR body IS NOT NULL)";
+       String sql = "SELECT";
+       if (useTopClause) {
+          sql += " TOP(" + maxResults + ")";
+       }
+       sql += " fromJID, fromJIDResource, toJID, toJIDResource, sentDate, body, stanza, messageID"
+                   + " FROM ofMessageArchive"
+                   + " WHERE (stanza IS NOT NULL OR body IS NOT NULL)";
 
-        // Ignore legacy messages
-        sql += " AND messageID IS NOT NULL";
+       // Ignore legacy messages
+       sql += " AND messageID IS NOT NULL";
 
-        sql += " AND sentDate >= ?";
-        sql += " AND sentDate <= ?";
+       sql += " AND sentDate >= ?";
+       sql += " AND sentDate <= ?";
 
-        /*   Scenario       | fromJID | toJID | isPMforJID
-         * A sends B a 1:1  |    A    |   B   |   null
-         * B sends A a 1:1  |    B    |   A   |   null
-         * A sends MUC msg  |    A    |  MUC  |   null
-         * B sends MUC msg  |    B    |  MUC  |   null
-         * A sends B a PM   |    A    |  MUC  |    B
-         * B sends A a PM   |    B    |  MUC  |    A
-         *
-         * If A wants MUC archive (the OWNER is MUC, the REQUESTOR is A):
-         * - toJID = OWNER  - to limit the returned messages to those shared in a chatroom
-         * - (isPMforJID = NULL OR (isPMforJID = REQUESTOR OR fromJID = REQUESTOR)) - either the message is a non-private one, or it is a private one that was sent or received by the requestor.
-         */
+       /*
+        * Scenario        | fromJID | toJID | isPMforJID
+        * A sends B a 1:1 | A       | B     | null
+        * B sends A a 1:1 | B       | A     | null
+        * A sends MUC msg | A       | MUC   | null
+        * B sends MUC msg | B       | MUC   | null
+        * A sends B a PM  | A       | MUC   | B
+        * B sends A a PM  | B       | MUC   | A
+        * If A wants MUC archive (the OWNER is MUC, the REQUESTOR is A):
+        * - toJID = OWNER - to limit the returned messages to those shared in a chatroom
+        * - (isPMforJID = NULL OR (isPMforJID = REQUESTOR OR fromJID = REQUESTOR)) - either the message is a non-private one, or it is a private one that was sent or received by the requestor.
+        */
 
-        // Query for a MUC archive.
-        sql += " AND toJID = ? AND (isPMforJID IS NULL OR (isPMforJID = ? OR fromJID = ?))"; // owner, requestor, requestor
+       // Query for a MUC archive.
+       sql += " AND toJID = ? AND (isPMforJID IS NULL OR (isPMforJID = ? OR fromJID = ?))"; // owner, requestor, requestor
 
-        if( with != null )
-        {
-            // XEP-0313 specifies: If (and only if) the supplied JID is a bare JID (i.e. no resource is present), then the server SHOULD return messages if their bare to/from address for a user archive, or from address otherwise, would match it.
-            if (with.getResource() == null) {
-                sql += " AND ( toJID = ? OR fromJID = ? )";
-            } else {
-                sql += " AND ( ( toJID = ? AND toJIDResource = ? ) OR ( fromJID = ? AND fromJIDResource = ? ) )";
-            }
-        }
+       if (this.with != null) {
+          // XEP-0313 specifies: If (and only if) the supplied JID is a bare JID (i.e. no resource is present), then the server SHOULD return messages if their bare to/from address for a user archive, or from address otherwise, would match it.
+          if (this.with.getResource() == null) {
+             sql += " AND ( toJID = ? OR fromJID = ? )";
+          } else {
+             sql += " AND ( ( toJID = ? AND toJIDResource = ? ) OR ( fromJID = ? AND fromJIDResource = ? ) )";
+          }
+       }
 
-        if ( after != null ) {
-            sql += " AND messageID > ?";
-        }
-        if ( before != null ) {
-            sql += " AND messageID < ?";
-        }
+       if (after != null) {
+          sql += " AND messageID > ?";
+       }
+       if (before != null) {
+          sql += " AND messageID < ?";
+       }
 
-        sql += " ORDER BY sentDate " + (isPagingBackwards ? "DESC" : "ASC");
+       sql += " ORDER BY sentDate " + (isPagingBackwards ? "DESC" : "ASC");
 
-        if (!useTopNotLimit) {
-            sql += " LIMIT " + maxResults;
-        }
-        return sql;
+       if (useLimitClause) {
+          sql += " LIMIT " + maxResults;
+       } else if(useFetchFirstClause) {
+          sql += " FETCH FIRST " + maxResults + " ROWS ONLY ";          
+       }
+       return sql;
     }
 
     private String buildQueryForTotalCount()
