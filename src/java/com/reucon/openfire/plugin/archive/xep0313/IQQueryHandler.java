@@ -6,8 +6,8 @@ import com.reucon.openfire.plugin.archive.model.ArchivedMessage;
 import com.reucon.openfire.plugin.archive.xep.AbstractIQHandler;
 import com.reucon.openfire.plugin.archive.xep0059.XmppResultSet;
 import org.dom4j.*;
+import org.jivesoftware.openfire.RoutingTable;
 import org.jivesoftware.openfire.XMPPServer;
-import org.jivesoftware.openfire.PacketRouter;
 import org.jivesoftware.openfire.archive.ConversationManager;
 import org.jivesoftware.openfire.archive.MonitoringConstants;
 import org.jivesoftware.openfire.auth.UnauthorizedException;
@@ -55,7 +55,7 @@ abstract class IQQueryHandler extends AbstractIQHandler implements
 
     protected final String NAMESPACE;
     protected ExecutorService executorService;
-    protected PacketRouter router;
+    protected RoutingTable routingTable;
 
     private final XMPPDateTimeFormat xmppDateTimeFormat = new XMPPDateTimeFormat();
 
@@ -69,7 +69,7 @@ abstract class IQQueryHandler extends AbstractIQHandler implements
     {
         super.initialize( server );
         executorService = Executors.newCachedThreadPool( new NamedThreadFactory( "message-archive-handler-", null, null, null ) );
-        router = server.getPacketRouter();
+        routingTable = server.getRoutingTable();
     }
 
     @Override
@@ -279,7 +279,7 @@ abstract class IQQueryHandler extends AbstractIQHandler implements
             catch ( NotFoundException e ) {
                 Log.debug( "Request resulted in a item-not-found condition.", e );
                 try {
-                    router.route( buildErrorResponse(packet, PacketError.Condition.item_not_found, e.getMessage() ) );
+                    routingTable.routePacket(packet.getFrom(), buildErrorResponse(packet, PacketError.Condition.item_not_found, e.getMessage() ), true);
                 } catch ( Exception ex ) {
                     Log.error( "An unexpected exception occurred while returning an error stanza to the originator of: {}", packet, ex );
                 }
@@ -288,7 +288,7 @@ abstract class IQQueryHandler extends AbstractIQHandler implements
                 Log.error( "An unexpected exception occurred while processing: {}", packet, e );
                 if (packet.isRequest()) {
                     try {
-                        router.route( buildErrorResponse(packet, PacketError.Condition.internal_server_error, "An unexpected exception occurred while processing a request to retrieve archived messages." ) );
+                        routingTable.routePacket(packet.getFrom(), buildErrorResponse(packet, PacketError.Condition.internal_server_error, "An unexpected exception occurred while processing a request to retrieve archived messages." ), true);
                     } catch ( Exception ex ) {
                         Log.error( "An unexpected exception occurred while returning an error stanza to the originator of: {}", packet, ex );
                     }
@@ -487,7 +487,7 @@ abstract class IQQueryHandler extends AbstractIQHandler implements
      */
     private void sendAcknowledgementResult(IQ packet) {
         IQ result = IQ.createResultIQ(packet);
-        router.route(result);
+        routingTable.routePacket(result.getTo(), result, true);
     }
 
     /**
@@ -513,7 +513,7 @@ abstract class IQQueryHandler extends AbstractIQHandler implements
             }
         }
 
-        router.route(finalMessage);
+        routingTable.routePacket(finalMessage.getTo(), finalMessage, true);
     }
 
     /**
@@ -521,7 +521,6 @@ abstract class IQQueryHandler extends AbstractIQHandler implements
      * @param from to recieve message
      * @param queryRequest Query request made by client
      * @param archivedMessage Message to send to client
-     * @return
      */
     private void sendMessageResult(JID from, QueryRequest queryRequest, ArchivedMessage archivedMessage) {
         final Message stanza;
@@ -565,7 +564,7 @@ abstract class IQQueryHandler extends AbstractIQHandler implements
 
         // TODO Can/should we use a SSID instead of the database ID for the result 'ID' attribute value?
         messagePacket.addExtension(new Result(fwd, NAMESPACE, queryRequest.getQueryid(), archivedMessage.getId().toString()));
-        router.route(messagePacket);
+        routingTable.routePacket(messagePacket.getTo(), messagePacket, true);
     }
 
     /**
