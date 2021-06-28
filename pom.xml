@@ -90,9 +90,9 @@
             <version>1.9</version>
         </dependency>
         <dependency>
-            <groupId>rome</groupId>
-            <artifactId>rome</artifactId>
-            <version>1.0</version>
+            <groupId>com.rometools</groupId>
+			<artifactId>rome</artifactId>
+			<version>1.15.0</version>
         </dependency>
 
         <!-- For java 9+, see: https://stackoverflow.com/questions/51916221 -->
