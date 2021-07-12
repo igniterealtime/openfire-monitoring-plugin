@@ -16,6 +16,7 @@
 
 package org.jivesoftware.openfire.reporting.util;
 
+import org.jivesoftware.openfire.plugin.ForceClosingThreadPoolExecutor;
 import org.jivesoftware.util.NamedThreadFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -58,7 +59,8 @@ public class TaskEngine {
     private TaskEngine() {
         timer = new Timer("timer-monitoring", true);
         final ThreadFactory threadFactory = new NamedThreadFactory( "pool-monitoring", true, Thread.NORM_PRIORITY, Thread.currentThread().getThreadGroup(), 0L );
-        executor = Executors.newCachedThreadPool( threadFactory );
+//        executor = new ForceClosingThreadPoolExecutor( Executors.newCachedThreadPool(threadFactory) );
+        executor = new ThreadPoolExecutor(0, Integer.MAX_VALUE,0, TimeUnit.SECONDS, new SynchronousQueue<>(), threadFactory);
     }
 
     /**
