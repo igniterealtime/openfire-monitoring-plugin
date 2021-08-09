@@ -55,13 +55,19 @@ public class ArchiveIndexer extends org.jivesoftware.openfire.index.LuceneIndexe
     private ConversationManager conversationManager;
 
     /**
+     * The version of the structure that is stored in the Lucene index. When this value differs from the value that is
+     * stored in a file with the index, then upon restart, an automatic re-indexation will occur.
+     */
+    public static final int SCHEMA_VERSION = 1;
+
+    /**
      * Constructs a new archive indexer.
      *
      * @param conversationManager a ConversationManager instance.
      * @param taskEngine a task engine instance.
      */
     public ArchiveIndexer(ConversationManager conversationManager, TaskEngine taskEngine) {
-        super(taskEngine, new File(JiveGlobals.getHomeDirectory() + File.separator + MonitoringConstants.NAME + File.separator + "search"), "CONVERSATION" );
+        super(taskEngine, new File(JiveGlobals.getHomeDirectory() + File.separator + MonitoringConstants.NAME + File.separator + "search"), "CONVERSATION", SCHEMA_VERSION);
         this.conversationManager = conversationManager;
     }
 
