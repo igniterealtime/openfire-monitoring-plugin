@@ -36,6 +36,12 @@ import java.util.Date;
  */
 public class MessageIndexer extends LuceneIndexer
 {
+    /**
+     * The version of the structure that is stored in the Lucene index. When this value differs from the value that is
+     * stored in a file with the index, then upon restart, an automatic re-indexation will occur.
+     */
+    public static final int SCHEMA_VERSION = 1;
+
     public static final String ALL_MESSAGES = "SELECT fromJID, fromJIDResource, toJID, toJIDResource, sentDate, body, messageID, isPMforJID "
                                             + "FROM ofMessageArchive "
                                             + "WHERE body IS NOT NULL "
@@ -47,7 +53,7 @@ public class MessageIndexer extends LuceneIndexer
 
     public MessageIndexer( final TaskEngine taskEngine, final ConversationManager conversationManager )
     {
-        super(taskEngine, new File(JiveGlobals.getHomeDirectory() + File.separator + MonitoringConstants.NAME + File.separator + "msgsearch"), "MESSAGE" );
+        super(taskEngine, new File(JiveGlobals.getHomeDirectory() + File.separator + MonitoringConstants.NAME + File.separator + "msgsearch"), "MESSAGE", SCHEMA_VERSION);
         this.conversationManager = conversationManager;
     }
 

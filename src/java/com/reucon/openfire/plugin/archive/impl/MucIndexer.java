@@ -28,6 +28,12 @@ import java.util.Date;
  */
 public class MucIndexer extends LuceneIndexer
 {
+    /**
+     * The version of the structure that is stored in the Lucene index. When this value differs from the value that is
+     * stored in a file with the index, then upon restart, an automatic re-indexation will occur.
+     */
+    public static final int SCHEMA_VERSION = 1;
+
     public static final String ALL_MUC_MESSAGES = "SELECT roomID, sender, logTime, body, messageID FROM ofMucConversationLog WHERE messageID IS NOT NULL";
     public static final String NEW_MUC_MESSAGES = "SELECT roomID, sender, logTime, body, messageID FROM ofMucConversationLog WHERE messageID IS NOT NULL AND logTime > ?";
 
@@ -35,7 +41,7 @@ public class MucIndexer extends LuceneIndexer
 
     public MucIndexer( final TaskEngine taskEngine, final ConversationManager conversationManager )
     {
-        super(taskEngine, new File(JiveGlobals.getHomeDirectory() + File.separator + MonitoringConstants.NAME + File.separator + "mucsearch"), "MUCSEARCH" );
+        super(taskEngine, new File(JiveGlobals.getHomeDirectory() + File.separator + MonitoringConstants.NAME + File.separator + "mucsearch"), "MUCSEARCH", SCHEMA_VERSION);
         this.conversationManager = conversationManager;
     }
 

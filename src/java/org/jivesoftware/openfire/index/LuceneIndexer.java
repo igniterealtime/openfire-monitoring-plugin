@@ -18,12 +18,13 @@ import org.jivesoftware.util.XMLProperties;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.File;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.io.Writer;
+import java.io.*;
+import java.nio.file.Files;
+import java.nio.file.NoSuchFileException;
+import java.nio.file.Path;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Scanner;
 import java.util.TimerTask;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
@@ -34,6 +35,7 @@ public abstract class LuceneIndexer
 {
     protected final Logger Log;
 
+    private final int schemaVersion;
     protected TaskEngine taskEngine;
     protected RebuildFuture rebuildFuture;
     private File searchDir;
@@ -44,10 +46,11 @@ public abstract class LuceneIndexer
     private boolean rebuildInProgress = false;
     private TimerTask indexUpdater;
 
-    public LuceneIndexer(TaskEngine taskEngine, File searchDir, String logName)
+    public LuceneIndexer(TaskEngine taskEngine, File searchDir, String logName, int schemaVersion)
     {
         this.taskEngine = taskEngine;
         this.searchDir = searchDir;
+        this.schemaVersion = schemaVersion;
         Log = LoggerFactory.getLogger(ArchiveIndexer.class.getName() + "["+logName+"]");
     }
 
@@ -70,48 +73,65 @@ public abstract class LuceneIndexer
             if ( !DirectoryReader.indexExists(directory) )
             {
                 // Create a new index.
+                removeAndRebuildSearchDir();
                 indexCreated = true;
             }
             else
             {
-                // See if we can read the format.
+                Log.debug("Checking Lucene index...");
+
                 try
                 {
+                    // See if the data on disk is of the schema version that we expect to be able to use.
                     // TODO make this optional through configuration.
-                    Log.debug("Checking Lucene index...");
-                    boolean isClean;
-                    try ( final CheckIndex check = new CheckIndex(directory) )
+                    final Path schemaVersionFile = searchDir.toPath().resolve("openfire-schema.version");
+                    final Scanner scanner = new Scanner(schemaVersionFile);
+                    int detectedSchemaVersion = -1;
+                    if (scanner.hasNextInt())
                     {
-                        check.setChecksumsOnly(true);
-                        check.setDoSlowChecks(false);
-                        check.setFailFast(true);
-                        isClean = check.checkIndex().clean;
-                        Log.info("Lucene index {} clean.", isClean ? "is" : "is not");
+                        detectedSchemaVersion = scanner.nextInt();
                     }
-                    if ( !isClean )
-                    {
-                        Log.info("Lucene index is not clean. Removing and rebuilding: {}", isClean);
-                        directory.close();
-                        FileUtils.deleteDirectory(searchDir);
-                        if ( !searchDir.mkdirs() )
-                        {
-                            Log.warn("Lucene index directory '{}' cannot be recreated!", searchDir);
-                        }
-                        directory = FSDirectory.open(searchDir.toPath());
+                    if ( detectedSchemaVersion < this.schemaVersion) {
+                        Log.info("Lucene index using older schema version {}. Required version: {}. Removing and rebuilding.", detectedSchemaVersion, this.schemaVersion);
+                        removeAndRebuildSearchDir();
                         indexCreated = true;
                     }
                 }
-                catch ( IndexFormatTooOldException ex )
+                catch (FileNotFoundException | NoSuchFileException ex)
                 {
-                    Log.info("Format of Lucene index is to old. Removing and rebuilding.", ex);
-                    directory.close();
-                    FileUtils.deleteDirectory(searchDir);
-                    if ( !searchDir.mkdirs() )
-                    {
-                        Log.warn("Lucene index directory '{}' cannot be recreated!", searchDir);
-                    }
-                    directory = FSDirectory.open(searchDir.toPath());
+                    Log.info("Unable to read index schema version. Removing and rebuilding.", ex);
+                    removeAndRebuildSearchDir();
                     indexCreated = true;
+                }
+
+                if (!indexCreated)
+                {
+                    try
+                    {
+                        // See if we can read the format.
+                        // TODO make this optional through configuration.
+                        boolean isClean;
+                        try (final CheckIndex check = new CheckIndex(directory))
+                        {
+                            check.setChecksumsOnly(true);
+                            check.setDoSlowChecks(false);
+                            check.setFailFast(true);
+                            isClean = check.checkIndex().clean;
+                            Log.info("Lucene index {} clean.", isClean ? "is" : "is not");
+                        }
+                        if (!isClean)
+                        {
+                            Log.info("Lucene index is not clean. Removing and rebuilding: {}", isClean);
+                            removeAndRebuildSearchDir();
+                            indexCreated = true;
+                        }
+                    }
+                    catch (IndexFormatTooOldException ex)
+                    {
+                        Log.info("Format of Lucene index is to old. Removing and rebuilding.", ex);
+                        removeAndRebuildSearchDir();
+                        indexCreated = true;
+                    }
                 }
             }
         }
@@ -136,6 +156,16 @@ public abstract class LuceneIndexer
         };
         final int updateInterval = JiveGlobals.getIntProperty("conversation.search.updateInterval", 5);
         taskEngine.schedule(indexUpdater, JiveConstants.MINUTE * 1, JiveConstants.MINUTE * updateInterval);
+    }
+
+    private void removeAndRebuildSearchDir() throws IOException {
+        directory.close();
+        FileUtils.deleteDirectory(searchDir);
+        if ( !searchDir.mkdirs() )
+        {
+            Log.warn("Lucene index directory '{}' cannot be recreated!", searchDir);
+        }
+        directory = FSDirectory.open(searchDir.toPath());
     }
 
     protected synchronized Instant getLastModified()
@@ -288,8 +318,9 @@ public abstract class LuceneIndexer
             Log.debug("Removing old data from directory: {}", searchDir);
             try {
                 FileUtils.cleanDirectory(searchDir);
+                Files.write(searchDir.toPath().resolve("openfire-schema.version"), String.valueOf(this.schemaVersion).getBytes());
             } catch ( IOException e ) {
-                Log.warn("An exception occured while trying to clean directory '{}' as part of a rebuild of the Lucene index that's in it.", searchDir);
+                Log.warn("An exception occurred while trying to clean directory '{}' as part of a rebuild of the Lucene index that's in it.", searchDir);
             }
 
             final Analyzer analyzer = new StandardAnalyzer();
