@@ -24,7 +24,7 @@ import java.sql.SQLException;
 import java.util.*;
 
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
-import org.apache.lucene.document.DateTools;
+import org.apache.lucene.document.NumericDocValuesField;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.queryparser.classic.ParseException;
 import org.apache.lucene.queryparser.classic.QueryParser;
@@ -111,7 +111,7 @@ public class ArchiveSearcher {
             Sort sort = null;
             if (search.getSortField() != ArchiveSearch.SortField.relevance) {
                 if (search.getSortField() == ArchiveSearch.SortField.date) {
-                    sort = new Sort(new SortField("date", SortField.Type.STRING, search.getSortOrder() == ArchiveSearch.SortOrder.descending));
+                    sort = new Sort(new SortField("date", SortField.Type.LONG, search.getSortOrder() == ArchiveSearch.SortOrder.descending));
                     Log.debug( "... applying sort: {}", sort );
                 }
             }
@@ -119,18 +119,17 @@ public class ArchiveSearcher {
             // See if we need to filter on date. Default to a null filter so that it has
             // no effect if date filtering hasn't been selected.
             if (search.getDateRangeMin() != null || search.getDateRangeMax() != null) {
-                String min = null;
+                Long min = null;
                 if (search.getDateRangeMin() != null) {
-                    min = DateTools.dateToString(search.getDateRangeMin(), DateTools.Resolution.DAY);
+                    min = search.getDateRangeMin().getTime();
                 }
-                String max = null;
+                Long max = null;
                 if (search.getDateRangeMax() != null) {
-                    max = DateTools.dateToString(search.getDateRangeMax(), DateTools.Resolution.DAY);
+                    max = search.getDateRangeMax().getTime();
                 }
 
                 if (max != null || min != null) {
-                    // ENT-271: don't include upper or lower bound if these elements are null
-                    final TermRangeQuery dateRangeQuery = TermRangeQuery.newStringRange("date", min, max, min != null, max != null);
+                    final Query dateRangeQuery = NumericDocValuesField.newSlowRangeQuery("date", min != null ? min : Long.MIN_VALUE, max != null ? max : Long.MAX_VALUE);
                     Log.debug( "... limiting to range: {}", dateRangeQuery );
                     query = new BooleanQuery.Builder()
                         .add(query, BooleanClause.Occur.MUST)
