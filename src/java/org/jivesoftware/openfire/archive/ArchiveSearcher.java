@@ -157,7 +157,7 @@ public class ArchiveSearcher {
             if (!participants.isEmpty()) {
                 if (participants.size() == 1) {
                     JID jid = participants.iterator().next().asBareJID();
-                    Query participantQuery = new QueryParser("jid", analyzer).parse(jid.toString());
+                    TermQuery participantQuery = new TermQuery(new Term("jid", jid.toBareJID()));
                     Log.debug( "... restricting to participant: {}", jid );
 
                     // Add this query to the existing query.
@@ -177,8 +177,8 @@ public class ArchiveSearcher {
 
                     Log.debug( "... restricting to participants: {} and {}", participant1, participant2 );
                     final BooleanQuery participantQuery = new BooleanQuery.Builder()
-                        .add(new QueryParser("jid", analyzer).parse(participant1), BooleanClause.Occur.MUST)
-                        .add(new QueryParser("jid", analyzer).parse(participant2), BooleanClause.Occur.MUST)
+                        .add(new TermQuery(new Term("jid", participant1)), BooleanClause.Occur.MUST)
+                        .add(new TermQuery(new Term("jid", participant2)), BooleanClause.Occur.MUST)
                         .build();
 
                     // Add this query to the existing query.
