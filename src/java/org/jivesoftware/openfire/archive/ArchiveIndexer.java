@@ -375,7 +375,7 @@ public class ArchiveIndexer extends org.jivesoftware.openfire.index.LuceneIndexe
         document.add(new StringField("external", String.valueOf(external), Field.Store.NO));
         document.add(new NumericDocValuesField("date", date.toEpochMilli()));
         for (JID jid : jids) {
-            document.add(new StringField("jid", jid.toString(), Field.Store.NO));
+            document.add(new StringField("jid", jid.toBareJID(), Field.Store.NO));
         }
         document.add(new TextField("text", text, Field.Store.NO));
         writer.addDocument(document);
