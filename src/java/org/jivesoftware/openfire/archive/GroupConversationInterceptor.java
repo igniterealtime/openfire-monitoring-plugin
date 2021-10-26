@@ -95,7 +95,7 @@ public class GroupConversationInterceptor implements MUCEventListener {
     public void nicknameChanged(JID roomJID, JID user, String oldNickname, String newNickname) {
         // Process this event in the senior cluster member or local JVM when not in a cluster
         if (ClusterManager.isSeniorClusterMember()) {
-            occupantLeft(roomJID, user);
+            occupantLeft(roomJID, user, oldNickname);
             // Sleep 1 millisecond so that there is a delay between logging out and logging in
             try {
                 Thread.sleep(1);
