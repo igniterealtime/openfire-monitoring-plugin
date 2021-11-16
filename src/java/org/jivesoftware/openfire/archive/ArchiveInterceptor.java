@@ -20,7 +20,11 @@ import org.jivesoftware.openfire.cluster.ClusterManager;
 import org.jivesoftware.openfire.interceptor.InterceptorManager;
 import org.jivesoftware.openfire.interceptor.PacketInterceptor;
 import org.jivesoftware.openfire.interceptor.PacketRejectedException;
+import org.jivesoftware.openfire.privacy.PrivacyList;
+import org.jivesoftware.openfire.privacy.PrivacyListManager;
 import org.jivesoftware.openfire.session.Session;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.xmpp.packet.JID;
 import org.xmpp.packet.Message;
 import org.xmpp.packet.Packet;
@@ -42,6 +46,7 @@ import java.util.Date;
 public class ArchiveInterceptor implements PacketInterceptor {
 
     private ConversationManager conversationManager;
+    private static final Logger Log = LoggerFactory.getLogger(ArchiveInterceptor.class);
 
     public ArchiveInterceptor(ConversationManager conversationManager) {
         this.conversationManager = conversationManager;
@@ -66,6 +71,16 @@ public class ArchiveInterceptor implements PacketInterceptor {
             if (message.getBody() != null) {
                 // Only process messages that are between two users, group chat rooms, or gateways.
                 if (conversationManager.isConversation(message)) {
+                    //take care on blocklist
+                    JID to = message.getTo();
+                    if (to!=null)
+                    {
+                        final PrivacyList defaultPrivacyList = PrivacyListManager.getInstance().getDefaultPrivacyList(to.getNode());
+                        if (defaultPrivacyList!=null&&defaultPrivacyList.shouldBlockPacket(message)) {
+                            Log.debug( "Not storing message, as it is rejected by the default privacy list of the recipient ({}).", to.getNode() );
+                            return;
+                        }
+                    }
                     // Process this event in the senior cluster member or local JVM when not in a cluster
                     if (ClusterManager.isSeniorClusterMember()) {
                         conversationManager.processMessage(message.getFrom(), message.getTo(), message.getBody(), message.toXML(), new Date());
