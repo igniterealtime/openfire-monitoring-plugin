@@ -11,13 +11,20 @@ import org.jivesoftware.openfire.handler.IQHandler;
 import org.jivesoftware.openfire.muc.MultiUserChatManager;
 import org.jivesoftware.openfire.muc.MultiUserChatService;
 import org.jivesoftware.openfire.plugin.MonitoringPlugin;
-import org.jivesoftware.util.Log;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.xmpp.packet.IQ;
 import org.xmpp.packet.PacketError;
 
-import java.util.*;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.Map;
 
 public abstract class AbstractXepSupport implements UserFeaturesProvider {
+
+    private static final Logger Log = LoggerFactory.getLogger(AbstractXepSupport.class);
 
     protected final XMPPServer server;
     protected final Map<QName, IQHandler> element2Handlers;

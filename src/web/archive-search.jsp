@@ -12,10 +12,15 @@
 <%@ page import="java.text.DateFormat"%>
 <%@ page import="java.text.SimpleDateFormat" %>
 <%@ page import="java.util.*" %>
+<%@ page import="org.slf4j.Logger" %>
+<%@ page import="org.slf4j.LoggerFactory" %>
+<%@ page import="com.reucon.openfire.plugin.archive.xep.AbstractXepSupport" %>
 
 <%@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c" %>
 <%@ taglib uri="http://java.sun.com/jsp/jstl/fmt" prefix="fmt" %>
 <%
+    Logger logger = LoggerFactory.getLogger("archive-search-jsp");
+
     // Get handle on the Monitoring plugin
     MonitoringPlugin plugin = (MonitoringPlugin) XMPPServer.getInstance().getPluginManager().getPlugin(
             "monitoring");
@@ -94,7 +99,7 @@
             }
             catch (Exception e) {
                 // TODO: mark as an error in the JSP instead of logging..
-                Log.error(e);
+                logger.error("Date range can't be established", e);
             }
         }
 
@@ -113,7 +118,7 @@
             }
             catch (Exception e) {
                 // TODO: mark as an error in the JSP instead of logging..
-                Log.error(e);
+                logger.error("Date range can't be established", e);
             }
         }
 
@@ -842,7 +847,7 @@
                 participants.put(identifier, jid);
             }
             catch (Exception e) {
-                Log.error(e);
+                LoggerFactory.getLogger("archive-search-jsp").error("Participants can't be collected", e);
             }
 
         }

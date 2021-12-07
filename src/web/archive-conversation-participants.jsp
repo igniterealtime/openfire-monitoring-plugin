@@ -11,11 +11,15 @@
 <%@ page import="org.jivesoftware.util.StringUtils" %>
 <%@ page import="org.xmpp.packet.JID" %>
 <%@ page import="java.util.*" %>
+<%@ page import="org.slf4j.LoggerFactory" %>
+<%@ page import="org.slf4j.Logger" %>
 
 <%@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c" %>
 <%@ taglib uri="http://java.sun.com/jsp/jstl/fmt" prefix="fmt" %>
 
 <%
+    Logger logger = LoggerFactory.getLogger("archive-conversation-participants-jsp");
+    
     long conversationID = ParamUtils.getLongParameter(request, "conversationID", -1);
     int start = ParamUtils.getIntParameter(request, "start", 0);
 
@@ -47,7 +51,7 @@
         }
     }
     catch (NotFoundException e) {
-        Log.error("Conversation not found: " + conversationID, e);
+        logger.error("Conversation not found: " + conversationID, e);
     }
     // paginator vars
     int range = 16;

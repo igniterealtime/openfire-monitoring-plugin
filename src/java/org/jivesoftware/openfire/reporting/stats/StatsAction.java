@@ -15,6 +15,22 @@
  */
 package org.jivesoftware.openfire.reporting.stats;
 
+import org.jivesoftware.openfire.XMPPServer;
+import org.jivesoftware.openfire.archive.Conversation;
+import org.jivesoftware.openfire.archive.ConversationManager;
+import org.jivesoftware.openfire.archive.MonitoringConstants;
+import org.jivesoftware.openfire.plugin.MonitoringPlugin;
+import org.jivesoftware.openfire.reporting.graph.GraphEngine;
+import org.jivesoftware.openfire.stats.Statistic;
+import org.jivesoftware.openfire.user.UserNameManager;
+import org.jivesoftware.openfire.user.UserNotFoundException;
+import org.jivesoftware.util.JiveGlobals;
+import org.jivesoftware.util.LocaleUtils;
+import org.jivesoftware.util.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.xmpp.packet.JID;
+
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
 import java.text.DateFormat;
@@ -30,21 +46,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
-import org.jivesoftware.openfire.XMPPServer;
-import org.jivesoftware.openfire.archive.Conversation;
-import org.jivesoftware.openfire.archive.ConversationManager;
-import org.jivesoftware.openfire.archive.MonitoringConstants;
-import org.jivesoftware.openfire.plugin.MonitoringPlugin;
-import org.jivesoftware.openfire.reporting.graph.GraphEngine;
-import org.jivesoftware.openfire.stats.Statistic;
-import org.jivesoftware.openfire.user.UserNameManager;
-import org.jivesoftware.openfire.user.UserNotFoundException;
-import org.jivesoftware.util.JiveGlobals;
-import org.jivesoftware.util.LocaleUtils;
-import org.jivesoftware.util.Log;
-import org.jivesoftware.util.StringUtils;
-import org.xmpp.packet.JID;
-
 /**
  * Provides the server side callbacks for client side JavaScript functions for
  * the stats dashboard page.
@@ -52,6 +53,8 @@ import org.xmpp.packet.JID;
  * @author Aaron Johnson
  */
 public class StatsAction {
+
+    private static final Logger Log = LoggerFactory.getLogger(StatsAction.class);
 
     /**
      * Retrieves a map containing the high / low and current count statistics
