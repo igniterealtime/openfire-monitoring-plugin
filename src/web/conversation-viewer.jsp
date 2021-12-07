@@ -8,10 +8,14 @@
 <%@ page import="java.util.HashMap" %>
 <%@ page import="java.util.Map" %>
 <%@ page import="org.jivesoftware.util.*"%><%@ page import="java.util.Collection"%>
+<%@ page import="org.slf4j.LoggerFactory" %>
+<%@ page import="org.slf4j.Logger" %>
 <%!
      Map<String, String> colorMap = new HashMap<String, String>();
 %>
 <%
+    Logger logger = LoggerFactory.getLogger("conversation-viewer-jsp");
+
     // Get handle on the Monitoring plugin
     MonitoringPlugin plugin = (MonitoringPlugin)XMPPServer.getInstance().getPluginManager().getPlugin(
         "monitoring");
@@ -26,7 +30,7 @@
             conversation = new Conversation(conversationManager, conversationID);
         }
         catch (NotFoundException nfe) {
-            Log.error(nfe);
+            logger.error("Can't reconstruct conversation", nfe);
         }
     }
 
@@ -86,7 +90,7 @@ No conversation could be found.
     String getColor(JID jid){
         String color = colorMap.get(jid.toBareJID());
         if(color == null){
-            Log.debug("Unable to find "+jid.toBareJID()+" using "+colorMap);
+            LoggerFactory.getLogger("conversation-viewer-jsp").debug("Unable to find "+jid.toBareJID()+" using "+colorMap);
         }
         return color;
     }
