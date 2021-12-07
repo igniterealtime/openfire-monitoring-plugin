@@ -48,9 +48,14 @@ public class GroupConversationInterceptor implements MUCEventListener {
     }
 
     @Override
+    public void occupantNickKicked(JID jid, String nickname) {
+        // Do nothing. This will result in users being removed from rooms, which should trigger an occupantLeft invocation for each room involved.
+    }
+
+    @Override
     public void roomDestroyed(JID roomJID) {
         // Process this event in the senior cluster member or local JVM when not in a cluster
-        if (ClusterManager.isSeniorClusterMember()) {
+        if (conversationManager.isRetrieveConversationsLocally() || ClusterManager.isSeniorClusterMember()) {
             conversationManager.roomConversationEnded(roomJID, new Date());
         }
         else {
@@ -63,7 +68,7 @@ public class GroupConversationInterceptor implements MUCEventListener {
     @Override
     public void occupantJoined(JID roomJID, JID user, String nickname) {
         // Process this event in the senior cluster member or local JVM when not in a cluster
-        if (ClusterManager.isSeniorClusterMember()) {
+        if (conversationManager.isRetrieveConversationsLocally() || ClusterManager.isSeniorClusterMember()) {
             conversationManager.joinedGroupConversation(roomJID, user, nickname, new Date());
         }
         else {
@@ -76,7 +81,7 @@ public class GroupConversationInterceptor implements MUCEventListener {
     @Override
     public void occupantLeft(JID roomJID, JID user, String nickname) {
         // Process this event in the senior cluster member or local JVM when not in a cluster
-        if (ClusterManager.isSeniorClusterMember()) {
+        if (conversationManager.isRetrieveConversationsLocally() || ClusterManager.isSeniorClusterMember()) {
             conversationManager.leftGroupConversation(roomJID, user, new Date());
             // If there are no more occupants then consider the group conversation over
             MUCRoom mucRoom = XMPPServer.getInstance().getMultiUserChatManager().getMultiUserChatService(roomJID).getChatRoom(roomJID.getNode());
@@ -94,7 +99,7 @@ public class GroupConversationInterceptor implements MUCEventListener {
     @Override
     public void nicknameChanged(JID roomJID, JID user, String oldNickname, String newNickname) {
         // Process this event in the senior cluster member or local JVM when not in a cluster
-        if (ClusterManager.isSeniorClusterMember()) {
+        if (conversationManager.isRetrieveConversationsLocally() || ClusterManager.isSeniorClusterMember()) {
             occupantLeft(roomJID, user, oldNickname);
             // Sleep 1 millisecond so that there is a delay between logging out and logging in
             try {
@@ -116,7 +121,7 @@ public class GroupConversationInterceptor implements MUCEventListener {
         final Date now = new Date();
 
         // Process this event in the senior cluster member or local JVM when not in a cluster
-        if (ClusterManager.isSeniorClusterMember()) {
+        if (conversationManager.isRetrieveConversationsLocally() || ClusterManager.isSeniorClusterMember()) {
             conversationManager.processRoomMessage(roomJID, user, null, nickname, message.getBody(), message.toXML(), now);
         }
         else {
@@ -136,7 +141,7 @@ public class GroupConversationInterceptor implements MUCEventListener {
             final JID roomJID = message.getFrom().asBareJID();
             final String senderNickname = message.getFrom().getResource();
             final Date now = new Date();
-            if (ClusterManager.isSeniorClusterMember()) {
+            if (conversationManager.isRetrieveConversationsLocally() || ClusterManager.isSeniorClusterMember()) {
                 if (JiveGlobals.getBooleanProperty("conversation.roomArchiving.PMinPersonalArchive", false)) {
                     // Historically, private messages are saved as regular 'one-on-one' messages.
                     conversationManager.processMessage(fromJID, toJID, message.getBody(), message.toXML(), now);

@@ -16,12 +16,12 @@
 
 package org.jivesoftware.openfire.archive;
 
+import com.reucon.openfire.plugin.archive.util.StanzaIDUtil;
 import org.dom4j.Document;
 import org.dom4j.DocumentException;
 import org.dom4j.DocumentHelper;
 import org.dom4j.Element;
 import org.jivesoftware.database.DbConnectionManager;
-import org.jivesoftware.database.SequenceManager;
 import org.jivesoftware.openfire.XMPPServer;
 import org.jivesoftware.openfire.XMPPServerInfo;
 import org.jivesoftware.openfire.archive.cluster.GetConversationCountTask;
@@ -34,10 +34,15 @@ import org.jivesoftware.openfire.component.InternalComponentManager;
 import org.jivesoftware.openfire.muc.MultiUserChatService;
 import org.jivesoftware.openfire.plugin.MonitoringPlugin;
 import org.jivesoftware.openfire.reporting.util.TaskEngine;
-import com.reucon.openfire.plugin.archive.util.StanzaIDUtil;
 import org.jivesoftware.openfire.stats.Statistic;
 import org.jivesoftware.openfire.stats.StatisticsManager;
-import org.jivesoftware.util.*;
+import org.jivesoftware.util.JiveConstants;
+import org.jivesoftware.util.JiveGlobals;
+import org.jivesoftware.util.LocaleUtils;
+import org.jivesoftware.util.NotFoundException;
+import org.jivesoftware.util.PropertyEventDispatcher;
+import org.jivesoftware.util.PropertyEventListener;
+import org.jivesoftware.util.StringUtils;
 import org.jivesoftware.util.cache.CacheFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -51,8 +56,18 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.*;
-import java.util.concurrent.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.Date;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.TimerTask;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.stream.Stream;
 
 /**
@@ -104,6 +119,11 @@ public class ConversationManager implements ComponentEventListener{
      */
     private boolean roomArchivingEnabled;
     private boolean roomArchivingStanzasEnabled;
+
+    /**
+     * Flag that indicates if conversations should be retrieved locally or from the senior cluster node.
+     */
+    private boolean retrieveConversationsLocally;
     /**
      * List of room names to archive. When list is empty then all rooms are archived (if roomArchivingEnabled is enabled).
      */
@@ -155,6 +175,7 @@ public class ConversationManager implements ComponentEventListener{
 
         maxAge = JiveGlobals.getIntProperty("conversation.maxAge", DEFAULT_MAX_AGE) * JiveConstants.DAY;
         maxRetrievable = JiveGlobals.getIntProperty("conversation.maxRetrievable", DEFAULT_MAX_RETRIEVABLE) * JiveConstants.DAY;
+        retrieveConversationsLocally = JiveGlobals.getBooleanProperty("conversation.retrieveLocally", true);
 
         // Listen for any changes to the conversation properties.
         propertyListener = new ConversationPropertyListener();
@@ -496,7 +517,7 @@ public class ConversationManager implements ComponentEventListener{
      * @return the count of active conversations.
      */
     public int getConversationCount() {
-        if (ClusterManager.isSeniorClusterMember()) {
+        if (retrieveConversationsLocally || ClusterManager.isSeniorClusterMember()) {
             return conversations.size();
         }
         return (Integer) CacheFactory.doSynchronousClusterTask(new GetConversationCountTask(), ClusterManager.getSeniorClusterMember().toByteArray());
@@ -512,7 +533,7 @@ public class ConversationManager implements ComponentEventListener{
      *             if the conversation could not be found.
      */
     public Conversation getConversation(long conversationID) throws NotFoundException {
-        if (ClusterManager.isSeniorClusterMember()) {
+        if (retrieveConversationsLocally || ClusterManager.isSeniorClusterMember()) {
             // Search through the currently active conversations.
             for (Conversation conversation : conversations.values()) {
                 if (conversation.getConversationID() == conversationID) {
@@ -538,7 +559,7 @@ public class ConversationManager implements ComponentEventListener{
      * @return the active conversations.
      */
     public Collection<Conversation> getConversations() {
-        if (ClusterManager.isSeniorClusterMember()) {
+        if (retrieveConversationsLocally || ClusterManager.isSeniorClusterMember()) {
             List<Conversation> conversationList = new ArrayList<Conversation>(conversations.values());
             // Sort the conversations by creation date.
             Collections.sort(conversationList, new Comparator<Conversation>() {
@@ -1078,6 +1099,14 @@ public class ConversationManager implements ComponentEventListener{
             .map( archiver -> archiver.availabilityETAOnLocalNode( instant ) )
             .max( Comparator.naturalOrder() )
             .orElse( Duration.ZERO );
+    }
+
+    /**
+     * Retrieves the setting for whether to handle conversation archive locally or through the senior cluster node.
+     * @return Whether to handle conversation archive locally, even if this manager is running on a junior cluster node.
+     */
+    public boolean isRetrieveConversationsLocally() {
+        return retrieveConversationsLocally;
     }
 
     /**
