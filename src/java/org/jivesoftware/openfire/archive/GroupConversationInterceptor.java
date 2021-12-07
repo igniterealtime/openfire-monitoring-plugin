@@ -48,6 +48,11 @@ public class GroupConversationInterceptor implements MUCEventListener {
     }
 
     @Override
+    public void occupantNickKicked(JID jid, String nickname) {
+        // Do nothing. This will result in users being removed from rooms, which should trigger an occupantLeft invocation for each room involved.
+    }
+
+    @Override
     public void roomDestroyed(JID roomJID) {
         // Process this event in the senior cluster member or local JVM when not in a cluster
         if (ClusterManager.isSeniorClusterMember()) {
