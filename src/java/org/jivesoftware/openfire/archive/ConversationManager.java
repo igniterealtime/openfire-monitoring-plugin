@@ -175,7 +175,7 @@ public class ConversationManager implements ComponentEventListener{
 
         maxAge = JiveGlobals.getIntProperty("conversation.maxAge", DEFAULT_MAX_AGE) * JiveConstants.DAY;
         maxRetrievable = JiveGlobals.getIntProperty("conversation.maxRetrievable", DEFAULT_MAX_RETRIEVABLE) * JiveConstants.DAY;
-        retrieveConversationsLocally = JiveGlobals.getBooleanProperty("conversation.retrieveLocally", true);
+        retrieveConversationsLocally = JiveGlobals.getBooleanProperty("conversation.retrieveLocally", false);
 
         // Listen for any changes to the conversation properties.
         propertyListener = new ConversationPropertyListener();
