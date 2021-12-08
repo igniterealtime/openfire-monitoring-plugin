@@ -25,9 +25,11 @@ public class ConversationInfo {
     private String participant1;
     private String participant2;
     /**
-     * For group converstion we need to send a string array with the occupants' JIDs.
+     * For group conversation we need to send a string array with the occupants' JIDs as well as the room JID.
      */
     private String[] allParticipants;
+    private String roomJID;
+
     private String date;
     private String lastActivity;
     private String body;
@@ -64,6 +66,14 @@ public class ConversationInfo {
 
     public void setAllParticipants(String[] allParticipants) {
         this.allParticipants = allParticipants;
+    }
+
+    public String getRoomJID() {
+        return roomJID;
+    }
+
+    public void setRoomJID(String roomJID) {
+        this.roomJID = roomJID;
     }
 
     public String getDate() {

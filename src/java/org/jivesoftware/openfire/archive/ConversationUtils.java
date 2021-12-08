@@ -271,6 +271,7 @@ public class ConversationUtils {
                 jids[i] = formatJID(formatParticipants, occupants[i]);
             }
             info.setAllParticipants(jids);
+            info.setRoomJID(conversation.getRoom().toBareJID());
         }
 
         Map<String, String> cssLabels = new HashMap<String, String>();

@@ -51,22 +51,24 @@ function updateConversations(data) {
     conversationsTable = $('conversations');
     rows = conversationsTable.getElementsByTagName("tr");
     // loop over existing rows in the table
-    var rowsToDelete = new Array();
+    var rowsToDelete = [];
     for (i = 0; i < rows.length; i++) {
         // is this a conversation row?
-        if (rows[i].id == 'noconversations') {
+        if (rows[i].id === 'noconversations') {
             rowsToDelete.push(i);
-        } else if (rows[i].id != '') {
+        } else if (rows[i].id !== '') {
             // does the conversation exist in update we received?
             convID = rows[i].id.replace('conversation-', '');
-            if (data[convID] != undefined) {
+            if (data[convID] !== undefined) {
 
                 row = rows[i];
                 cells = row.getElementsByTagName('td');
                 conversation = data[convID];
-                if (cells[3].innerHTML != conversation.messageCount) {
-                    users = conversation.participant1 + '<br />' + conversation.participant2;
-                    cells[0].innerHTML = users;
+                if (cells[3].innerHTML !== conversation.messageCount) {
+                    if (!conversation.allParticipants) {
+                        users = conversation.participant1 + '<br />' + conversation.participant2;
+                        cells[0].innerHTML = users;
+                    }
                     cells[1].innerHTML = conversation.duration;
                     cells[2].innerHTML = conversation.lastActivity;
                     cells[3].innerHTML = conversation.messageCount;
@@ -89,9 +91,15 @@ function updateConversations(data) {
     for (var c in data) {
         counter++;
         // does this conversation already exist?
-        if ($('conversation-' + c) == undefined) {
+        if (!$('conversation-' + c)) {
             conversation = data[c];
-            users = conversation.participant1 + '<br />' + conversation.participant2;
+            if (!conversation.allParticipants) {
+                users = conversation.participant1 + '<br />' + conversation.participant2;
+            } else {
+                users = '<fmt:message key="archive.group_conversation"/>';
+                users = users.replace('{0}', '<a href="../../muc-room-occupants.jsp?roomJID=' + conversation.roomJID + '">');
+                users = users.replace('{1}', '</a');
+            }
             var newTR = document.createElement("tr");
             newTR.setAttribute('id', 'conversation-' + c)
             conversationsTable.appendChild(newTR);
@@ -115,6 +123,17 @@ function updateConversations(data) {
 
     // update activeConversations number
     $('activeConversations').innerHTML = counter;
+
+    // When there's no data in the table, add the 'no conversations' placeholder.
+    if (counter === 0 && !document.getElementById('noconversations')) {
+        var noConvTR = document.createElement("tr");
+        noConvTR.setAttribute('id', 'noconversations');
+        conversationsTable.appendChild(noConvTR);
+        var noConvTD = document.createElement("TD")
+        noConvTD.setAttribute('colspan', '4');
+        noConvTD.innerHTML = '<fmt:message key="archive.converations.no_conversations" />';
+        noConvTR.appendChild(noConvTD);
+    }
 }
 
 //# sourceURL=conversations.jsp
