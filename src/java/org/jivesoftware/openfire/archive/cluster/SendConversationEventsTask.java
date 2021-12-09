@@ -16,13 +16,6 @@
 
 package org.jivesoftware.openfire.archive.cluster;
 
-import java.io.IOException;
-import java.io.ObjectInput;
-import java.io.ObjectOutput;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
-
 import org.jivesoftware.openfire.XMPPServer;
 import org.jivesoftware.openfire.archive.ConversationEvent;
 import org.jivesoftware.openfire.archive.ConversationManager;
@@ -35,6 +28,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
+import java.io.IOException;
+import java.io.ObjectInput;
+import java.io.ObjectOutput;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
 
 /**
  * Task that sends conversation events to the senior cluster member.
@@ -78,11 +77,19 @@ public class SendConversationEventsTask implements ClusterTask<Void> {
     }
 
     public void writeExternal(ObjectOutput out) throws IOException {
-        ExternalizableUtil.getInstance().writeExternalizableCollection(out, events);
+        ExternalizableUtil.getInstance().writeInt(out, events.size());
+        for (ConversationEvent event : events) {
+            ExternalizableUtil.getInstance().writeSafeUTF(out, ConversationManager.getXmlSerializer().marshall(event));
+        }
     }
 
     public void readExternal(ObjectInput in) throws IOException {
         events = new ArrayList<>();
-        ExternalizableUtil.getInstance().readExternalizableCollection(in, events, getClass().getClassLoader());
+        int eventCount = ExternalizableUtil.getInstance().readInt(in);
+        for (int i = 0; i < eventCount; i++) {
+            String marshalledConversationEvent = ExternalizableUtil.getInstance().readSafeUTF(in);
+            final ConversationEvent unmarshalledEvent = (ConversationEvent)ConversationManager.getXmlSerializer().unmarshall(marshalledConversationEvent);
+            events.add(unmarshalledEvent);
+        }
     }
 }

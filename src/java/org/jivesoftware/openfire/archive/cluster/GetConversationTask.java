@@ -16,10 +16,9 @@
 
 package org.jivesoftware.openfire.archive.cluster;
 
-import org.jivesoftware.openfire.archive.Conversation;
+import org.jivesoftware.openfire.XMPPServer;
 import org.jivesoftware.openfire.archive.ConversationManager;
 import org.jivesoftware.openfire.archive.MonitoringConstants;
-import org.jivesoftware.openfire.XMPPServer;
 import org.jivesoftware.openfire.container.Plugin;
 import org.jivesoftware.openfire.plugin.MonitoringPlugin;
 import org.jivesoftware.util.NotFoundException;
@@ -36,14 +35,17 @@ import java.util.Optional;
 /**
  * Task that returns the specified conversation or <tt>null</tt> if not found.
  *
+ * This task intentionally works String (XML) representations instead of the Conversation objects themselves. This
+ * prevents classloader issues that may otherwise occur when the plugin is reloaded.
+
  * @author Gaston Dombiak
  */
-public class GetConversationTask implements ClusterTask<Conversation>
+public class GetConversationTask implements ClusterTask<String>
 {
     private static final Logger Log = LoggerFactory.getLogger(GetConversationTask.class);
 
     private long conversationID;
-    private Conversation conversation;
+    private String conversationXml;
 
     public GetConversationTask() {
     }
@@ -52,8 +54,8 @@ public class GetConversationTask implements ClusterTask<Conversation>
         this.conversationID = conversationID;
     }
 
-    public Conversation getResult() {
-        return conversation;
+    public String getResult() {
+        return conversationXml;
     }
 
     public void run() {
@@ -64,8 +66,8 @@ public class GetConversationTask implements ClusterTask<Conversation>
         }
         final ConversationManager conversationManager = ((MonitoringPlugin)plugin.get()).getConversationManager();
         try {
-            conversation = conversationManager.getConversation(conversationID);
-        } catch (NotFoundException e) {
+            conversationXml = conversationManager.getConversation(conversationID).toXml();
+        } catch (NotFoundException | IOException e) {
             // Ignore. The requester of this task will throw this exception in his JVM
         }
     }

@@ -18,6 +18,8 @@ package org.jivesoftware.openfire.archive;
 
 import org.jivesoftware.util.cache.ExternalizableUtil;
 
+import javax.xml.bind.annotation.XmlElement;
+import javax.xml.bind.annotation.XmlRootElement;
 import java.io.Externalizable;
 import java.io.IOException;
 import java.io.ObjectInput;
@@ -31,9 +33,13 @@ import java.util.Date;
  *
  * @author Gaston Dombiak
  */
+@XmlRootElement
 public class ConversationParticipation implements Externalizable {
+    @XmlElement
     private Date joined = new Date();
+    @XmlElement
     private Date left;
+    @XmlElement
     private String nickname;
 
     public ConversationParticipation() {

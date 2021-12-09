@@ -1,0 +1,132 @@
+/*
+ * Copyright (C) 2021 Ignite Realtime Foundation. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package org.jivesoftware.openfire.archive;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.xmpp.packet.JID;
+
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+import javax.xml.bind.JAXBContext;
+import javax.xml.bind.JAXBException;
+import javax.xml.bind.Marshaller;
+import javax.xml.bind.Unmarshaller;
+import javax.xml.bind.annotation.adapters.XmlAdapter;
+import java.io.StringReader;
+import java.io.StringWriter;
+import java.lang.reflect.Array;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Stream;
+
+/**
+ * The XmlSerializer assists in converting objects from and to XML representation. Classes of all involved objects need
+ * to be bound upon instantiation. A number of generally used collection classes is bound by default.
+ */
+public class XmlSerializer {
+    private static final Logger Log = LoggerFactory.getLogger(XmlSerializer.class);
+    private static final Class[] defaultClassesToBind = {
+        ArrayList.class,
+        HashMap.class,
+        HashSet.class,
+        ConcurrentHashMap.class
+    };
+
+    private final Marshaller marshaller;
+    private final Unmarshaller unmarshaller;
+
+    public XmlSerializer(Class<?>... classesToBind) {
+        final Class[] allClassesToBind = Stream.concat(Arrays.stream(defaultClassesToBind), Arrays.stream(classesToBind))
+            .toArray(size -> (Class[]) Array.newInstance(Class.class, size));
+
+        Log.trace("Binding classes: {}", allClassesToBind);
+
+        try {
+            JAXBContext jaxbContext = JAXBContext.newInstance(allClassesToBind);
+            this.marshaller = jaxbContext.createMarshaller();
+            this.unmarshaller = jaxbContext.createUnmarshaller();
+        } catch (JAXBException e) {
+            throw new IllegalArgumentException("Unable to create xml serializer using classes " + allClassesToBind, e);
+        }
+    }
+
+    /**
+     * Convert some object to its XML representation.
+     * @param object The object to convert.
+     * @return The resulting XML representation.
+     */
+    @Nonnull
+    public String marshall(@Nullable Object object) {
+        if (object == null) {
+            return "";
+        } else {
+            StringWriter writer = new StringWriter();
+
+            try {
+                this.marshaller.marshal(object, writer);
+            } catch (JAXBException e) {
+                Log.error("Object could not be marshalled into an XML format: " + object, e);
+                throw new IllegalArgumentException("Object could not be marshalled into an XML format: " + object);
+            }
+
+            return writer.toString();
+        }
+    }
+
+    /**
+     * Converts an XML representation back to an object.
+     * @param object The XML representation from which the object needs to be rebuilt.
+     * @return The resulting object.
+     */
+    @Nullable
+    public Object unmarshall(@Nullable String object) {
+        if (object != null && !"".equals(object)) {
+            StringReader reader = new StringReader(object);
+
+            try {
+                return this.unmarshaller.unmarshal(reader);
+            } catch (JAXBException e) {
+                Log.error("XML value could not be unmarshalled into an object: " + object, e);
+                throw new IllegalArgumentException("XML value could not be unmarshalled into an object: " + object);
+            }
+        } else {
+            return null;
+        }
+    }
+
+    /**
+     * This simple JAXB adapter allows for converting between JID and String, without the need for annotations to be
+     * placed in the JID class.
+     */
+    static class JidAdapter extends XmlAdapter<String, JID> {
+        @Override
+        public JID unmarshal(final String v) {
+            return new JID(v);
+        }
+        @Override
+        public String marshal(JID v) {
+            if (v.getResource() != null) {
+                return v.toFullJID();
+            } else {
+                return v.toBareJID();
+            }
+        }
+    }
+}

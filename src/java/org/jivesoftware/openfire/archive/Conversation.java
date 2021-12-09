@@ -16,17 +16,6 @@
 
 package org.jivesoftware.openfire.archive;
 
-import java.io.Externalizable;
-import java.io.IOException;
-import java.io.ObjectInput;
-import java.io.ObjectOutput;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
-
 import org.jivesoftware.database.DbConnectionManager;
 import org.jivesoftware.database.JiveID;
 import org.jivesoftware.database.SequenceManager;
@@ -45,6 +34,30 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.xmpp.packet.JID;
 
+import javax.xml.bind.annotation.XmlElement;
+import javax.xml.bind.annotation.XmlElementWrapper;
+import javax.xml.bind.annotation.XmlRootElement;
+import javax.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
+import java.io.Externalizable;
+import java.io.IOException;
+import java.io.ObjectInput;
+import java.io.ObjectOutput;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
+
 /**
  * Represents an IM conversation between people. A conversation encompasses a series of messages sent back and forth. It may cover a single topic
  * or several. The start of a conversation occurs when the first message between users is sent. It ends when either:
@@ -61,6 +74,7 @@ import org.xmpp.packet.JID;
  * 
  * @author Matt Tucker
  */
+@XmlRootElement
 @JiveID(50)
 public class Conversation implements Externalizable {
 
@@ -79,15 +93,23 @@ public class Conversation implements Externalizable {
 
     private transient ConversationManager conversationManager;
 
+    @XmlElement
     private long conversationID = -1;
+    @XmlElementWrapper
     private Map<String, UserParticipations> participants;
+    @XmlElement
     private boolean external;
+    @XmlElement
     private Date startDate;
+    @XmlElement
     private Date lastActivity;
+    @XmlElement
     private int messageCount;
     /**
      * Room where the group conversion is taking place. For one-to-one chats there is no room so this variable will be null.
      */
+    @XmlElement
+    @XmlJavaTypeAdapter(XmlSerializer.JidAdapter.class)
     private JID room;
 
     /**
@@ -587,9 +609,38 @@ public class Conversation implements Externalizable {
         }
     }
 
+    /**
+     * Convert the conversation to an XML representation.
+     * @return XML representation of the conversation.
+     * @throws IOException
+     */
+    public String toXml() throws IOException {
+        return ConversationManager.getXmlSerializer().marshall(this);
+    }
+
+    /**
+     * Create a new conversation object based on the XML representation.
+     * @param xmlString The XML representation.
+     * @return A newly instantiated conversation object containing state as included in the XML representation.
+     * @throws IOException
+     */
+    public static Conversation fromXml(final String xmlString) throws IOException {
+        final Conversation unmarshalled = (Conversation) ConversationManager.getXmlSerializer().unmarshall(xmlString);
+        final Optional<Plugin> plugin = XMPPServer.getInstance().getPluginManager().getPluginByName(MonitoringConstants.PLUGIN_NAME);
+        if (!plugin.isPresent()) {
+            throw new IllegalStateException("Unable to handle IQ stanza. The Monitoring plugin does not appear to be loaded on this machine.");
+        }
+        unmarshalled.conversationManager = ((MonitoringPlugin)plugin.get()).getConversationManager();
+        return unmarshalled;
+    }
+
     public void writeExternal(ObjectOutput out) throws IOException {
         ExternalizableUtil.getInstance().writeLong(out, conversationID);
-        ExternalizableUtil.getInstance().writeExternalizableMap(out, participants);
+        ExternalizableUtil.getInstance().writeInt(out, participants.size());
+        for (Map.Entry<String, UserParticipations> e :  participants.entrySet()) {
+            ExternalizableUtil.getInstance().writeSafeUTF(out, e.getKey());
+            ExternalizableUtil.getInstance().writeSafeUTF(out, ConversationManager.getXmlSerializer().marshall(e.getValue()));
+        }
         ExternalizableUtil.getInstance().writeBoolean(out, external);
         ExternalizableUtil.getInstance().writeLong(out, startDate.getTime());
         ExternalizableUtil.getInstance().writeLong(out, lastActivity.getTime());
@@ -610,7 +661,15 @@ public class Conversation implements Externalizable {
         this.participants = new ConcurrentHashMap<>();
 
         conversationID = ExternalizableUtil.getInstance().readLong(in);
-        ExternalizableUtil.getInstance().readExternalizableMap(in, participants, getClass().getClassLoader());
+
+        int participantsCount = ExternalizableUtil.getInstance().readInt(in);
+        for (int i = 0; i < participantsCount; i++) {
+            String participantName = ExternalizableUtil.getInstance().readSafeUTF(in);
+            String marshalledParticipations = ExternalizableUtil.getInstance().readSafeUTF(in);
+            final UserParticipations unmarshalledParticipations = (UserParticipations)ConversationManager.getXmlSerializer().unmarshall(marshalledParticipations);
+            participants.put(participantName, unmarshalledParticipations);
+        }
+
         external = ExternalizableUtil.getInstance().readBoolean(in);
         startDate = new Date(ExternalizableUtil.getInstance().readLong(in));
         lastActivity = new Date(ExternalizableUtil.getInstance().readLong(in));

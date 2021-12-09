@@ -16,18 +16,20 @@
 
 package org.jivesoftware.openfire.archive.cluster;
 
+import org.jivesoftware.openfire.XMPPServer;
 import org.jivesoftware.openfire.archive.Conversation;
 import org.jivesoftware.openfire.archive.ConversationManager;
 import org.jivesoftware.openfire.archive.MonitoringConstants;
-import org.jivesoftware.openfire.XMPPServer;
 import org.jivesoftware.openfire.container.Plugin;
 import org.jivesoftware.openfire.plugin.MonitoringPlugin;
 import org.jivesoftware.util.cache.ClusterTask;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.io.ObjectInput;
 import java.io.ObjectOutput;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Optional;
 
@@ -35,16 +37,19 @@ import java.util.Optional;
  * Task that will return current conversations taking place in the senior cluster member.
  * All conversations in the cluster are kept in the senior cluster member.
  *
+ * This task intentionally works String (XML) representations instead of the Conversation objects themselves. This
+ * prevents classloader issues that may otherwise occur when the plugin is reloaded.
+ *
  * @author Gaston Dombiak
  */
-public class GetConversationsTask implements ClusterTask<Collection<Conversation>>
+public class GetConversationsTask implements ClusterTask<Collection<String>>
 {
     private static final Logger Log = LoggerFactory.getLogger(GetConversationTask.class);
 
-    private Collection<Conversation> conversations;
+    private Collection<String> conversationsXml;
 
-    public Collection<Conversation> getResult() {
-        return conversations;
+    public Collection<String> getResult() {
+        return conversationsXml;
     }
 
     public void run() {
@@ -54,7 +59,15 @@ public class GetConversationsTask implements ClusterTask<Collection<Conversation
             return;
         }
         final ConversationManager conversationManager = ((MonitoringPlugin)plugin.get()).getConversationManager();
-        conversations = conversationManager.getConversations();
+        final Collection<Conversation> conversations = conversationManager.getConversations();
+        try {
+            conversationsXml = new ArrayList<>();
+            for (Conversation conversation : conversations) {
+                conversationsXml.add(conversation.toXml());
+            }
+        } catch (IOException e) {
+            // Ignore. The requester of this task will throw this exception in his JVM
+        }
     }
 
     public void writeExternal(ObjectOutput out) {
