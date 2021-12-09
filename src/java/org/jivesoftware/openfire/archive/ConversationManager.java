@@ -16,12 +16,12 @@
 
 package org.jivesoftware.openfire.archive;
 
+import com.reucon.openfire.plugin.archive.util.StanzaIDUtil;
 import org.dom4j.Document;
 import org.dom4j.DocumentException;
 import org.dom4j.DocumentHelper;
 import org.dom4j.Element;
 import org.jivesoftware.database.DbConnectionManager;
-import org.jivesoftware.database.SequenceManager;
 import org.jivesoftware.openfire.XMPPServer;
 import org.jivesoftware.openfire.XMPPServerInfo;
 import org.jivesoftware.openfire.archive.cluster.GetConversationCountTask;
@@ -34,10 +34,15 @@ import org.jivesoftware.openfire.component.InternalComponentManager;
 import org.jivesoftware.openfire.muc.MultiUserChatService;
 import org.jivesoftware.openfire.plugin.MonitoringPlugin;
 import org.jivesoftware.openfire.reporting.util.TaskEngine;
-import com.reucon.openfire.plugin.archive.util.StanzaIDUtil;
 import org.jivesoftware.openfire.stats.Statistic;
 import org.jivesoftware.openfire.stats.StatisticsManager;
-import org.jivesoftware.util.*;
+import org.jivesoftware.util.JiveConstants;
+import org.jivesoftware.util.JiveGlobals;
+import org.jivesoftware.util.LocaleUtils;
+import org.jivesoftware.util.NotFoundException;
+import org.jivesoftware.util.PropertyEventDispatcher;
+import org.jivesoftware.util.PropertyEventListener;
+import org.jivesoftware.util.StringUtils;
 import org.jivesoftware.util.cache.CacheFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -45,14 +50,25 @@ import org.xmpp.packet.IQ;
 import org.xmpp.packet.JID;
 import org.xmpp.packet.Message;
 
+import java.io.IOException;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.*;
-import java.util.concurrent.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.Date;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.TimerTask;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.stream.Stream;
 
 /**
@@ -92,6 +108,9 @@ public class ConversationManager implements ComponentEventListener{
 
     private ConversationEventsQueue conversationEventsQueue;
     private TaskEngine taskEngine;
+
+    private static XmlSerializer xmlSerializer;
+
 
     private Map<String, Conversation> conversations = new ConcurrentHashMap<String, Conversation>();
     private boolean metadataArchivingEnabled;
@@ -523,12 +542,17 @@ public class ConversationManager implements ComponentEventListener{
             return new Conversation(this, conversationID);
         } else {
             // Get this info from the senior cluster member when running in a cluster
-            Conversation conversation = (Conversation) CacheFactory.doSynchronousClusterTask(new GetConversationTask(conversationID), ClusterManager
+            String conversationXml = (String) CacheFactory.doSynchronousClusterTask(new GetConversationTask(conversationID), ClusterManager
                     .getSeniorClusterMember().toByteArray());
-            if (conversation == null) {
+            if (conversationXml == null) {
                 throw new NotFoundException("Conversation not found: " + conversationID);
             }
-            return conversation;
+            try {
+                return Conversation.fromXml(conversationXml);
+            } catch (IOException e) {
+                Log.warn("Conversation {} could not be reconstructed from '{}' because of '{}'. Handling this as if the conversation was not found.", conversationID, conversationXml, e.getMessage());
+                throw new NotFoundException("Conversation not found: " + conversationID);
+            }
         }
     }
 
@@ -539,6 +563,9 @@ public class ConversationManager implements ComponentEventListener{
      */
     public Collection<Conversation> getConversations() {
         if (ClusterManager.isSeniorClusterMember()) {
+
+            Log.debug("All conversations: {}", conversations);
+
             List<Conversation> conversationList = new ArrayList<Conversation>(conversations.values());
             // Sort the conversations by creation date.
             Collections.sort(conversationList, new Comparator<Conversation>() {
@@ -549,8 +576,20 @@ public class ConversationManager implements ComponentEventListener{
             return conversationList;
         } else {
             // Get this info from the senior cluster member when running in a cluster
-            return (Collection<Conversation>) CacheFactory.doSynchronousClusterTask(new GetConversationsTask(), ClusterManager
+            Collection<String> conversationXmls = (Collection<String>) CacheFactory.doSynchronousClusterTask(new GetConversationsTask(), ClusterManager
                     .getSeniorClusterMember().toByteArray());
+            Collection<Conversation> result = new ArrayList<>();
+            for (String conversationXml : conversationXmls) {
+                try {
+                    Log.debug("Interpreting conversation from: {}", conversationXml);
+                    final Conversation conversation = Conversation.fromXml(conversationXml);
+                    Log.debug("Interpreted conversation: {}", conversation);
+                    result.add(conversation);
+                } catch (IOException e) {
+                    Log.warn("Conversation could not be reconstructed from '{}' because of '{}'. This conversation is not included in the result set.", conversationXml, e.getMessage());
+                }
+            }
+            return result;
         }
     }
 
@@ -1078,6 +1117,22 @@ public class ConversationManager implements ComponentEventListener{
             .map( archiver -> archiver.availabilityETAOnLocalNode( instant ) )
             .max( Comparator.naturalOrder() )
             .orElse( Duration.ZERO );
+    }
+
+    /**
+     * Returns an XML serializer that can be used to marshall and unmarshall conversation objects.
+     * @return The XML serializer.
+     */
+    public static XmlSerializer getXmlSerializer() {
+        if (ConversationManager.xmlSerializer == null) {
+            ConversationManager.xmlSerializer = new XmlSerializer(
+                Conversation.class,
+                UserParticipations.class,
+                ConversationParticipation.class,
+                ConversationEvent.class
+            );
+        }
+        return ConversationManager.xmlSerializer;
     }
 
     /**

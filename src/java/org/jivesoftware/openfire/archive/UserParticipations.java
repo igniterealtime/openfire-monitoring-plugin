@@ -17,6 +17,9 @@ package org.jivesoftware.openfire.archive;
 
 import org.jivesoftware.util.cache.ExternalizableUtil;
 
+import javax.xml.bind.annotation.XmlElement;
+import javax.xml.bind.annotation.XmlElementWrapper;
+import javax.xml.bind.annotation.XmlRootElement;
 import java.io.Externalizable;
 import java.io.IOException;
 import java.io.ObjectInput;
@@ -32,11 +35,13 @@ import java.util.concurrent.CopyOnWriteArrayList;
  * Time: 11:59:42 PM
  * To change this template use File | Settings | File Templates.
  */
+@XmlRootElement
 public class UserParticipations implements Externalizable {
     /**
      * Flag that indicates if the participations of the user were in a group chat conversation or a one-to-one
      * chat.
      */
+    @XmlElement
     private boolean roomParticipation;
     /**
      * Participations of the same user in a groupchat or one-to-one chat. In a group chat conversation
@@ -44,6 +49,7 @@ public class UserParticipations implements Externalizable {
      * participation is going to be created. Moreover, each time the user changes his nickname in the room
      * a new participation is created.
      */
+    @XmlElementWrapper
     private List<ConversationParticipation> participations;
 
     public UserParticipations() {
@@ -73,7 +79,10 @@ public class UserParticipations implements Externalizable {
 
     public void writeExternal(ObjectOutput out) throws IOException {
         ExternalizableUtil.getInstance().writeBoolean(out, roomParticipation);
-        ExternalizableUtil.getInstance().writeExternalizableCollection(out, participations);
+        ExternalizableUtil.getInstance().writeInt(out, participations.size());
+        for (ConversationParticipation cp :  participations) {
+            ExternalizableUtil.getInstance().writeSafeUTF(out, ConversationManager.getXmlSerializer().marshall(cp));
+        }
     }
 
     public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
@@ -84,6 +93,11 @@ public class UserParticipations implements Externalizable {
         else {
             participations = new CopyOnWriteArrayList<ConversationParticipation>();
         }
-        ExternalizableUtil.getInstance().readExternalizableCollection(in, participations, getClass().getClassLoader());
+        int participationCount = ExternalizableUtil.getInstance().readInt(in);
+        for (int i = 0; i < participationCount; i++) {
+            String marshalledConversationParticipation = ExternalizableUtil.getInstance().readSafeUTF(in);
+            final ConversationParticipation unmarshalledParticipation = (ConversationParticipation)ConversationManager.getXmlSerializer().unmarshall(marshalledConversationParticipation);
+            participations.add(unmarshalledParticipation);
+        }
     }
 }
