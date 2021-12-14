@@ -399,7 +399,13 @@ public class MucMamPersistenceManager implements PersistenceManager {
             }
             rs = pstmt.executeQuery();
             if (rs.next()) {
-                return new Date(Long.parseLong(rs.getString(1).trim())).toInstant();
+                // Note that 'min()' will return a single 'null' value if the 'where' condition does not match.
+                final String minValue = rs.getString(1);
+                if (minValue == null || rs.wasNull()) {
+                    return null;
+                } else {
+                    return new Date(Long.parseLong(minValue.trim())).toInstant();
+                }
             }
         } catch (SQLException e) {
             Log.error("SQL failure while trying to find the timestamp of the earliest message for room {} in MAM-MUC: ", room.getJID(), e);
