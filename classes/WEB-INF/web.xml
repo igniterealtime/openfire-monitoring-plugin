@@ -5,13 +5,16 @@
          version="3.1">
 
     <servlet>
-        <servlet-name>JerseyWrapper</servlet-name>
-        <servlet-class>org.jivesoftware.openfire.plugin.JerseyWrapperPublic</servlet-class>
+        <servlet-name>JerseyApplicationPublic</servlet-name>
+        <servlet-class>org.glassfish.jersey.servlet.ServletContainer</servlet-class>
+        <init-param>
+            <param-name>javax.ws.rs.Application</param-name>
+            <param-value>org.jivesoftware.openfire.plugin.JerseyApplicationPublic</param-value>
+        </init-param>
     </servlet>
 
-
     <servlet-mapping>
-        <servlet-name>JerseyWrapper</servlet-name>
+        <servlet-name>JerseyApplicationPublic</servlet-name>
         <url-pattern>/api/*</url-pattern>
     </servlet-mapping>
 </web-app>
