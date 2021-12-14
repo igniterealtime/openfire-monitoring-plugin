@@ -14,8 +14,7 @@
 
     <properties>
         <jackson.version>2.12.1</jackson.version>
-        <!-- Consider moving to the org.glassfish.jersey set of artefacts -->
-        <jersey.version>1.19.4</jersey.version>
+        <jersey.version>2.35</jersey.version>
     </properties>
 
     <build>
@@ -34,29 +33,24 @@
 
     <dependencies>
         <dependency>
-            <groupId>com.sun.jersey</groupId>
-            <artifactId>jersey-servlet</artifactId>
+            <groupId>org.glassfish.jersey.containers</groupId>
+            <artifactId>jersey-container-jetty-http</artifactId>
             <version>${jersey.version}</version>
         </dependency>
         <dependency>
-            <groupId>com.sun.jersey</groupId>
-            <artifactId>jersey-bundle</artifactId>
+            <groupId>org.glassfish.jersey.containers</groupId>
+            <artifactId>jersey-container-jetty-servlet</artifactId>
             <version>${jersey.version}</version>
         </dependency>
         <dependency>
-            <groupId>com.fasterxml.jackson.module</groupId>
-            <artifactId>jackson-module-jaxb-annotations</artifactId>
-            <version>${jackson.version}</version>
+            <groupId>org.glassfish.jersey.inject</groupId>
+            <artifactId>jersey-hk2</artifactId>
+            <version>${jersey.version}</version>
         </dependency>
         <dependency>
-            <groupId>com.fasterxml.jackson.jaxrs</groupId>
-            <artifactId>jackson-jaxrs-json-provider</artifactId>
-            <version>${jackson.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.codehaus.jettison</groupId>
-            <artifactId>jettison</artifactId>
-            <version>1.4.0</version>
+            <groupId>org.glassfish.jersey.media</groupId>
+            <artifactId>jersey-media-json-jackson</artifactId>
+            <version>${jersey.version}</version>
         </dependency>
         <dependency>
             <groupId>org.jrobin</groupId>
@@ -88,11 +82,6 @@
             <groupId>com.orsonpdf</groupId>
             <artifactId>orsonpdf</artifactId>
             <version>1.9</version>
-        </dependency>
-        <dependency>
-            <groupId>rome</groupId>
-            <artifactId>rome</artifactId>
-            <version>1.0</version>
         </dependency>
 
         <!-- For java 9+, see: https://stackoverflow.com/questions/51916221 -->

@@ -5,8 +5,12 @@
          version="3.1">
     <!-- Servlets -->
     <servlet>
-        <servlet-name>JerseyWrapper</servlet-name>
-        <servlet-class>org.jivesoftware.openfire.plugin.JerseyWrapper</servlet-class>
+        <servlet-name>JerseyApplication</servlet-name>
+        <servlet-class>org.glassfish.jersey.servlet.ServletContainer</servlet-class>
+        <init-param>
+            <param-name>javax.ws.rs.Application</param-name>
+            <param-value>org.jivesoftware.openfire.plugin.JerseyApplication</param-value>
+        </init-param>
     </servlet>
 
     <servlet>
@@ -29,7 +33,7 @@
         <url-pattern>/conversation</url-pattern>
     </servlet-mapping>
     <servlet-mapping>
-        <servlet-name>JerseyWrapper</servlet-name>
+        <servlet-name>JerseyApplication</servlet-name>
         <url-pattern>/api/*</url-pattern>
     </servlet-mapping>
 </web-app>
