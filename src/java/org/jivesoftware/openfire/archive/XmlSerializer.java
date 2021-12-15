@@ -26,6 +26,7 @@ import javax.xml.bind.JAXBException;
 import javax.xml.bind.Marshaller;
 import javax.xml.bind.Unmarshaller;
 import javax.xml.bind.annotation.adapters.XmlAdapter;
+import java.io.IOException;
 import java.io.StringReader;
 import java.io.StringWriter;
 import java.lang.reflect.Array;
@@ -69,11 +70,13 @@ public class XmlSerializer {
 
     /**
      * Convert some object to its XML representation.
+     *
      * @param object The object to convert.
      * @return The resulting XML representation.
+     * @throws IOException On any issue that occurs when marshalling this instance to XML.
      */
     @Nonnull
-    public String marshall(@Nullable Object object) {
+    public String marshall(@Nullable Object object) throws IOException {
         if (object == null) {
             return "";
         } else {
@@ -82,8 +85,7 @@ public class XmlSerializer {
             try {
                 this.marshaller.marshal(object, writer);
             } catch (JAXBException e) {
-                Log.error("Object could not be marshalled into an XML format: " + object, e);
-                throw new IllegalArgumentException("Object could not be marshalled into an XML format: " + object);
+                throw new IOException("Object could not be marshalled into an XML format: " + object, e);
             }
 
             return writer.toString();
@@ -96,15 +98,14 @@ public class XmlSerializer {
      * @return The resulting object.
      */
     @Nullable
-    public Object unmarshall(@Nullable String object) {
+    public Object unmarshall(@Nullable String object) throws IOException {
         if (object != null && !"".equals(object)) {
             StringReader reader = new StringReader(object);
 
             try {
                 return this.unmarshaller.unmarshal(reader);
             } catch (JAXBException e) {
-                Log.error("XML value could not be unmarshalled into an object: " + object, e);
-                throw new IllegalArgumentException("XML value could not be unmarshalled into an object: " + object);
+                throw new IOException("XML value could not be unmarshalled into an object: " + object, e);
             }
         } else {
             return null;

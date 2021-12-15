@@ -611,8 +611,9 @@ public class Conversation implements Externalizable {
 
     /**
      * Convert the conversation to an XML representation.
+     *
      * @return XML representation of the conversation.
-     * @throws IOException
+     * @throws IOException On any issue that occurs when marshalling this instance to XML.
      */
     public String toXml() throws IOException {
         return ConversationManager.getXmlSerializer().marshall(this);
@@ -620,15 +621,18 @@ public class Conversation implements Externalizable {
 
     /**
      * Create a new conversation object based on the XML representation.
+     *
      * @param xmlString The XML representation.
      * @return A newly instantiated conversation object containing state as included in the XML representation.
-     * @throws IOException
+     * @throws IOException On any issue that occurs when unmarshalling XML to an instance of Conversation.
      */
     public static Conversation fromXml(final String xmlString) throws IOException {
         final Conversation unmarshalled = (Conversation) ConversationManager.getXmlSerializer().unmarshall(xmlString);
         final Optional<Plugin> plugin = XMPPServer.getInstance().getPluginManager().getPluginByName(MonitoringConstants.PLUGIN_NAME);
         if (!plugin.isPresent()) {
-            throw new IllegalStateException("Unable to handle IQ stanza. The Monitoring plugin does not appear to be loaded on this machine.");
+            // Highly unlikely, as this code is _part_ of the Monitoring plugin. If this occurs something is very wrong.
+            throw new IOException("Unable to deserialize data as a Conversations instance: " + xmlString,
+                new IllegalStateException("The Monitoring plugin does not appear to be loaded on this machine."));
         }
         unmarshalled.conversationManager = ((MonitoringPlugin)plugin.get()).getConversationManager();
         return unmarshalled;
