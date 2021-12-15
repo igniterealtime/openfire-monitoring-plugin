@@ -563,9 +563,6 @@ public class ConversationManager implements ComponentEventListener{
      */
     public Collection<Conversation> getConversations() {
         if (ClusterManager.isSeniorClusterMember()) {
-
-            Log.debug("All conversations: {}", conversations);
-
             List<Conversation> conversationList = new ArrayList<Conversation>(conversations.values());
             // Sort the conversations by creation date.
             Collections.sort(conversationList, new Comparator<Conversation>() {
