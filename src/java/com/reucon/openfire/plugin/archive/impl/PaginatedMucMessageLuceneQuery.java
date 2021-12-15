@@ -1,6 +1,7 @@
 package com.reucon.openfire.plugin.archive.impl;
 
 import com.reucon.openfire.plugin.archive.model.ArchivedMessage;
+import com.reucon.openfire.plugin.archive.xep0313.IQQueryHandler;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.NumericDocValuesField;
@@ -12,7 +13,6 @@ import org.jivesoftware.openfire.XMPPServer;
 import org.jivesoftware.openfire.archive.MonitoringConstants;
 import org.jivesoftware.openfire.muc.MUCRoom;
 import org.jivesoftware.openfire.plugin.MonitoringPlugin;
-import org.jivesoftware.util.SystemProperty;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.xmpp.packet.JID;
@@ -26,13 +26,6 @@ import java.util.List;
 public class PaginatedMucMessageLuceneQuery
 {
     private static final Logger Log = LoggerFactory.getLogger( PaginatedMucMessageLuceneQuery.class );
-
-    private static SystemProperty<Boolean> IGNORE_RETRIEVAL_EXCEPTIONS = SystemProperty.Builder.ofType(Boolean.class)
-        .setKey("archive.ignore-retrieval-exceptions")
-        .setDefaultValue(false)
-        .setDynamic(true)
-        .setPlugin(MonitoringConstants.PLUGIN_NAME)
-        .build();
 
     private final Date startDate;
     private final Date endDate;
@@ -93,7 +86,7 @@ public class PaginatedMucMessageLuceneQuery
         }
         catch ( Exception e ) {
             Log.warn( "An exception occurred while trying to query the Lucene index to get messages from archive of room {}.", owner.getJID(), e );
-            if (!IGNORE_RETRIEVAL_EXCEPTIONS.getValue()) {
+            if (!IQQueryHandler.IGNORE_RETRIEVAL_EXCEPTIONS.getValue()) {
                 throw new DataRetrievalException(e);
             }
         }

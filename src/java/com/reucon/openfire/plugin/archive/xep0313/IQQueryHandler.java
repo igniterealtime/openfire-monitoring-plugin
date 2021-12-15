@@ -4,9 +4,11 @@ import com.reucon.openfire.plugin.archive.impl.DataRetrievalException;
 import com.reucon.openfire.plugin.archive.model.ArchivedMessage;
 import com.reucon.openfire.plugin.archive.xep.AbstractIQHandler;
 import com.reucon.openfire.plugin.archive.xep0059.XmppResultSet;
-import org.dom4j.*;
-import org.jivesoftware.openfire.XMPPServer;
+import org.dom4j.Attribute;
+import org.dom4j.Element;
+import org.dom4j.QName;
 import org.jivesoftware.openfire.PacketRouter;
+import org.jivesoftware.openfire.XMPPServer;
 import org.jivesoftware.openfire.archive.ConversationManager;
 import org.jivesoftware.openfire.archive.MonitoringConstants;
 import org.jivesoftware.openfire.auth.UnauthorizedException;
@@ -17,7 +19,10 @@ import org.jivesoftware.openfire.muc.MUCRole;
 import org.jivesoftware.openfire.muc.MUCRoom;
 import org.jivesoftware.openfire.muc.MultiUserChatService;
 import org.jivesoftware.openfire.plugin.MonitoringPlugin;
-import org.jivesoftware.util.*;
+import org.jivesoftware.util.NamedThreadFactory;
+import org.jivesoftware.util.NotFoundException;
+import org.jivesoftware.util.SystemProperty;
+import org.jivesoftware.util.XMPPDateTimeFormat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.xmpp.forms.DataForm;
@@ -28,9 +33,11 @@ import org.xmpp.packet.Message;
 import org.xmpp.packet.PacketError;
 
 import java.text.ParseException;
-import java.time.*;
+import java.time.Duration;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.util.*;
-import java.util.LinkedList;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
@@ -38,12 +45,12 @@ import java.util.stream.Collectors;
 /**
  * XEP-0313 IQ Query Handler
  */
-abstract class IQQueryHandler extends AbstractIQHandler implements
+abstract public class IQQueryHandler extends AbstractIQHandler implements
         ServerFeaturesProvider {
 
     private static final Logger Log = LoggerFactory.getLogger(IQQueryHandler.class);
 
-    private static SystemProperty<Boolean> IGNORE_RETRIEVAL_EXCEPTIONS = SystemProperty.Builder.ofType(Boolean.class)
+    public static SystemProperty<Boolean> IGNORE_RETRIEVAL_EXCEPTIONS = SystemProperty.Builder.ofType(Boolean.class)
         .setKey("archive.ignore-retrieval-exceptions")
         .setDefaultValue(false)
         .setDynamic(true)

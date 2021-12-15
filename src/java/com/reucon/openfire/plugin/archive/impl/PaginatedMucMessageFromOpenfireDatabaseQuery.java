@@ -15,12 +15,14 @@
 package com.reucon.openfire.plugin.archive.impl;
 
 import com.reucon.openfire.plugin.archive.model.ArchivedMessage;
+import com.reucon.openfire.plugin.archive.xep0313.IQQueryHandler;
 import org.dom4j.DocumentException;
 import org.jivesoftware.database.DbConnectionManager;
-import org.jivesoftware.openfire.archive.MonitoringConstants;
 import org.jivesoftware.openfire.muc.MUCRoom;
-import org.jivesoftware.util.SystemProperty;
 import org.jivesoftware.util.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.xmpp.packet.JID;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -29,10 +31,6 @@ import java.sql.SQLException;
 import java.util.Date;
 import java.util.LinkedList;
 import java.util.List;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.xmpp.packet.JID;
 
 /**
  * Encapsulates responsibility of creating a database query that retrieves a specific subset (page) of archived messages related to a MUC room.
@@ -45,13 +43,6 @@ import org.xmpp.packet.JID;
 public class PaginatedMucMessageFromOpenfireDatabaseQuery
 {
     private static final Logger Log = LoggerFactory.getLogger(PaginatedMucMessageFromOpenfireDatabaseQuery.class );
-
-    private static SystemProperty<Boolean> IGNORE_RETRIEVAL_EXCEPTIONS = SystemProperty.Builder.ofType(Boolean.class)
-        .setKey("archive.ignore-retrieval-exceptions")
-        .setDefaultValue(false)
-        .setDynamic(true)
-        .setPlugin(MonitoringConstants.PLUGIN_NAME)
-        .build();
 
     private final Date startDate;
     private final Date endDate;
@@ -149,7 +140,7 @@ public class PaginatedMucMessageFromOpenfireDatabaseQuery
             }
         } catch (SQLException e) {
             Log.error("SQL failure during MAM-MUC for room: {}", this.room, e);
-            if (!IGNORE_RETRIEVAL_EXCEPTIONS.getValue()) {
+            if (!IQQueryHandler.IGNORE_RETRIEVAL_EXCEPTIONS.getValue()) {
                 throw new DataRetrievalException(e);
             }
         } catch (DocumentException e) {

@@ -6,7 +6,7 @@ import com.reucon.openfire.plugin.archive.model.ArchivedMessage.Direction;
 import com.reucon.openfire.plugin.archive.model.Conversation;
 import com.reucon.openfire.plugin.archive.model.Participant;
 import com.reucon.openfire.plugin.archive.xep0059.XmppResultSet;
-import org.dom4j.*;
+import org.dom4j.DocumentException;
 import org.jivesoftware.database.DbConnectionManager;
 import org.jivesoftware.openfire.archive.ConversationManager;
 import org.slf4j.Logger;
@@ -317,8 +317,8 @@ public class JdbcPersistenceManager implements PersistenceManager {
         final int maxResults = xmppResultSet.getMax() != null ? xmppResultSet.getMax() : DEFAULT_MAX;
         final boolean isPagingBackwards = xmppResultSet.isPagingBackwards();
 
-        final List<ArchivedMessage> msgs;
-        final int totalCount;
+        List<ArchivedMessage> msgs = Collections.emptyList();
+        int totalCount = 0;
         if ( query != null && !query.isEmpty() ) {
             final PaginatedMessageLuceneQuery paginatedMessageLuceneQuery = new PaginatedMessageLuceneQuery( startDate, endDate, owner, with, query );
             Log.debug("Request for message archive of user '{}' resulted in the following query data: {}", owner, paginatedMessageLuceneQuery);
