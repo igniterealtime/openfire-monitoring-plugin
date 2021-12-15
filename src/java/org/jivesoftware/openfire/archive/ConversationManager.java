@@ -112,7 +112,7 @@ public class ConversationManager implements ComponentEventListener{
     private static XmlSerializer xmlSerializer;
 
 
-    private Map<String, Conversation> conversations = new ConcurrentHashMap<String, Conversation>();
+    private Map<String, Conversation> conversations = new ConcurrentHashMap<>();
     private boolean metadataArchivingEnabled;
     /**
      * Flag that indicates if messages of one-to-one chats should be archived.
@@ -150,7 +150,7 @@ public class ConversationManager implements ComponentEventListener{
 
     public ConversationManager(TaskEngine taskEngine) {
         this.taskEngine = taskEngine;
-        this.gateways = new CopyOnWriteArrayList<String>();
+        this.gateways = new CopyOnWriteArrayList<>();
         this.serverInfo = XMPPServer.getInstance().getServerInfo();
         this.conversationEventsQueue = new ConversationEventsQueue(this, taskEngine);
     }
@@ -179,7 +179,7 @@ public class ConversationManager implements ComponentEventListener{
         propertyListener = new ConversationPropertyListener();
         PropertyEventDispatcher.addListener(propertyListener);
 
-        conversationListeners = new CopyOnWriteArraySet<ConversationListener>();
+        conversationListeners = new CopyOnWriteArraySet<>();
 
         conversationArchiver = new ConversationArchivingRunnable( "MonitoringPlugin Conversations" );
         messageArchiver = new MessageArchivingRunnable( "MonitoringPlugin Messages" );
@@ -563,7 +563,7 @@ public class ConversationManager implements ComponentEventListener{
      */
     public Collection<Conversation> getConversations() {
         if (ClusterManager.isSeniorClusterMember()) {
-            List<Conversation> conversationList = new ArrayList<Conversation>(conversations.values());
+            List<Conversation> conversationList = new ArrayList<>(conversations.values());
             // Sort the conversations by creation date.
             Collections.sort(conversationList, new Comparator<Conversation>() {
                 public int compare(Conversation c1, Conversation c2) {
@@ -683,7 +683,7 @@ public class ConversationManager implements ComponentEventListener{
             Conversation conversation = conversations.get(conversationKey);
             // Create a new conversation if necessary.
             if (conversation == null) {
-                Collection<JID> participants = new ArrayList<JID>(2);
+                Collection<JID> participants = new ArrayList<>(2);
                 participants.add(sender);
                 participants.add(receiver);
                 XMPPServer server = XMPPServer.getInstance();
@@ -706,7 +706,7 @@ public class ConversationManager implements ComponentEventListener{
                     || (date.getTime() - conversation.getStartDate().getTime() > maxTime)) {
                 removeConversation(conversationKey, conversation, conversation.getLastActivity());
 
-                Collection<JID> participants = new ArrayList<JID>(2);
+                Collection<JID> participants = new ArrayList<>(2);
                 participants.add(sender);
                 participants.add(receiver);
                 XMPPServer server = XMPPServer.getInstance();
