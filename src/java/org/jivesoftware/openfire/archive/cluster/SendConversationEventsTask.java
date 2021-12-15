@@ -77,6 +77,10 @@ public class SendConversationEventsTask implements ClusterTask<Void> {
     }
 
     public void writeExternal(ObjectOutput out) throws IOException {
+        // ClassCastExceptions occur when using classes provided by a plugin during serialization (sometimes only after
+        // reloading the plugin without restarting Openfire. This is why this implementation marshalls data as XML when
+        // serializing. See https://github.com/igniterealtime/openfire-monitoring-plugin/issues/120
+        // and https://github.com/igniterealtime/openfire-monitoring-plugin/issues/156
         ExternalizableUtil.getInstance().writeInt(out, events.size());
         for (ConversationEvent event : events) {
             ExternalizableUtil.getInstance().writeSafeUTF(out, ConversationManager.getXmlSerializer().marshall(event));
@@ -84,6 +88,10 @@ public class SendConversationEventsTask implements ClusterTask<Void> {
     }
 
     public void readExternal(ObjectInput in) throws IOException {
+        // ClassCastExceptions occur when using classes provided by a plugin during serialization (sometimes only after
+        // reloading the plugin without restarting Openfire. This is why this implementation marshalls data as XML when
+        // serializing. See https://github.com/igniterealtime/openfire-monitoring-plugin/issues/120
+        // and https://github.com/igniterealtime/openfire-monitoring-plugin/issues/156
         events = new ArrayList<>();
         int eventCount = ExternalizableUtil.getInstance().readInt(in);
         for (int i = 0; i < eventCount; i++) {

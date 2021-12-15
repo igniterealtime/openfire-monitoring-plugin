@@ -78,6 +78,10 @@ public class UserParticipations implements Externalizable {
     }
 
     public void writeExternal(ObjectOutput out) throws IOException {
+        // ClassCastExceptions occur when using classes provided by a plugin during serialization (sometimes only after
+        // reloading the plugin without restarting Openfire. This is why this implementation marshalls data as XML when
+        // serializing. See https://github.com/igniterealtime/openfire-monitoring-plugin/issues/120
+        // and https://github.com/igniterealtime/openfire-monitoring-plugin/issues/156
         ExternalizableUtil.getInstance().writeBoolean(out, roomParticipation);
         ExternalizableUtil.getInstance().writeInt(out, participations.size());
         for (ConversationParticipation cp :  participations) {
@@ -86,12 +90,16 @@ public class UserParticipations implements Externalizable {
     }
 
     public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
+        // ClassCastExceptions occur when using classes provided by a plugin during serialization (sometimes only after
+        // reloading the plugin without restarting Openfire. This is why this implementation marshalls data as XML when
+        // serializing. See https://github.com/igniterealtime/openfire-monitoring-plugin/issues/120
+        // and https://github.com/igniterealtime/openfire-monitoring-plugin/issues/156
         roomParticipation = ExternalizableUtil.getInstance().readBoolean(in);
         if (roomParticipation) {
-            participations = new ArrayList<ConversationParticipation>();
+            participations = new ArrayList<>();
         }
         else {
-            participations = new CopyOnWriteArrayList<ConversationParticipation>();
+            participations = new CopyOnWriteArrayList<>();
         }
         int participationCount = ExternalizableUtil.getInstance().readInt(in);
         for (int i = 0; i < participationCount; i++) {
