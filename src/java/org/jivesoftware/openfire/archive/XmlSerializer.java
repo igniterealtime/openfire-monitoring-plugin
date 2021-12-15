@@ -35,6 +35,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 /**
@@ -57,14 +58,14 @@ public class XmlSerializer {
         final Class<?>[] allClassesToBind = Stream.concat(Arrays.stream(defaultClassesToBind), Arrays.stream(classesToBind))
             .toArray(size -> (Class<?>[]) Array.newInstance(Class.class, size));
 
-        Log.trace("Binding classes: {}", allClassesToBind);
+        Log.trace("Binding classes: {}", Arrays.stream(allClassesToBind).map(Class::toString).collect(Collectors.joining(", ")));
 
         try {
             JAXBContext jaxbContext = JAXBContext.newInstance(allClassesToBind);
             this.marshaller = jaxbContext.createMarshaller();
             this.unmarshaller = jaxbContext.createUnmarshaller();
         } catch (JAXBException e) {
-            throw new IllegalArgumentException("Unable to create xml serializer using classes " + allClassesToBind, e);
+            throw new IllegalArgumentException("Unable to create xml serializer using classes " + Arrays.stream(allClassesToBind).map(Class::toString).collect(Collectors.joining(", ")), e);
         }
     }
 
