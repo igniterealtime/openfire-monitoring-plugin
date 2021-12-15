@@ -43,7 +43,7 @@ import java.util.stream.Stream;
  */
 public class XmlSerializer {
     private static final Logger Log = LoggerFactory.getLogger(XmlSerializer.class);
-    private static final Class[] defaultClassesToBind = {
+    private static final Class<?>[] defaultClassesToBind = {
         ArrayList.class,
         HashMap.class,
         HashSet.class,
@@ -54,8 +54,8 @@ public class XmlSerializer {
     private final Unmarshaller unmarshaller;
 
     public XmlSerializer(Class<?>... classesToBind) {
-        final Class[] allClassesToBind = Stream.concat(Arrays.stream(defaultClassesToBind), Arrays.stream(classesToBind))
-            .toArray(size -> (Class[]) Array.newInstance(Class.class, size));
+        final Class<?>[] allClassesToBind = Stream.concat(Arrays.stream(defaultClassesToBind), Arrays.stream(classesToBind))
+            .toArray(size -> (Class<?>[]) Array.newInstance(Class.class, size));
 
         Log.trace("Binding classes: {}", allClassesToBind);
 
