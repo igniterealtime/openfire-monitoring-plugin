@@ -66,6 +66,10 @@ public class GetConversationTask implements ClusterTask<String>
         }
         final ConversationManager conversationManager = ((MonitoringPlugin)plugin.get()).getConversationManager();
         try {
+            // ClassCastExceptions occur when using classes provided by a plugin during serialization (sometimes only after
+            // reloading the plugin without restarting Openfire. This is why this implementation marshalls data as XML when
+            // serializing. See https://github.com/igniterealtime/openfire-monitoring-plugin/issues/120
+            // and https://github.com/igniterealtime/openfire-monitoring-plugin/issues/156
             conversationXml = conversationManager.getConversation(conversationID).toXml();
         } catch (NotFoundException | IOException e) {
             Log.debug("Exception occurred while running GetConversationTask.", e);

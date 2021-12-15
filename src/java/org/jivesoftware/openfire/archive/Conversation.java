@@ -641,6 +641,10 @@ public class Conversation implements Externalizable {
     }
 
     public void writeExternal(ObjectOutput out) throws IOException {
+        // ClassCastExceptions occur when using classes provided by a plugin during serialization (sometimes only after
+        // reloading the plugin without restarting Openfire. This is why this implementation marshalls data as XML when
+        // serializing. See https://github.com/igniterealtime/openfire-monitoring-plugin/issues/120
+        // and https://github.com/igniterealtime/openfire-monitoring-plugin/issues/156
         ExternalizableUtil.getInstance().writeLong(out, conversationID);
         ExternalizableUtil.getInstance().writeInt(out, participants.size());
         for (Map.Entry<String, UserParticipations> e :  participants.entrySet()) {
@@ -658,6 +662,10 @@ public class Conversation implements Externalizable {
     }
 
     public void readExternal(ObjectInput in) throws IOException {
+        // ClassCastExceptions occur when using classes provided by a plugin during serialization (sometimes only after
+        // reloading the plugin without restarting Openfire. This is why this implementation marshalls data as XML when
+        // serializing. See https://github.com/igniterealtime/openfire-monitoring-plugin/issues/120
+        // and https://github.com/igniterealtime/openfire-monitoring-plugin/issues/156
         final Optional<Plugin> plugin = XMPPServer.getInstance().getPluginManager().getPluginByName(MonitoringConstants.PLUGIN_NAME);
         if (!plugin.isPresent()) {
             throw new IllegalStateException("Unable to handle IQ stanza. The Monitoring plugin does not appear to be loaded on this machine.");
