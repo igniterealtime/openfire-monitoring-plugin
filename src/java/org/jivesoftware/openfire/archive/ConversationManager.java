@@ -518,7 +518,7 @@ public class ConversationManager implements ComponentEventListener{
         if (ClusterManager.isSeniorClusterMember()) {
             return conversations.size();
         }
-        return (Integer) CacheFactory.doSynchronousClusterTask(new GetConversationCountTask(), ClusterManager.getSeniorClusterMember().toByteArray());
+        return CacheFactory.doSynchronousClusterTask(new GetConversationCountTask(), ClusterManager.getSeniorClusterMember().toByteArray());
     }
 
     /**
@@ -542,7 +542,7 @@ public class ConversationManager implements ComponentEventListener{
             return new Conversation(this, conversationID);
         } else {
             // Get this info from the senior cluster member when running in a cluster
-            String conversationXml = (String) CacheFactory.doSynchronousClusterTask(new GetConversationTask(conversationID), ClusterManager
+            String conversationXml = CacheFactory.doSynchronousClusterTask(new GetConversationTask(conversationID), ClusterManager
                     .getSeniorClusterMember().toByteArray());
             if (conversationXml == null) {
                 throw new NotFoundException("Conversation not found: " + conversationID);
@@ -573,7 +573,7 @@ public class ConversationManager implements ComponentEventListener{
             return conversationList;
         } else {
             // Get this info from the senior cluster member when running in a cluster
-            Collection<String> conversationXmls = (Collection<String>) CacheFactory.doSynchronousClusterTask(new GetConversationsTask(), ClusterManager
+            Collection<String> conversationXmls = CacheFactory.doSynchronousClusterTask(new GetConversationsTask(), ClusterManager
                     .getSeniorClusterMember().toByteArray());
             Collection<Conversation> result = new ArrayList<>();
             for (String conversationXml : conversationXmls) {
