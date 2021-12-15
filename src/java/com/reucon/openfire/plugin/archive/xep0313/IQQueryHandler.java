@@ -472,11 +472,11 @@ abstract class IQQueryHandler extends AbstractIQHandler implements
         {
             throw e; // Rethrow exceptions that should result in an IQ error response.
         }
-        catch (Exception e)
+        catch (Throwable e)
         {
             // This controls if a message during message retrieval is ignored (leading to empty results) or triggers an XMPP error stanza response.
             Log.error("An exception has occurred while retrieving messages: ", e);
-                if (IGNORE_RETRIEVAL_EXCEPTIONS.getValue()) {
+            if (IGNORE_RETRIEVAL_EXCEPTIONS.getValue()) {
                 return new LinkedList<>();
             } else {
                 throw new DataRetrievalException(e);
