@@ -1123,7 +1123,7 @@ public class ConversationManager implements ComponentEventListener{
      * Returns an XML serializer that can be used to marshall and unmarshall conversation objects.
      * @return The XML serializer.
      */
-    public static XmlSerializer getXmlSerializer() {
+    public static synchronized XmlSerializer getXmlSerializer() {
         if (ConversationManager.xmlSerializer == null) {
             ConversationManager.xmlSerializer = new XmlSerializer(
                 Conversation.class,
