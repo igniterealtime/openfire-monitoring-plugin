@@ -565,11 +565,7 @@ public class ConversationManager implements ComponentEventListener{
         if (ClusterManager.isSeniorClusterMember()) {
             List<Conversation> conversationList = new ArrayList<>(conversations.values());
             // Sort the conversations by creation date.
-            Collections.sort(conversationList, new Comparator<Conversation>() {
-                public int compare(Conversation c1, Conversation c2) {
-                    return c1.getStartDate().compareTo(c2.getStartDate());
-                }
-            });
+            conversationList.sort(Comparator.comparing(Conversation::getStartDate));
             return conversationList;
         } else {
             // Get this info from the senior cluster member when running in a cluster
