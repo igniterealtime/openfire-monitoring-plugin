@@ -66,7 +66,7 @@ public class GetConversationsTask implements ClusterTask<Collection<String>>
                 conversationsXml.add(conversation.toXml());
             }
         } catch (IOException e) {
-            // Ignore. The requester of this task will throw this exception in his JVM
+            Log.debug("Exception occurred while running GetConversationsTask.", e);
         }
     }
 

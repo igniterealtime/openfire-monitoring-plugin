@@ -68,7 +68,7 @@ public class GetConversationTask implements ClusterTask<String>
         try {
             conversationXml = conversationManager.getConversation(conversationID).toXml();
         } catch (NotFoundException | IOException e) {
-            // Ignore. The requester of this task will throw this exception in his JVM
+            Log.debug("Exception occurred while running GetConversationTask.", e);
         }
     }
 
