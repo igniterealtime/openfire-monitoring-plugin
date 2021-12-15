@@ -634,7 +634,9 @@ public class Conversation implements Externalizable {
             throw new IOException("Unable to deserialize data as a Conversations instance: " + xmlString,
                 new IllegalStateException("The Monitoring plugin does not appear to be loaded on this machine."));
         }
-        unmarshalled.conversationManager = ((MonitoringPlugin)plugin.get()).getConversationManager();
+        if (unmarshalled != null) {
+            unmarshalled.conversationManager = ((MonitoringPlugin) plugin.get()).getConversationManager();
+        }
         return unmarshalled;
     }
 
