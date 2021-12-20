@@ -1,13 +1,14 @@
 package com.reucon.openfire.plugin.archive.xep0313;
 
-import com.reucon.openfire.plugin.archive.ArchiveProperties;
 import com.reucon.openfire.plugin.archive.impl.DataRetrievalException;
 import com.reucon.openfire.plugin.archive.model.ArchivedMessage;
 import com.reucon.openfire.plugin.archive.xep.AbstractIQHandler;
 import com.reucon.openfire.plugin.archive.xep0059.XmppResultSet;
-import org.dom4j.*;
-import org.jivesoftware.openfire.XMPPServer;
+import org.dom4j.Attribute;
+import org.dom4j.Element;
+import org.dom4j.QName;
 import org.jivesoftware.openfire.PacketRouter;
+import org.jivesoftware.openfire.XMPPServer;
 import org.jivesoftware.openfire.archive.ConversationManager;
 import org.jivesoftware.openfire.archive.MonitoringConstants;
 import org.jivesoftware.openfire.auth.UnauthorizedException;
@@ -18,7 +19,10 @@ import org.jivesoftware.openfire.muc.MUCRole;
 import org.jivesoftware.openfire.muc.MUCRoom;
 import org.jivesoftware.openfire.muc.MultiUserChatService;
 import org.jivesoftware.openfire.plugin.MonitoringPlugin;
-import org.jivesoftware.util.*;
+import org.jivesoftware.util.NamedThreadFactory;
+import org.jivesoftware.util.NotFoundException;
+import org.jivesoftware.util.SystemProperty;
+import org.jivesoftware.util.XMPPDateTimeFormat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.xmpp.forms.DataForm;
@@ -29,9 +33,11 @@ import org.xmpp.packet.Message;
 import org.xmpp.packet.PacketError;
 
 import java.text.ParseException;
-import java.time.*;
+import java.time.Duration;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.util.*;
-import java.util.LinkedList;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
@@ -39,19 +45,31 @@ import java.util.stream.Collectors;
 /**
  * XEP-0313 IQ Query Handler
  */
-abstract class IQQueryHandler extends AbstractIQHandler implements
+abstract public class IQQueryHandler extends AbstractIQHandler implements
         ServerFeaturesProvider {
 
     private static final Logger Log = LoggerFactory.getLogger(IQQueryHandler.class);
 
-    // TODO replace this when SystemProperty instances work nice together with Plugins (probably in Openfire 4.5.1).
-//    public static final SystemProperty<Boolean> PROP_ALLOW_UNRECOGNIZED_SEARCH_FIELDS = SystemProperty.Builder.ofType( Boolean.class )
-//        .setKey( "monitoring.search.allow-unrecognized-fields" )
-//        .setDynamic(true)
-//        .setDefaultValue(false)
-//        .setPlugin("monitoring")
-//        .build();
-    public static final String PROP_ALLOW_UNRECOGNIZED_SEARCH_FIELDS = "monitoring.search.allow-unrecognized-fields";
+    public static SystemProperty<Boolean> IGNORE_RETRIEVAL_EXCEPTIONS = SystemProperty.Builder.ofType(Boolean.class)
+        .setKey("archive.ignore-retrieval-exceptions")
+        .setDefaultValue(false)
+        .setDynamic(true)
+        .setPlugin(MonitoringConstants.PLUGIN_NAME)
+        .build();
+
+    public static final SystemProperty<Boolean> PROP_ALLOW_UNRECOGNIZED_SEARCH_FIELDS = SystemProperty.Builder.ofType( Boolean.class )
+        .setKey( "monitoring.search.allow-unrecognized-fields" )
+        .setDynamic(true)
+        .setDefaultValue(false)
+        .setPlugin(MonitoringConstants.PLUGIN_NAME)
+        .build();
+
+    public static final SystemProperty<Boolean> FORCE_RSM = SystemProperty.Builder.ofType( Boolean.class )
+        .setKey( "archive.FORCE_RSM" )
+        .setDynamic(true)
+        .setDefaultValue(true)
+        .setPlugin(MonitoringConstants.PLUGIN_NAME)
+        .build();
 
     protected final String NAMESPACE;
     protected ExecutorService executorService;
@@ -149,7 +167,7 @@ abstract class IQQueryHandler extends AbstractIQHandler implements
 
             Log.debug( "Found {} unsupported field names{}", unsupported.size(), unsupported.isEmpty() ? "." : ": " + String.join(", ", unsupported));
 
-            if ( !JiveGlobals.getBooleanProperty(PROP_ALLOW_UNRECOGNIZED_SEARCH_FIELDS, false) && !unsupported.isEmpty() ) {
+            if ( !PROP_ALLOW_UNRECOGNIZED_SEARCH_FIELDS.getValue() && !unsupported.isEmpty() ) {
                 return buildErrorResponse(packet, PacketError.Condition.bad_request, "Unsupported field(s): " + String.join(", ", unsupported));
             }
         }
@@ -225,7 +243,7 @@ abstract class IQQueryHandler extends AbstractIQHandler implements
         sendMidQuery(packet);
 
         // Modify original request to force result set management to be applied.
-        if ( JiveGlobals.getBooleanProperty( ArchiveProperties.FORCE_RSM, true ) ) {
+        if ( FORCE_RSM.getValue() ) {
             final QName seQName = QName.get("set", XmppResultSet.NAMESPACE);
             if ( packet.getChildElement().element(seQName ) == null ) {
                 packet.getChildElement().addElement( seQName );
@@ -372,7 +390,7 @@ abstract class IQQueryHandler extends AbstractIQHandler implements
         try
         {
 	        ZonedDateTime nowDate = ZonedDateTime.now();
-	        ZonedDateTime newDate = nowDate.minusDays(conversationManager.getMaxRetrievable());
+	        ZonedDateTime newDate = nowDate.minusDays(conversationManager.getMaxRetrievable().toDays());
    
 	        Date startDate = null;
 	        Date endDate = null;
@@ -386,7 +404,7 @@ abstract class IQQueryHandler extends AbstractIQHandler implements
 	        	*/
 	        	if (startField==null)
 	        	{
-	        		if (conversationManager.getMaxRetrievable()>0)
+	        		if (conversationManager.getMaxRetrievable().toDays()>0)
 	        		{
 	        			// we have maxRetrievable set
 	        			startDate = Date.from(newDate.toInstant());
@@ -407,7 +425,7 @@ abstract class IQQueryHandler extends AbstractIQHandler implements
 	        	   if No: use the client start date
 	        	*/
 	        	{
-	        		if (conversationManager.getMaxRetrievable()>0)
+	        		if (conversationManager.getMaxRetrievable().toDays()>0)
 	        		{
 	        			// we have maxRetrievable set
 	        			ZonedDateTime date = ZonedDateTime.ofInstant(xmppDateTimeFormat.parseString(startField).toInstant(),ZoneId.systemDefault());
@@ -461,11 +479,11 @@ abstract class IQQueryHandler extends AbstractIQHandler implements
         {
             throw e; // Rethrow exceptions that should result in an IQ error response.
         }
-        catch (Exception e)
+        catch (Throwable e)
         {
             // This controls if a message during message retrieval is ignored (leading to empty results) or triggers an XMPP error stanza response.
             Log.error("An exception has occurred while retrieving messages: ", e);
-                if (JiveGlobals.getBooleanProperty("archive.ignore-retrieval-exceptions", false) ) {
+            if (IGNORE_RETRIEVAL_EXCEPTIONS.getValue()) {
                 return new LinkedList<>();
             } else {
                 throw new DataRetrievalException(e);

@@ -1,6 +1,7 @@
 package com.reucon.openfire.plugin.archive.impl;
 
 import com.reucon.openfire.plugin.archive.model.ArchivedMessage;
+import com.reucon.openfire.plugin.archive.xep0313.IQQueryHandler;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.LongPoint;
@@ -14,7 +15,6 @@ import org.jivesoftware.openfire.archive.MonitoringConstants;
 import org.jivesoftware.openfire.container.Plugin;
 import org.jivesoftware.openfire.muc.MUCRoom;
 import org.jivesoftware.openfire.plugin.MonitoringPlugin;
-import org.jivesoftware.util.JiveGlobals;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.xmpp.packet.JID;
@@ -78,7 +78,7 @@ public class PaginatedMucMessageFromOpenfireLuceneQuery
         }
         catch ( Exception e ) {
             Log.warn( "An exception occurred while trying to query the Lucene index to get messages from room {}.", room, e );
-            if (!JiveGlobals.getBooleanProperty("archive.ignore-retrieval-exceptions", false)) {
+            if (!IQQueryHandler.IGNORE_RETRIEVAL_EXCEPTIONS.getValue()) {
                 throw new DataRetrievalException(e);
             }
         }

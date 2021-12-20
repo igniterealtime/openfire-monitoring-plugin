@@ -11,9 +11,9 @@ import org.dom4j.DocumentFactory;
 import org.dom4j.io.OutputFormat;
 import org.dom4j.io.XMLWriter;
 import org.jivesoftware.openfire.archive.ArchiveIndexer;
+import org.jivesoftware.openfire.archive.MonitoringConstants;
 import org.jivesoftware.openfire.reporting.util.TaskEngine;
-import org.jivesoftware.util.JiveConstants;
-import org.jivesoftware.util.JiveGlobals;
+import org.jivesoftware.util.SystemProperty;
 import org.jivesoftware.util.XMLProperties;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -24,6 +24,7 @@ import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.Scanner;
 import java.util.TimerTask;
 import java.util.concurrent.ExecutionException;
@@ -45,6 +46,14 @@ public abstract class LuceneIndexer
     private boolean stopped = false;
     private boolean rebuildInProgress = false;
     private TimerTask indexUpdater;
+
+    private static final SystemProperty<Duration> UPDATE_INTERVAL = SystemProperty.Builder.ofType( Duration.class )
+       .setKey("conversation.search.updateInterval" )
+       .setDefaultValue( Duration.ofMinutes(5) )
+       .setChronoUnit(ChronoUnit.MINUTES)
+       .setDynamic( true )
+       .setPlugin(MonitoringConstants.PLUGIN_NAME)
+       .build();
 
     public LuceneIndexer(TaskEngine taskEngine, File searchDir, String logName, int schemaVersion)
     {
@@ -154,8 +163,8 @@ public abstract class LuceneIndexer
                 updateIndex();
             }
         };
-        final int updateInterval = JiveGlobals.getIntProperty("conversation.search.updateInterval", 5);
-        taskEngine.schedule(indexUpdater, JiveConstants.MINUTE * 1, JiveConstants.MINUTE * updateInterval);
+        final Duration updateInterval = UPDATE_INTERVAL.getValue();
+        taskEngine.schedule(indexUpdater, Duration.ofMinutes(1).toMillis(), updateInterval.toMillis());
     }
 
     private void removeAndRebuildSearchDir() throws IOException {
