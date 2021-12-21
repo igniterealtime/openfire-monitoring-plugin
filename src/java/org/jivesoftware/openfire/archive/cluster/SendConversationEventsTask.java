@@ -61,6 +61,7 @@ public class SendConversationEventsTask implements ClusterTask<Void> {
     }
 
     public void run() {
+        Log.debug("Processing {} chat events as received by other nodes.", events.size());
         final Optional<Plugin> plugin = XMPPServer.getInstance().getPluginManager().getPluginByName(MonitoringConstants.PLUGIN_NAME);
         if (!plugin.isPresent()) {
             Log.error("Unable to execute cluster task! The Monitoring plugin does not appear to be loaded on this machine.");
