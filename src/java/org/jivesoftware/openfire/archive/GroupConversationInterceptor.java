@@ -22,6 +22,8 @@ import org.jivesoftware.openfire.muc.MUCEventDispatcher;
 import org.jivesoftware.openfire.muc.MUCEventListener;
 import org.jivesoftware.openfire.muc.MUCRoom;
 import org.jivesoftware.util.SystemProperty;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.xmpp.packet.JID;
 import org.xmpp.packet.Message;
 
@@ -35,6 +37,7 @@ import java.util.Date;
  */
 public class GroupConversationInterceptor implements MUCEventListener {
 
+    private static final Logger Log = LoggerFactory.getLogger(GroupConversationInterceptor.class);
 
     private ConversationManager conversationManager;
 
@@ -136,9 +139,11 @@ public class GroupConversationInterceptor implements MUCEventListener {
 
         // Process this event in the senior cluster member or local JVM when not in a cluster
         if (ClusterManager.isSeniorClusterMember()) {
+            Log.trace("Message received on senior node for room: {}", roomJID);
             conversationManager.processRoomMessage(roomJID, user, null, nickname, message.getBody(), message.toXML(), now);
         }
         else {
+            Log.trace("Message received on junior node for room: {}", roomJID);
             boolean withBody = conversationManager.isRoomArchivingEnabled() && (
                     conversationManager.getRoomsArchived().isEmpty() ||
                             conversationManager.getRoomsArchived().contains(roomJID.getNode()));

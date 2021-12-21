@@ -18,14 +18,14 @@ package org.jivesoftware.openfire.archive;
 
 import org.jivesoftware.openfire.XMPPServer;
 import org.jivesoftware.openfire.muc.MUCRoom;
-import org.jivesoftware.util.cache.ExternalizableUtil;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.xmpp.packet.JID;
 
-import java.io.Externalizable;
-import java.io.IOException;
-import java.io.ObjectInput;
-import java.io.ObjectOutput;
+import javax.xml.bind.annotation.*;
+import javax.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
 import java.util.Date;
+import java.util.Objects;
 
 /**
  * Conversation events are only used when running in a cluster as a way to send to the senior cluster
@@ -33,17 +33,31 @@ import java.util.Date;
  *
  * @author Gaston Dombiak
  */
-public class ConversationEvent implements Externalizable {
+@XmlRootElement
+@XmlAccessorType(XmlAccessType.FIELD)
+public class ConversationEvent {
+    private static final Logger Log = LoggerFactory.getLogger(ConversationEvent.class);
+
     private Type type;
+
     private Date date;
+
     private String body;
+
     private String stanza;
 
+    @XmlJavaTypeAdapter(XmlSerializer.JidAdapter.class)
     private JID sender;
+
+    @XmlJavaTypeAdapter(XmlSerializer.JidAdapter.class)
     private JID receiver;
 
+    @XmlJavaTypeAdapter(XmlSerializer.JidAdapter.class)
     private JID roomJID;
+
+    @XmlJavaTypeAdapter(XmlSerializer.JidAdapter.class)
     private JID user;
+
     private String nickname;
 
     /**
@@ -53,6 +67,7 @@ public class ConversationEvent implements Externalizable {
     }
 
     public void run(ConversationManager conversationManager) {
+        Log.debug("Processing {} chat event dated {}", type, date);
         if (Type.chatMessageReceived == type) {
             conversationManager.processMessage(sender, receiver, body, stanza, date);
         }
@@ -76,68 +91,6 @@ public class ConversationEvent implements Externalizable {
         }
         else if (Type.roomMessageReceived == type) {
             conversationManager.processRoomMessage(roomJID, user, receiver, nickname, body, stanza, date);
-        }
-    }
-
-    public void writeExternal(ObjectOutput out) throws IOException {
-        ExternalizableUtil.getInstance().writeInt(out, type.ordinal());
-        ExternalizableUtil.getInstance().writeLong(out, date.getTime());
-
-        ExternalizableUtil.getInstance().writeBoolean(out, sender != null);
-        if (sender != null) {
-            ExternalizableUtil.getInstance().writeSerializable(out, sender);
-        }
-        ExternalizableUtil.getInstance().writeBoolean(out, receiver != null);
-        if (receiver != null) {
-            ExternalizableUtil.getInstance().writeSerializable(out, receiver);
-        }
-        ExternalizableUtil.getInstance().writeBoolean(out, body != null);
-        if (body != null) {
-            ExternalizableUtil.getInstance().writeSafeUTF(out, body);
-        }
-        ExternalizableUtil.getInstance().writeBoolean(out, stanza != null);
-        if (stanza != null) {
-            ExternalizableUtil.getInstance().writeSafeUTF(out, stanza);
-        }
-        ExternalizableUtil.getInstance().writeBoolean(out, roomJID != null);
-        if (roomJID != null) {
-            ExternalizableUtil.getInstance().writeSerializable(out, roomJID);
-        }
-        ExternalizableUtil.getInstance().writeBoolean(out, user != null);
-        if (user != null) {
-            ExternalizableUtil.getInstance().writeSerializable(out, user);
-        }
-        ExternalizableUtil.getInstance().writeBoolean(out, nickname != null);
-        if (nickname != null) {
-            ExternalizableUtil.getInstance().writeSafeUTF(out, nickname);
-        }
-    }
-
-    public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
-        type = Type.values()[ExternalizableUtil.getInstance().readInt(in)];
-        date = new Date(ExternalizableUtil.getInstance().readLong(in));
-
-        if (ExternalizableUtil.getInstance().readBoolean(in)) {
-            sender = (JID) ExternalizableUtil.getInstance().readSerializable(in);
-        }
-        if (ExternalizableUtil.getInstance().readBoolean(in)) {
-            receiver = (JID) ExternalizableUtil.getInstance().readSerializable(in);
-        }
-        if (ExternalizableUtil.getInstance().readBoolean(in)) {
-            body = ExternalizableUtil.getInstance().readSafeUTF(in);
-        }
-        if (ExternalizableUtil.getInstance().readBoolean(in)) {
-            stanza = ExternalizableUtil.getInstance().readSafeUTF(in);
-        }
-
-        if (ExternalizableUtil.getInstance().readBoolean(in)) {
-            roomJID = (JID) ExternalizableUtil.getInstance().readSerializable(in);
-        }
-        if (ExternalizableUtil.getInstance().readBoolean(in)) {
-            user = (JID) ExternalizableUtil.getInstance().readSerializable(in);
-        }
-        if (ExternalizableUtil.getInstance().readBoolean(in)) {
-            nickname = ExternalizableUtil.getInstance().readSafeUTF(in);
         }
     }
 
@@ -228,5 +181,18 @@ public class ConversationEvent implements Externalizable {
          * Event triggered when a user sent a message to another user.
          */
         chatMessageReceived
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        ConversationEvent that = (ConversationEvent) o;
+        return type == that.type && Objects.equals(date, that.date) && Objects.equals(body, that.body) && Objects.equals(stanza, that.stanza) && Objects.equals(sender, that.sender) && Objects.equals(receiver, that.receiver) && Objects.equals(roomJID, that.roomJID) && Objects.equals(user, that.user) && Objects.equals(nickname, that.nickname);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(type, date, body, stanza, sender, receiver, roomJID, user, nickname);
     }
 }
