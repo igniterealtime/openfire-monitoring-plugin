@@ -591,7 +591,7 @@ public class ConversationManager implements ComponentEventListener{
                 }
             }
             // Otherwise, it might be an archived conversation, so attempt to load it.
-            return new Conversation(this, conversationID);
+            return ConversationDAO.loadConversation(conversationID);
         } else {
             // Get this info from the senior cluster member when running in a cluster
             String conversationXml = CacheFactory.doSynchronousClusterTask(new GetConversationTask(conversationID), ClusterManager
@@ -741,7 +741,7 @@ public class ConversationManager implements ComponentEventListener{
                 boolean external = isExternal(server, sender) ^ isExternal(server, receiver);
                 // Make sure that the user joined the conversation before a message was received
                 Date start = new Date(date.getTime() - 1);
-                conversation = new Conversation(this, participants, external, start);
+                conversation = ConversationDAO.createConversation(this, participants, external, start);
                 conversations.put(conversationKey, conversation);
                 // Notify listeners of the newly created conversation.
                 for (ConversationListener listener : conversationListeners) {
@@ -764,7 +764,7 @@ public class ConversationManager implements ComponentEventListener{
                 boolean external = isExternal(server, sender) ^ isExternal(server, receiver);
                 // Make sure that the user joined the conversation before a message was received
                 Date start = new Date(date.getTime() - 1);
-                conversation = new Conversation(this, participants, external, start);
+                conversation = ConversationDAO.createConversation(this, participants, external, start);
                 conversations.put(conversationKey, conversation);
                 // Notify listeners of the newly created conversation.
                 for (ConversationListener listener : conversationListeners) {
@@ -815,7 +815,7 @@ public class ConversationManager implements ComponentEventListener{
             if (conversation == null) {
                 // Make sure that the user joined the conversation before a message was received
                 Date start = new Date(date.getTime() - 1);
-                conversation = new Conversation(this, roomJID, false, start);
+                conversation = ConversationDAO.createConversation(this, roomJID, false, start);
                 conversations.put(conversationKey, conversation);
                 // Notify listeners of the newly created conversation.
                 for (ConversationListener listener : conversationListeners) {
@@ -829,7 +829,7 @@ public class ConversationManager implements ComponentEventListener{
                 removeConversation(conversationKey, conversation, conversation.getLastActivity());
                 // Make sure that the user joined the conversation before a message was received
                 Date start = new Date(date.getTime() - 1);
-                conversation = new Conversation(this, roomJID, false, start);
+                conversation = ConversationDAO.createConversation(this, roomJID, false, start);
                 conversations.put(conversationKey, conversation);
                 // Notify listeners of the newly created conversation.
                 for (ConversationListener listener : conversationListeners) {
@@ -877,7 +877,7 @@ public class ConversationManager implements ComponentEventListener{
     void joinedGroupConversation(JID room, JID user, String nickname, Date date) {
         Conversation conversation = getRoomConversation(room);
         if (conversation != null) {
-            conversation.participantJoined(user, nickname, date.getTime());
+            conversation.participantJoined(this, user, nickname, date.getTime());
         }
     }
 
@@ -895,7 +895,7 @@ public class ConversationManager implements ComponentEventListener{
     void leftGroupConversation(JID room, JID user, Date date) {
         Conversation conversation = getRoomConversation(room);
         if (conversation != null) {
-            conversation.participantLeft(user, date.getTime());
+            conversation.participantLeft(this, user, date.getTime());
         }
     }
 
@@ -909,7 +909,7 @@ public class ConversationManager implements ComponentEventListener{
     private void removeConversation(String key, Conversation conversation, Date date) {
         conversations.remove(key);
         // Notify conversation that it has ended
-        conversation.conversationEnded(date);
+        conversation.conversationEnded(this, date);
         // Notify listeners of the conversation ending.
         for (ConversationListener listener : conversationListeners) {
             listener.conversationEnded(conversation);

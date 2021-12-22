@@ -10,6 +10,7 @@
 <%@ page import="org.jivesoftware.util.*"%><%@ page import="java.util.Collection"%>
 <%@ page import="org.slf4j.LoggerFactory" %>
 <%@ page import="org.slf4j.Logger" %>
+<%@ page import="org.jivesoftware.openfire.archive.ConversationDAO" %>
 <%!
      Map<String, String> colorMap = new HashMap<String, String>();
 %>
@@ -27,7 +28,7 @@
     Conversation conversation = null;
     if (conversationID > -1) {
         try {
-            conversation = new Conversation(conversationManager, conversationID);
+            conversation = ConversationDAO.loadConversation(conversationID);
         }
         catch (NotFoundException nfe) {
             logger.error("Can't reconstruct conversation", nfe);
@@ -70,7 +71,7 @@
 %>
 
 <table width="100%">
-    <% for (ArchivedMessage message : conversation.getMessages()) { %>
+    <% for (ArchivedMessage message : conversation.getMessages(conversationManager)) { %>
     <tr valign="top">
         <td width="1%" nowrap class="jive-description" style="color:<%= getColor(message.getFromJID()) %>">
             [<%= JiveGlobals.formatTime(message.getSentDate())%>] <%= message.getFromJID().getNode()%><%= message.getIsPMforNickname() == null ? "" : " -> " + message.getIsPMforNickname()%>:</td>

@@ -459,7 +459,7 @@ public class ArchiveSearcher {
                     while (convIterator.hasNext()) {
                         try {
                             long conversationID = convIterator.next();
-                            return new Conversation(conversationManager, conversationID);
+                            return ConversationDAO.loadConversation(conversationID);
                         }
                         catch (Exception e) {
                             Log.error(e.getMessage(), e);
@@ -546,7 +546,7 @@ public class ArchiveSearcher {
                         try {
                             ScoreDoc hit = hitsIterator.next();
                             long conversationID = Long.parseLong(searcher.doc(hit.doc).get("conversationID"));
-                            return new Conversation(conversationManager, conversationID);
+                            return ConversationDAO.loadConversation(conversationID);
                         }
                         catch (Exception e) {
                             Log.error(e.getMessage(), e);
