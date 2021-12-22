@@ -593,7 +593,7 @@ public class Conversation implements Externalizable {
     }
 
     /**
-     * Notification message inficating that conversation has finished so remaining participants should be marked that they left the conversation.
+     * Notification message implicating that conversation has finished so remaining participants should be marked that they left the conversation.
      * 
      * @param nowDate
      *            the date when the conversation was finished
@@ -616,7 +616,7 @@ public class Conversation implements Externalizable {
      * @throws IOException On any issue that occurs when marshalling this instance to XML.
      */
     public String toXml() throws IOException {
-        return ConversationManager.getXmlSerializer().marshall(this);
+        return XmlSerializer.getInstance().marshall(this);
     }
 
     /**
@@ -627,7 +627,7 @@ public class Conversation implements Externalizable {
      * @throws IOException On any issue that occurs when unmarshalling XML to an instance of Conversation.
      */
     public static Conversation fromXml(final String xmlString) throws IOException {
-        final Conversation unmarshalled = (Conversation) ConversationManager.getXmlSerializer().unmarshall(xmlString);
+        final Conversation unmarshalled = (Conversation) XmlSerializer.getInstance().unmarshall(xmlString);
         final Optional<Plugin> plugin = XMPPServer.getInstance().getPluginManager().getPluginByName(MonitoringConstants.PLUGIN_NAME);
         if (!plugin.isPresent()) {
             // Highly unlikely, as this code is _part_ of the Monitoring plugin. If this occurs something is very wrong.
@@ -649,7 +649,7 @@ public class Conversation implements Externalizable {
         ExternalizableUtil.getInstance().writeInt(out, participants.size());
         for (Map.Entry<String, UserParticipations> e :  participants.entrySet()) {
             ExternalizableUtil.getInstance().writeSafeUTF(out, e.getKey());
-            ExternalizableUtil.getInstance().writeSafeUTF(out, ConversationManager.getXmlSerializer().marshall(e.getValue()));
+            ExternalizableUtil.getInstance().writeSafeUTF(out, XmlSerializer.getInstance().marshall(e.getValue()));
         }
         ExternalizableUtil.getInstance().writeBoolean(out, external);
         ExternalizableUtil.getInstance().writeLong(out, startDate.getTime());
@@ -680,7 +680,7 @@ public class Conversation implements Externalizable {
         for (int i = 0; i < participantsCount; i++) {
             String participantName = ExternalizableUtil.getInstance().readSafeUTF(in);
             String marshalledParticipations = ExternalizableUtil.getInstance().readSafeUTF(in);
-            final UserParticipations unmarshalledParticipations = (UserParticipations)ConversationManager.getXmlSerializer().unmarshall(marshalledParticipations);
+            final UserParticipations unmarshalledParticipations = (UserParticipations)XmlSerializer.getInstance().unmarshall(marshalledParticipations);
             participants.put(participantName, unmarshalledParticipations);
         }
 

@@ -20,6 +20,7 @@ import org.jivesoftware.openfire.XMPPServer;
 import org.jivesoftware.openfire.archive.ConversationEvent;
 import org.jivesoftware.openfire.archive.ConversationManager;
 import org.jivesoftware.openfire.archive.MonitoringConstants;
+import org.jivesoftware.openfire.archive.XmlSerializer;
 import org.jivesoftware.openfire.container.Plugin;
 import org.jivesoftware.openfire.plugin.MonitoringPlugin;
 import org.jivesoftware.util.cache.ClusterTask;
@@ -84,7 +85,7 @@ public class SendConversationEventsTask implements ClusterTask<Void> {
         // and https://github.com/igniterealtime/openfire-monitoring-plugin/issues/156
         ExternalizableUtil.getInstance().writeInt(out, events.size());
         for (ConversationEvent event : events) {
-            ExternalizableUtil.getInstance().writeSafeUTF(out, ConversationManager.getXmlSerializer().marshall(event));
+            ExternalizableUtil.getInstance().writeSafeUTF(out, XmlSerializer.getInstance().marshall(event));
         }
     }
 
@@ -97,7 +98,7 @@ public class SendConversationEventsTask implements ClusterTask<Void> {
         int eventCount = ExternalizableUtil.getInstance().readInt(in);
         for (int i = 0; i < eventCount; i++) {
             String marshalledConversationEvent = ExternalizableUtil.getInstance().readSafeUTF(in);
-            final ConversationEvent unmarshalledEvent = (ConversationEvent)ConversationManager.getXmlSerializer().unmarshall(marshalledConversationEvent);
+            final ConversationEvent unmarshalledEvent = (ConversationEvent)XmlSerializer.getInstance().unmarshall(marshalledConversationEvent);
             events.add(unmarshalledEvent);
         }
     }
