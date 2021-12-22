@@ -94,9 +94,6 @@ public class ConversationManager implements ComponentEventListener{
     private ConversationEventsQueue conversationEventsQueue;
     private TaskEngine taskEngine;
 
-    private static XmlSerializer xmlSerializer;
-
-
     private Map<String, Conversation> conversations = new ConcurrentHashMap<>();
     private boolean metadataArchivingEnabled;
     /**

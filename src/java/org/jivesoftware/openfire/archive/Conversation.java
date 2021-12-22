@@ -311,6 +311,19 @@ public class Conversation {
         }
     }
 
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        Conversation that = (Conversation) o;
+        return conversationID == that.conversationID && external == that.external && messageCount == that.messageCount && Objects.equals(participants, that.participants) && Objects.equals(startDate, that.startDate) && Objects.equals(lastActivity, that.lastActivity) && Objects.equals(room, that.room);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(conversationID, participants, external, startDate, lastActivity, messageCount, room);
+    }
+
     /**
      * Convert the conversation to an XML representation.
      *
