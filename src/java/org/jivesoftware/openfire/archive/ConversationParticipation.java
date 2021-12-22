@@ -16,15 +16,10 @@
 
 package org.jivesoftware.openfire.archive;
 
-import org.jivesoftware.util.cache.ExternalizableUtil;
-
 import javax.xml.bind.annotation.XmlElement;
 import javax.xml.bind.annotation.XmlRootElement;
-import java.io.Externalizable;
-import java.io.IOException;
-import java.io.ObjectInput;
-import java.io.ObjectOutput;
 import java.util.Date;
+import java.util.Objects;
 
 /**
  * Participation of a user, connected from a specific resource, in a conversation. If
@@ -34,11 +29,14 @@ import java.util.Date;
  * @author Gaston Dombiak
  */
 @XmlRootElement
-public class ConversationParticipation implements Externalizable {
+public class ConversationParticipation {
+
     @XmlElement
     private Date joined = new Date();
+
     @XmlElement
     private Date left;
+
     @XmlElement
     private String nickname;
 
@@ -86,25 +84,16 @@ public class ConversationParticipation implements Externalizable {
         return nickname;
     }
 
-    public void writeExternal(ObjectOutput out) throws IOException {
-        ExternalizableUtil.getInstance().writeLong(out, joined.getTime());
-        ExternalizableUtil.getInstance().writeBoolean(out, nickname != null);
-        if (nickname != null) {
-            ExternalizableUtil.getInstance().writeSafeUTF(out, nickname);
-        }
-        ExternalizableUtil.getInstance().writeBoolean(out, left != null);
-        if (left != null) {
-            ExternalizableUtil.getInstance().writeLong(out, left.getTime());
-        }
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        ConversationParticipation that = (ConversationParticipation) o;
+        return Objects.equals(joined, that.joined) && Objects.equals(left, that.left) && Objects.equals(nickname, that.nickname);
     }
 
-    public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
-        joined = new Date(ExternalizableUtil.getInstance().readLong(in));
-        if (ExternalizableUtil.getInstance().readBoolean(in)) {
-            nickname = ExternalizableUtil.getInstance().readSafeUTF(in);
-        }
-        if (ExternalizableUtil.getInstance().readBoolean(in)) {
-            left = new Date(ExternalizableUtil.getInstance().readLong(in));
-        }
+    @Override
+    public int hashCode() {
+        return Objects.hash(joined, left, nickname);
     }
 }

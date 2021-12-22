@@ -26,23 +26,21 @@ import java.io.ObjectInput;
 import java.io.ObjectOutput;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
- * Created by IntelliJ IDEA.
- * User: gato
- * Date: Oct 9, 2007
- * Time: 11:59:42 PM
- * To change this template use File | Settings | File Templates.
+ * @author Gastion Dombiak
  */
 @XmlRootElement
-public class UserParticipations implements Externalizable {
+public class UserParticipations {
     /**
      * Flag that indicates if the participations of the user were in a group chat conversation or a one-to-one
      * chat.
      */
     @XmlElement
     private boolean roomParticipation;
+
     /**
      * Participations of the same user in a groupchat or one-to-one chat. In a group chat conversation
      * a user may leave the conversation and return later so for each time the user joined the room a new
@@ -58,10 +56,10 @@ public class UserParticipations implements Externalizable {
     public UserParticipations(boolean roomParticipation) {
         this.roomParticipation = roomParticipation;
         if (roomParticipation) {
-            participations = new ArrayList<ConversationParticipation>();
+            participations = new ArrayList<>();
         }
         else {
-            participations = new CopyOnWriteArrayList<ConversationParticipation>();
+            participations = new CopyOnWriteArrayList<>();
         }
     }
 
@@ -77,35 +75,16 @@ public class UserParticipations implements Externalizable {
         participations.add(0, participation);
     }
 
-    public void writeExternal(ObjectOutput out) throws IOException {
-        // ClassCastExceptions occur when using classes provided by a plugin during serialization (sometimes only after
-        // reloading the plugin without restarting Openfire. This is why this implementation marshalls data as XML when
-        // serializing. See https://github.com/igniterealtime/openfire-monitoring-plugin/issues/120
-        // and https://github.com/igniterealtime/openfire-monitoring-plugin/issues/156
-        ExternalizableUtil.getInstance().writeBoolean(out, roomParticipation);
-        ExternalizableUtil.getInstance().writeInt(out, participations.size());
-        for (ConversationParticipation cp :  participations) {
-            ExternalizableUtil.getInstance().writeSafeUTF(out, XmlSerializer.getInstance().marshall(cp));
-        }
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        UserParticipations that = (UserParticipations) o;
+        return roomParticipation == that.roomParticipation && Objects.equals(participations, that.participations);
     }
 
-    public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
-        // ClassCastExceptions occur when using classes provided by a plugin during serialization (sometimes only after
-        // reloading the plugin without restarting Openfire. This is why this implementation marshalls data as XML when
-        // serializing. See https://github.com/igniterealtime/openfire-monitoring-plugin/issues/120
-        // and https://github.com/igniterealtime/openfire-monitoring-plugin/issues/156
-        roomParticipation = ExternalizableUtil.getInstance().readBoolean(in);
-        if (roomParticipation) {
-            participations = new ArrayList<>();
-        }
-        else {
-            participations = new CopyOnWriteArrayList<>();
-        }
-        int participationCount = ExternalizableUtil.getInstance().readInt(in);
-        for (int i = 0; i < participationCount; i++) {
-            String marshalledConversationParticipation = ExternalizableUtil.getInstance().readSafeUTF(in);
-            final ConversationParticipation unmarshalledParticipation = (ConversationParticipation)XmlSerializer.getInstance().unmarshall(marshalledConversationParticipation);
-            participations.add(unmarshalledParticipation);
-        }
+    @Override
+    public int hashCode() {
+        return Objects.hash(roomParticipation, participations);
     }
 }
