@@ -39,33 +39,41 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 /**
- * The XmlSerializer assists in converting objects from and to XML representation. Classes of all involved objects need
- * to be bound upon instantiation. A number of generally used collection classes is bound by default.
+ * The XmlSerializer assists in converting selected Monitoring plugin objects from and to XML representation.
  */
 public class XmlSerializer {
     private static final Logger Log = LoggerFactory.getLogger(XmlSerializer.class);
-    private static final Class<?>[] defaultClassesToBind = {
+    private static final Class<?>[] classesToBind = {
         ArrayList.class,
         HashMap.class,
         HashSet.class,
-        ConcurrentHashMap.class
+        ConcurrentHashMap.class,
+        Conversation.class,
+        UserParticipations.class,
+        ConversationParticipation.class,
+        ConversationEvent.class
     };
+
+    private static XmlSerializer instance;
+    public static synchronized XmlSerializer getInstance() {
+        if (instance == null) {
+            instance = new XmlSerializer();
+        }
+
+        return instance;
+    }
 
     private final Marshaller marshaller;
     private final Unmarshaller unmarshaller;
 
-    public XmlSerializer(Class<?>... classesToBind) {
-        final Class<?>[] allClassesToBind = Stream.concat(Arrays.stream(defaultClassesToBind), Arrays.stream(classesToBind))
-            .toArray(size -> (Class<?>[]) Array.newInstance(Class.class, size));
-
-        Log.trace("Binding classes: {}", Arrays.stream(allClassesToBind).map(Class::toString).collect(Collectors.joining(", ")));
-
+    private XmlSerializer() {
+        Log.trace("Binding classes: {}", Arrays.stream(classesToBind).map(Class::toString).collect(Collectors.joining(", ")));
         try {
-            JAXBContext jaxbContext = JAXBContext.newInstance(allClassesToBind);
+            JAXBContext jaxbContext = JAXBContext.newInstance(classesToBind);
             this.marshaller = jaxbContext.createMarshaller();
             this.unmarshaller = jaxbContext.createUnmarshaller();
         } catch (JAXBException e) {
-            throw new IllegalArgumentException("Unable to create xml serializer using classes " + Arrays.stream(allClassesToBind).map(Class::toString).collect(Collectors.joining(", ")), e);
+            throw new IllegalArgumentException("Unable to create xml serializer using classes " + Arrays.stream(classesToBind).map(Class::toString).collect(Collectors.joining(", ")), e);
         }
     }
 

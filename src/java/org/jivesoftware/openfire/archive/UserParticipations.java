@@ -85,7 +85,7 @@ public class UserParticipations implements Externalizable {
         ExternalizableUtil.getInstance().writeBoolean(out, roomParticipation);
         ExternalizableUtil.getInstance().writeInt(out, participations.size());
         for (ConversationParticipation cp :  participations) {
-            ExternalizableUtil.getInstance().writeSafeUTF(out, ConversationManager.getXmlSerializer().marshall(cp));
+            ExternalizableUtil.getInstance().writeSafeUTF(out, XmlSerializer.getInstance().marshall(cp));
         }
     }
 
@@ -104,7 +104,7 @@ public class UserParticipations implements Externalizable {
         int participationCount = ExternalizableUtil.getInstance().readInt(in);
         for (int i = 0; i < participationCount; i++) {
             String marshalledConversationParticipation = ExternalizableUtil.getInstance().readSafeUTF(in);
-            final ConversationParticipation unmarshalledParticipation = (ConversationParticipation)ConversationManager.getXmlSerializer().unmarshall(marshalledConversationParticipation);
+            final ConversationParticipation unmarshalledParticipation = (ConversationParticipation)XmlSerializer.getInstance().unmarshall(marshalledConversationParticipation);
             participations.add(unmarshalledParticipation);
         }
     }
