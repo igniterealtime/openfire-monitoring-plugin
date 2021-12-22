@@ -53,9 +53,9 @@ public class ConversationPDFServlet extends HttpServlet {
         Conversation conversation;
         if (conversationID > -1) {
             try {
-                conversation = new Conversation(conversationManager, conversationID);
+                conversation = ConversationDAO.loadConversation(conversationID);
 
-                ByteArrayOutputStream stream = new ConversationUtils().getConversationPDF(conversation);
+                ByteArrayOutputStream stream = new ConversationUtils().getConversationPDF(conversationManager, conversation);
 
                 // setting some response headers
                 response.setHeader("Expires", "0");

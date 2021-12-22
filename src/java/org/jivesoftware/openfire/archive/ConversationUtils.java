@@ -105,7 +105,7 @@ public class ConversationUtils {
 
         try {
             Conversation conversation = conversationmanager.getConversation(conversationID);
-            info = toConversationInfo(conversation, formatParticipants);
+            info = toConversationInfo(conversationmanager, conversation, formatParticipants);
         }
         catch (NotFoundException e) {
             Log.error(e.getMessage(), e);
@@ -130,13 +130,13 @@ public class ConversationUtils {
             Arrays.asList(conversations.toArray(new Conversation[conversations.size()]));
         for (Iterator<Conversation> i = lConversations.iterator(); i.hasNext();) {
             Conversation con = i.next();
-            ConversationInfo info = toConversationInfo(con, formatParticipants);
+            ConversationInfo info = toConversationInfo(conversationManager, con, formatParticipants);
             cons.put(Long.toString(con.getConversationID()), info);
         }
         return cons;
     }
 
-    public ByteArrayOutputStream getConversationPDF(Conversation conversation) throws IOException {
+    public ByteArrayOutputStream getConversationPDF(ConversationManager conversationManager, Conversation conversation) throws IOException {
         Map<JID, Color> colorMap = new HashMap<>();
         if (conversation != null) {
             Collection<JID> set = conversation.getParticipants();
@@ -158,10 +158,10 @@ public class ConversationUtils {
         }
 
 
-        return buildPDFContent(conversation, colorMap);
+        return buildPDFContent(conversationManager, conversation, colorMap);
     }
 
-    private ByteArrayOutputStream buildPDFContent(Conversation conversation, Map<JID, Color> colorMap) throws IOException {
+    private ByteArrayOutputStream buildPDFContent(ConversationManager conversationManager, Conversation conversation, Map<JID, Color> colorMap) throws IOException {
 
         try ( final ByteArrayOutputStream baos = new ByteArrayOutputStream();
               final PdfWriter writer = new PdfWriter(baos);
@@ -204,7 +204,7 @@ public class ConversationUtils {
             document.add( new Paragraph().add(new Text("\n")));
 
             final Paragraph messageParagraph = new Paragraph();
-            for (ArchivedMessage message : conversation.getMessages())
+            for (ArchivedMessage message : conversation.getMessages(conversationManager))
             {
                 String time = JiveGlobals.formatTime(message.getSentDate());
                 String from = message.getFromJID().getNode();
@@ -251,7 +251,8 @@ public class ConversationUtils {
         }
     }
 
-    private ConversationInfo toConversationInfo(Conversation conversation,
+    private ConversationInfo toConversationInfo(ConversationManager conversationManager,
+                                                Conversation conversation,
                                                 boolean formatParticipants) {
         final ConversationInfo info = new ConversationInfo();
         // Set participants
@@ -299,7 +300,7 @@ public class ConversationUtils {
         // Create body.
         final StringBuilder builder = new StringBuilder();
         builder.append("<table width=100%>");
-        for (ArchivedMessage message : conversation.getMessages()) {
+        for (ArchivedMessage message : conversation.getMessages(conversationManager)) {
             String time = JiveGlobals.formatTime(message.getSentDate());
             String from = message.getFromJID().getNode();
             String to = message.getIsPMforNickname(); // Only non-null when this is a Private Message sent in a MUC.
@@ -327,7 +328,7 @@ public class ConversationUtils {
             builder.append("</tr>");
         }
 
-        if (conversation.getMessages().size() == 0) {
+        if (conversation.getMessages(conversationManager).size() == 0) {
             builder.append("<span class=small-description>" +
                 LocaleUtils.getLocalizedString("archive.search.results.archive_disabled",
                         MonitoringConstants.NAME) +
