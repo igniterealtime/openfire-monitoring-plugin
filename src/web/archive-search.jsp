@@ -1,9 +1,5 @@
 <%@ page contentType="text/html; charset=UTF-8" %>
 <%@ page errorPage="/error.jsp" import="org.jivesoftware.openfire.plugin.MonitoringPlugin"%>
-<%@ page import="org.jivesoftware.openfire.archive.ArchiveSearch" %>
-<%@ page import="org.jivesoftware.openfire.archive.ArchiveSearcher" %>
-<%@ page import="org.jivesoftware.openfire.archive.Conversation" %>
-<%@ page import="org.jivesoftware.openfire.archive.ConversationManager" %>
 <%@ page import="org.jivesoftware.openfire.XMPPServer" %>
 <%@ page import="org.jivesoftware.openfire.user.UserNameManager" %>
 <%@ page import="org.jivesoftware.openfire.user.UserNotFoundException" %>
@@ -15,6 +11,8 @@
 <%@ page import="org.slf4j.Logger" %>
 <%@ page import="org.slf4j.LoggerFactory" %>
 <%@ page import="com.reucon.openfire.plugin.archive.xep.AbstractXepSupport" %>
+<%@ page import="org.jivesoftware.openfire.archive.*" %>
+<%@ page import="org.jivesoftware.openfire.cluster.ClusterManager" %>
 
 <%@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c" %>
 <%@ taglib uri="http://java.sun.com/jsp/jstl/fmt" prefix="fmt" %>
@@ -498,6 +496,16 @@
 </style>
 </head>
 <body>
+
+<% if (!ClusterManager.findRemotePluginsWithDifferentVersion(MonitoringConstants.PLUGIN_NAME).isEmpty()) { %>
+<div class="warning">
+    <fmt:message key="warning.clustering.versions">
+        <fmt:param value="<a href='/system-clustering.jsp'>" />
+        <fmt:param value="</a>" />
+    </fmt:message>
+</div>
+<br/>
+<% } %>
 
 <a href="archive-conversation-participants.jsp?conversationID=" id="lbmessage" title="<fmt:message key="archive.group_conversation.participants" />" style="display:none;"></a>
 

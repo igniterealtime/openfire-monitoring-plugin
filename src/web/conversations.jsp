@@ -10,6 +10,8 @@
 <%@ page import="org.jivesoftware.openfire.user.UserManager"%>
 <%@ page import="java.net.URLEncoder" %>
 <%@ page import="org.jivesoftware.util.StringUtils" %>
+<%@ page import="org.jivesoftware.openfire.archive.MonitoringConstants" %>
+<%@ page import="org.jivesoftware.openfire.cluster.ClusterManager" %>
 
 <%@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c" %>
 <%@ taglib uri="http://java.sun.com/jsp/jstl/fmt" prefix="fmt" %>
@@ -138,6 +140,16 @@ function updateConversations(data) {
 
 //# sourceURL=conversations.jsp
 </script>
+
+<% if (!ClusterManager.findRemotePluginsWithDifferentVersion(MonitoringConstants.PLUGIN_NAME).isEmpty()) { %>
+<div class="warning">
+    <fmt:message key="warning.clustering.versions">
+        <fmt:param value="<a href='/system-clustering.jsp'>" />
+        <fmt:param value="</a>" />
+    </fmt:message>
+</div>
+<br/>
+<% } %>
 
 <!-- <a href="#" onclick="conversationUpdater(); return false;">click me</a> -->
 <p>

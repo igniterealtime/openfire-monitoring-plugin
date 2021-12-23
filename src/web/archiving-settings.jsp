@@ -12,9 +12,10 @@
 <%@ page import="java.util.Map" %>
 <%@ page import="com.reucon.openfire.plugin.archive.impl.MucIndexer" %>
 <%@ page import="org.jivesoftware.openfire.plugin.service.LogAPI" %>
-<%@ page import="org.jivesoftware.util.*" %>
 <%@ page import="org.jivesoftware.openfire.http.HttpBindManager" %>
 <%@ page import="com.reucon.openfire.plugin.archive.impl.MessageIndexer" %>
+<%@ page import="org.jivesoftware.openfire.archive.MonitoringConstants" %>
+<%@ page import="org.jivesoftware.openfire.cluster.ClusterManager" %>
 
 <%@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c" %>
 <%@ taglib uri="http://java.sun.com/jsp/jstl/fmt" prefix="fmt" %>
@@ -310,11 +311,22 @@
 
 <div class="success" id="rebuild" style="display: <%=rebuildIndex?"block":"none"%>">
     <fmt:message key="archive.settings.rebuild.success"/>
-</div><br/>
+    <br/>
+</div>
 
 <% if (errors.size() > 0) { %>
 <div class="error">
     <%= errorMessage%>
+</div>
+<br/>
+<% } %>
+
+<% if (!ClusterManager.findRemotePluginsWithDifferentVersion(MonitoringConstants.PLUGIN_NAME).isEmpty()) { %>
+<div class="warning">
+    <fmt:message key="warning.clustering.versions">
+        <fmt:param value="<a href='/system-clustering.jsp'>" />
+        <fmt:param value="</a>" />
+    </fmt:message>
 </div>
 <br/>
 <% } %>
