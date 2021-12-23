@@ -16,6 +16,8 @@
 <%@ page import="java.util.*"%>
 <%@ page import="org.jivesoftware.openfire.XMPPServer" %>
 <%@ page import="org.jivesoftware.openfire.plugin.MonitoringPlugin" %>
+<%@ page import="org.jivesoftware.openfire.cluster.ClusterManager" %>
+<%@ page import="org.jivesoftware.openfire.archive.MonitoringConstants" %>
 <%@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c" %>
 <%@ taglib uri="http://java.sun.com/jsp/jstl/fmt" prefix="fmt" %>
 
@@ -380,6 +382,17 @@ function createCookie(name,value,days) {
 </script>
 
 <div id="instructions">
+
+    <% if (!ClusterManager.findRemotePluginsWithDifferentVersion(MonitoringConstants.PLUGIN_NAME).isEmpty()) { %>
+    <div class="warning">
+        <fmt:message key="warning.clustering.versions">
+            <fmt:param value="<a href='/system-clustering.jsp'>" />
+            <fmt:param value="</a>" />
+        </fmt:message>
+    </div>
+    <br/>
+    <% } %>
+
     <table width="756" border="0">
     <tr>
         <td width="426">
