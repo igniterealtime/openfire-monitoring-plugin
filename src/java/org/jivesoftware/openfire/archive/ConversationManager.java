@@ -567,7 +567,13 @@ public class ConversationManager implements ComponentEventListener{
         if (ClusterManager.isSeniorClusterMember()) {
             return conversations.size();
         }
-        return CacheFactory.doSynchronousClusterTask(new GetConversationCountTask(), ClusterManager.getSeniorClusterMember().toByteArray());
+        final Integer count = CacheFactory.doSynchronousClusterTask(new GetConversationCountTask(), ClusterManager.getSeniorClusterMember().toByteArray());
+        if (count == null) {
+            Log.warn("Unable to obtain conversation count from senior cluster member. Is (the same version of) the Monitoring Plugin running there?");
+            return -1;
+        } else {
+            return count;
+        }
     }
 
     /**
@@ -621,14 +627,18 @@ public class ConversationManager implements ComponentEventListener{
             Collection<String> conversationXmls = CacheFactory.doSynchronousClusterTask(new GetConversationsTask(), ClusterManager
                     .getSeniorClusterMember().toByteArray());
             Collection<Conversation> result = new ArrayList<>();
-            for (String conversationXml : conversationXmls) {
-                try {
-                    Log.debug("Interpreting conversation from: {}", conversationXml);
-                    final Conversation conversation = Conversation.fromXml(conversationXml);
-                    Log.debug("Interpreted conversation: {}", conversation);
-                    result.add(conversation);
-                } catch (IOException e) {
-                    Log.warn("Conversation could not be reconstructed from '{}' because of '{}'. This conversation is not included in the result set.", conversationXml, e.getMessage());
+            if (conversationXmls == null) {
+                Log.warn("Unable to obtain conversations from senior cluster member. Is (the same version of) the Monitoring Plugin running there?");
+            } else {
+                for (String conversationXml : conversationXmls) {
+                    try {
+                        Log.debug("Interpreting conversation from: {}", conversationXml);
+                        final Conversation conversation = Conversation.fromXml(conversationXml);
+                        Log.debug("Interpreted conversation: {}", conversation);
+                        result.add(conversation);
+                    } catch (IOException e) {
+                        Log.warn("Conversation could not be reconstructed from '{}' because of '{}'. This conversation is not included in the result set.", conversationXml, e.getMessage());
+                    }
                 }
             }
             return result;
