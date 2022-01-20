@@ -40,6 +40,7 @@ import com.itextpdf.layout.element.Text;
 import com.itextpdf.layout.properties.Leading;
 import com.itextpdf.layout.properties.Property;
 import org.jivesoftware.openfire.XMPPServer;
+import org.jivesoftware.openfire.archive.EmptyMessageUtils.EmptyMessageType;
 import org.jivesoftware.openfire.plugin.MonitoringPlugin;
 import org.jivesoftware.openfire.user.UserManager;
 import org.jivesoftware.util.JiveGlobals;
@@ -211,10 +212,13 @@ public class ConversationUtils {
                 String prefix;
 
                 if (!message.isRoomEvent()) {
+                    /*
+                     * If body is null, then it is a chatmarker, so we add the ressource to see which device has sent the marker.
+                     * */
                     if (to == null) {
-                        prefix = "[" + time + "] " + from + ":  ";
+                        prefix = "[" + time + "] " + from+(body==null?(" ("+message.getToJID().getResource()+")"):"")+ ":  ";
                     } else {
-                        prefix = "[" + time + "] " + from + " -> " + to + ":  ";
+                        prefix = "[" + time + "] " + from+(body==null?(" ("+message.getToJID().getResource()+")"):"")+ " -> " + to + ":  ";
                     }
                     Color color = colorMap.get(message.getFromJID());
                     if (color == null) {
@@ -225,12 +229,39 @@ public class ConversationUtils {
                     }
 
                     messageParagraph.add(new Text(prefix).setFont(PdfFontFactory.createFont(StandardFonts.HELVETICA_BOLD)).setFontColor(color));
-                    messageParagraph.add(new Text(body).setFontColor(ColorConstants.BLACK));
+                    messageParagraph.add(new Text(body==null?"":body).setFontColor(ColorConstants.BLACK));
                 }
                 else {
                     prefix = "[" + time + "] ";
                     messageParagraph.add( new Text(prefix)).setFont(PdfFontFactory.createFont(StandardFonts.HELVETICA_OBLIQUE)).setFontColor(ColorConstants.MAGENTA);
-                    messageParagraph.add( new Text(body).setFont(PdfFontFactory.createFont(StandardFonts.HELVETICA_OBLIQUE)).setFontColor(ColorConstants.MAGENTA));
+                    messageParagraph.add( new Text(body==null?"":body).setFont(PdfFontFactory.createFont(StandardFonts.HELVETICA_OBLIQUE)).setFontColor(ColorConstants.MAGENTA));
+                }
+
+                if (body==null)
+                {
+                    EmptyMessageUtils.EmptyMessageType emptyType = EmptyMessageUtils.getMessageType(message.getStanza());
+
+                    switch (emptyType)
+                    {
+                        case TYPE_CHATMARKER_MARKABLE:
+                                messageParagraph.add("--message markable--");
+                            break;
+                        case TYPE_CHATMARKER_RECEIVED:
+                                messageParagraph.add("--message received XEP-0333 --");
+                            break;
+                        case TYPE_MESSAGE_DELIVERY_RECEIPTS_RECEIVED:
+                                messageParagraph.add("--message received XEP-0184 --");
+                            break;
+                        case TYPE_CHATMARKER_DISPLAYED:
+                                messageParagraph.add("--message displayed--");
+                            break;
+                        case TYPE_CHATMARKER_ACKNOWLEDGED:
+                                messageParagraph.add("--message acknowleged--");
+                            break;
+                        case TYPE_MESSAGE_RETRACTION:
+                            messageParagraph.add("--message retraction: "+message.getStanza()+"--");
+                        break;
+                    }
                 }
                 messageParagraph.add(new Text("\n"));
             }
@@ -302,10 +333,39 @@ public class ConversationUtils {
             if (conversation.getRoom() != null) {
                 from = message.getToJID().getResource();
             }
-            from = StringUtils.escapeHTMLTags(from);
+            /*
+             * If body is null, then it is a chatmarker, so we add the ressource to see which device has sent the marker.
+             * */
+            from = StringUtils.escapeHTMLTags(from)+(message.getBody()==null?(" ("+message.getFromJID().getResource()+")"):"");
             to = to == null ? null : StringUtils.escapeHTMLTags(to);
             String cssLabel = cssLabels.get(message.getFromJID().toBareJID());
             String body = StringUtils.escapeHTMLTags(message.getBody());
+            if (body==null)
+            {
+                EmptyMessageUtils.EmptyMessageType emptyType = EmptyMessageUtils.getMessageType(message.getStanza());
+
+                switch (emptyType)
+                {
+                    case TYPE_CHATMARKER_MARKABLE:
+                            body="--message markable--";
+                        break;
+                    case TYPE_CHATMARKER_RECEIVED:
+                            body="--message received XEP-0333 --";
+                        break;
+                    case TYPE_MESSAGE_DELIVERY_RECEIPTS_RECEIVED:
+                            body="--message received XEP-0184 --";
+                        break;
+                    case TYPE_CHATMARKER_DISPLAYED:
+                            body="--message displayed--";
+                        break;
+                    case TYPE_CHATMARKER_ACKNOWLEDGED:
+                            body="--message acknowleged--";
+                        break;
+                    case TYPE_MESSAGE_RETRACTION:
+                            body="--message retraction: "+message.getStanza()+"--";
+                        break;
+                }
+            }
             builder.append("<tr valign=top>");
             if (!message.isRoomEvent()) {
                 builder.append("<td width=1% nowrap class=" + cssLabel + ">").append("[").append(time).append("]").append("</td>");

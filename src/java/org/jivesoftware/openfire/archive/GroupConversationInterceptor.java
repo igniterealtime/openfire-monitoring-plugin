@@ -17,6 +17,7 @@
 package org.jivesoftware.openfire.archive;
 
 import org.jivesoftware.openfire.XMPPServer;
+import org.jivesoftware.openfire.archive.EmptyMessageUtils.EmptyMessageType;
 import org.jivesoftware.openfire.cluster.ClusterManager;
 import org.jivesoftware.openfire.muc.MUCEventDispatcher;
 import org.jivesoftware.openfire.muc.MUCEventListener;
@@ -144,13 +145,43 @@ public class GroupConversationInterceptor implements MUCEventListener {
         }
         else {
             Log.trace("Message received on junior node for room: {}", roomJID);
-            boolean withBody = conversationManager.isRoomArchivingEnabled() && (
-                    conversationManager.getRoomsArchived().isEmpty() ||
-                            conversationManager.getRoomsArchived().contains(roomJID.getNode()));
+            boolean withBody = conversationManager.isRoomArchivingEnabled() && (conversationManager.getRoomsArchived().isEmpty() ||
+                               conversationManager.getRoomsArchived().contains(roomJID.getNode()));
 
-            ConversationEventsQueue eventsQueue = conversationManager.getConversationEventsQueue();
-            eventsQueue.addGroupChatEvent(conversationManager.getRoomConversationKey(roomJID),
-                    ConversationEvent.roomMessageReceived(roomJID, user, null, nickname, withBody ? message.getBody() : null, message.toXML(), now));
+            if (withBody)
+            {
+                ConversationEventsQueue eventsQueue = conversationManager.getConversationEventsQueue();
+
+                eventsQueue.addGroupChatEvent(conversationManager.getRoomConversationKey(roomJID),
+                                              ConversationEvent.roomMessageReceived(roomJID, user, null, nickname, withBody ? message.getBody() : null, message.toXML(), now));
+            }
+            else
+            {
+                EmptyMessageType emptyMessageType = EmptyMessageUtils.getMessageType(message.getElement());
+
+                long bitmask = conversationManager.getSpeficifEmptyMessageArchivingForMUCEnabled();
+
+                if (emptyMessageType==EmptyMessageType.TYPE_UNKNOWN && ((bitmask & EmptyMessageType.TYPE_UNKNOWN.getValue())==EmptyMessageType.TYPE_UNKNOWN.getValue())||
+                (bitmask & EmptyMessageType.TYPE_CHATMARKER_MARKABLE.getValue())==EmptyMessageType.TYPE_CHATMARKER_MARKABLE.getValue()||
+                (bitmask & EmptyMessageType.TYPE_CHATMARKER_RECEIVED.getValue())==EmptyMessageType.TYPE_CHATMARKER_RECEIVED.getValue()||
+                (bitmask & EmptyMessageType.TYPE_CHATMARKER_DISPLAYED.getValue())==EmptyMessageType.TYPE_CHATMARKER_DISPLAYED.getValue()||
+                (bitmask & EmptyMessageType.TYPE_CHATMARKER_ACKNOWLEDGED.getValue())==EmptyMessageType.TYPE_CHATMARKER_ACKNOWLEDGED.getValue()||
+                (bitmask & EmptyMessageType.TYPE_MESSAGE_RETRACTION.getValue())==EmptyMessageType.TYPE_MESSAGE_RETRACTION.getValue()||
+                (bitmask & EmptyMessageType.TYPE_CHATSTATE_NOTIFICATION_ACTIVE.getValue())==EmptyMessageType.TYPE_CHATSTATE_NOTIFICATION_ACTIVE.getValue()||
+                (bitmask & EmptyMessageType.TYPE_CHATSTATE_NOTIFICATION_COMPOSING.getValue())==EmptyMessageType.TYPE_CHATSTATE_NOTIFICATION_COMPOSING.getValue()||
+                (bitmask & EmptyMessageType.TYPE_CHATSTATE_NOTIFICATION_PAUSED.getValue())==EmptyMessageType.TYPE_CHATSTATE_NOTIFICATION_PAUSED.getValue()||
+                (bitmask & EmptyMessageType.TYPE_CHATSTATE_NOTIFICATION_INACTIVE.getValue())==EmptyMessageType.TYPE_CHATSTATE_NOTIFICATION_INACTIVE.getValue()||
+                (bitmask & EmptyMessageType.TYPE_CHATSTATE_NOTIFICATION_GONE.getValue())==EmptyMessageType.TYPE_CHATSTATE_NOTIFICATION_GONE.getValue()||
+                (bitmask & EmptyMessageType.TYPE_MESSAGE_DELIVERY_RECEIPTS_RECEIVED.getValue())==EmptyMessageType.TYPE_MESSAGE_DELIVERY_RECEIPTS_RECEIVED.getValue()||
+                (bitmask & EmptyMessageType.TYPE_MESSAGE_DELIVERY_RECEIPTS_REQUEST.getValue())==EmptyMessageType.TYPE_MESSAGE_DELIVERY_RECEIPTS_REQUEST.getValue())
+                {
+                    ConversationEventsQueue eventsQueue = conversationManager.getConversationEventsQueue();
+
+                    eventsQueue.addGroupChatEvent(conversationManager.getRoomConversationKey(roomJID),
+                            ConversationEvent.getEmptyMessageReceivedEvent(roomJID, user, emptyMessageType,
+                                    conversationManager.isMessageArchivingEnabled() ? message.toXML() : null, new Date()));
+                }
+            }
         }
     }
 

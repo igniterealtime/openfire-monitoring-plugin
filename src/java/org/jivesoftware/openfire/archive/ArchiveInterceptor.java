@@ -16,6 +16,7 @@
 
 package org.jivesoftware.openfire.archive;
 
+import org.jivesoftware.openfire.archive.EmptyMessageUtils.EmptyMessageType;
 import org.jivesoftware.openfire.cluster.ClusterManager;
 import org.jivesoftware.openfire.interceptor.InterceptorManager;
 import org.jivesoftware.openfire.interceptor.PacketInterceptor;
@@ -68,7 +69,7 @@ public class ArchiveInterceptor implements PacketInterceptor {
             // Ignore any messages that don't have a body so that we skip events.
             // Note: XHTML messages should always include a body so we should be ok. It's
             // possible that we may need special XHTML filtering in the future, however.
-            if (message.getBody() != null) {
+            if (message.getBody() != null||this.conversationManager.isEmptyMessageArchivingEnabled()) {
                 // Only process messages that are between two users, group chat rooms, or gateways.
                 if (conversationManager.isConversation(message)) {
                     //take care on blocklist
@@ -89,11 +90,41 @@ public class ArchiveInterceptor implements PacketInterceptor {
                         JID sender = message.getFrom();
                         JID receiver = message.getTo();
                         ConversationEventsQueue eventsQueue = conversationManager.getConversationEventsQueue();
-                        eventsQueue.addChatEvent(conversationManager.getConversationKey(sender, receiver),
+                        if (message.getBody()!=null)
+                        {
+                            eventsQueue.addChatEvent(conversationManager.getConversationKey(sender, receiver),
                                 ConversationEvent.chatMessageReceived(sender, receiver,
                                         conversationManager.isMessageArchivingEnabled() ? message.getBody() : null,
                                         conversationManager.isMessageArchivingEnabled() ? message.toXML() : null,
                                         new Date()));
+                        }
+                        else
+                        {
+                            EmptyMessageType emptyMessageType = EmptyMessageUtils.getMessageType(message.getElement()); 
+
+                            long bitmask = conversationManager.getSpeficifEmptyMessageArchivingEnabled();
+
+                            if (emptyMessageType==EmptyMessageType.TYPE_UNKNOWN && ((bitmask & EmptyMessageType.TYPE_UNKNOWN.getValue())==EmptyMessageType.TYPE_UNKNOWN.getValue())||
+                                (bitmask & EmptyMessageType.TYPE_CHATMARKER_MARKABLE.getValue())==EmptyMessageType.TYPE_CHATMARKER_MARKABLE.getValue()||
+                                (bitmask & EmptyMessageType.TYPE_CHATMARKER_RECEIVED.getValue())==EmptyMessageType.TYPE_CHATMARKER_RECEIVED.getValue()||
+                                (bitmask & EmptyMessageType.TYPE_CHATMARKER_DISPLAYED.getValue())==EmptyMessageType.TYPE_CHATMARKER_DISPLAYED.getValue()||
+                                (bitmask & EmptyMessageType.TYPE_CHATMARKER_ACKNOWLEDGED.getValue())==EmptyMessageType.TYPE_CHATMARKER_ACKNOWLEDGED.getValue()||
+                                (bitmask & EmptyMessageType.TYPE_MESSAGE_RETRACTION.getValue())==EmptyMessageType.TYPE_MESSAGE_RETRACTION.getValue()||
+                                (bitmask & EmptyMessageType.TYPE_CHATSTATE_NOTIFICATION_ACTIVE.getValue())==EmptyMessageType.TYPE_CHATSTATE_NOTIFICATION_ACTIVE.getValue()||
+                                (bitmask & EmptyMessageType.TYPE_CHATSTATE_NOTIFICATION_COMPOSING.getValue())==EmptyMessageType.TYPE_CHATSTATE_NOTIFICATION_COMPOSING.getValue()||
+                                (bitmask & EmptyMessageType.TYPE_CHATSTATE_NOTIFICATION_PAUSED.getValue())==EmptyMessageType.TYPE_CHATSTATE_NOTIFICATION_PAUSED.getValue()||
+                                (bitmask & EmptyMessageType.TYPE_CHATSTATE_NOTIFICATION_INACTIVE.getValue())==EmptyMessageType.TYPE_CHATSTATE_NOTIFICATION_INACTIVE.getValue()||
+                                (bitmask & EmptyMessageType.TYPE_CHATSTATE_NOTIFICATION_GONE.getValue())==EmptyMessageType.TYPE_CHATSTATE_NOTIFICATION_GONE.getValue()||
+                                (bitmask & EmptyMessageType.TYPE_MESSAGE_DELIVERY_RECEIPTS_RECEIVED.getValue())==EmptyMessageType.TYPE_MESSAGE_DELIVERY_RECEIPTS_RECEIVED.getValue()||
+                                (bitmask & EmptyMessageType.TYPE_MESSAGE_DELIVERY_RECEIPTS_REQUEST.getValue())==EmptyMessageType.TYPE_MESSAGE_DELIVERY_RECEIPTS_REQUEST.getValue())
+                            {
+                                eventsQueue.addChatEvent(conversationManager.getConversationKey(sender, receiver),
+                                    ConversationEvent.getEmptyMessageReceivedEvent(sender, receiver,
+                                            emptyMessageType,
+                                            conversationManager.isMessageArchivingEnabled() ? message.toXML() : null,
+                                            new Date()));
+                            }
+                        }
                     }
                 }
             }
