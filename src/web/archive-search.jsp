@@ -724,6 +724,12 @@
                                             i++;
                                             continue;
                                         }
+
+                                        if (conversation.getMessages(conversationManager).size() == 0)
+                                        {
+                                            continue;
+                                        }
+
                                         Map<String, JID> participants = getParticipants(conversation);
                                         String color = "#FFFFFF";
                                         if (i % 2 == 0) {
