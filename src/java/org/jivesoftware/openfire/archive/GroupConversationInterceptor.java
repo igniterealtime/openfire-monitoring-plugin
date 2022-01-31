@@ -161,19 +161,20 @@ public class GroupConversationInterceptor implements MUCEventListener {
 
                 long bitmask = conversationManager.getSpeficifEmptyMessageArchivingForMUCEnabled();
 
-                if (emptyMessageType==EmptyMessageType.TYPE_UNKNOWN && ((bitmask & EmptyMessageType.TYPE_UNKNOWN.getValue())==EmptyMessageType.TYPE_UNKNOWN.getValue())||
-                (bitmask & EmptyMessageType.TYPE_CHATMARKER_MARKABLE.getValue())==EmptyMessageType.TYPE_CHATMARKER_MARKABLE.getValue()||
-                (bitmask & EmptyMessageType.TYPE_CHATMARKER_RECEIVED.getValue())==EmptyMessageType.TYPE_CHATMARKER_RECEIVED.getValue()||
-                (bitmask & EmptyMessageType.TYPE_CHATMARKER_DISPLAYED.getValue())==EmptyMessageType.TYPE_CHATMARKER_DISPLAYED.getValue()||
-                (bitmask & EmptyMessageType.TYPE_CHATMARKER_ACKNOWLEDGED.getValue())==EmptyMessageType.TYPE_CHATMARKER_ACKNOWLEDGED.getValue()||
-                (bitmask & EmptyMessageType.TYPE_MESSAGE_RETRACTION.getValue())==EmptyMessageType.TYPE_MESSAGE_RETRACTION.getValue()||
-                (bitmask & EmptyMessageType.TYPE_CHATSTATE_NOTIFICATION_ACTIVE.getValue())==EmptyMessageType.TYPE_CHATSTATE_NOTIFICATION_ACTIVE.getValue()||
-                (bitmask & EmptyMessageType.TYPE_CHATSTATE_NOTIFICATION_COMPOSING.getValue())==EmptyMessageType.TYPE_CHATSTATE_NOTIFICATION_COMPOSING.getValue()||
-                (bitmask & EmptyMessageType.TYPE_CHATSTATE_NOTIFICATION_PAUSED.getValue())==EmptyMessageType.TYPE_CHATSTATE_NOTIFICATION_PAUSED.getValue()||
-                (bitmask & EmptyMessageType.TYPE_CHATSTATE_NOTIFICATION_INACTIVE.getValue())==EmptyMessageType.TYPE_CHATSTATE_NOTIFICATION_INACTIVE.getValue()||
-                (bitmask & EmptyMessageType.TYPE_CHATSTATE_NOTIFICATION_GONE.getValue())==EmptyMessageType.TYPE_CHATSTATE_NOTIFICATION_GONE.getValue()||
-                (bitmask & EmptyMessageType.TYPE_MESSAGE_DELIVERY_RECEIPTS_RECEIVED.getValue())==EmptyMessageType.TYPE_MESSAGE_DELIVERY_RECEIPTS_RECEIVED.getValue()||
-                (bitmask & EmptyMessageType.TYPE_MESSAGE_DELIVERY_RECEIPTS_REQUEST.getValue())==EmptyMessageType.TYPE_MESSAGE_DELIVERY_RECEIPTS_REQUEST.getValue())
+                if (emptyMessageType!=EmptyMessageType.TYPE_EVENT && (
+                    emptyMessageType==EmptyMessageType.TYPE_UNKNOWN && ((bitmask & EmptyMessageType.TYPE_UNKNOWN.getValue())==EmptyMessageType.TYPE_UNKNOWN.getValue())||
+                    (bitmask & EmptyMessageType.TYPE_CHATMARKER_MARKABLE.getValue())==EmptyMessageType.TYPE_CHATMARKER_MARKABLE.getValue()||
+                    (bitmask & EmptyMessageType.TYPE_CHATMARKER_RECEIVED.getValue())==EmptyMessageType.TYPE_CHATMARKER_RECEIVED.getValue()||
+                    (bitmask & EmptyMessageType.TYPE_CHATMARKER_DISPLAYED.getValue())==EmptyMessageType.TYPE_CHATMARKER_DISPLAYED.getValue()||
+                    (bitmask & EmptyMessageType.TYPE_CHATMARKER_ACKNOWLEDGED.getValue())==EmptyMessageType.TYPE_CHATMARKER_ACKNOWLEDGED.getValue()||
+                    (bitmask & EmptyMessageType.TYPE_MESSAGE_RETRACTION.getValue())==EmptyMessageType.TYPE_MESSAGE_RETRACTION.getValue()||
+                    (bitmask & EmptyMessageType.TYPE_CHATSTATE_NOTIFICATION_ACTIVE.getValue())==EmptyMessageType.TYPE_CHATSTATE_NOTIFICATION_ACTIVE.getValue()||
+                    (bitmask & EmptyMessageType.TYPE_CHATSTATE_NOTIFICATION_COMPOSING.getValue())==EmptyMessageType.TYPE_CHATSTATE_NOTIFICATION_COMPOSING.getValue()||
+                    (bitmask & EmptyMessageType.TYPE_CHATSTATE_NOTIFICATION_PAUSED.getValue())==EmptyMessageType.TYPE_CHATSTATE_NOTIFICATION_PAUSED.getValue()||
+                    (bitmask & EmptyMessageType.TYPE_CHATSTATE_NOTIFICATION_INACTIVE.getValue())==EmptyMessageType.TYPE_CHATSTATE_NOTIFICATION_INACTIVE.getValue()||
+                    (bitmask & EmptyMessageType.TYPE_CHATSTATE_NOTIFICATION_GONE.getValue())==EmptyMessageType.TYPE_CHATSTATE_NOTIFICATION_GONE.getValue()||
+                    (bitmask & EmptyMessageType.TYPE_MESSAGE_DELIVERY_RECEIPTS_RECEIVED.getValue())==EmptyMessageType.TYPE_MESSAGE_DELIVERY_RECEIPTS_RECEIVED.getValue()||
+                    (bitmask & EmptyMessageType.TYPE_MESSAGE_DELIVERY_RECEIPTS_REQUEST.getValue())==EmptyMessageType.TYPE_MESSAGE_DELIVERY_RECEIPTS_REQUEST.getValue()))
                 {
                     ConversationEventsQueue eventsQueue = conversationManager.getConversationEventsQueue();
 

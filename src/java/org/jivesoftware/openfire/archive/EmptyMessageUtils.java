@@ -13,6 +13,7 @@ public class EmptyMessageUtils {
     private static final Logger Log = LoggerFactory.getLogger(EmptyMessageUtils.class);
 
     public enum EmptyMessageType {
+        TYPE_EVENT(-1),
         TYPE_UNKNOWN(1),
 
         TYPE_CHATMARKER_MARKABLE(2),  //XMLNS = urn:xmpp:chat-markers:0
@@ -58,6 +59,11 @@ public class EmptyMessageUtils {
 
     public static EmptyMessageType getMessageType(Element stanza)
     {
+        if (stanza.selectSingleNode("//*[local-name()='event' and namespace-uri()='http://jabber.org/protocol/pubsub#event']")!=null)
+        {
+            return EmptyMessageType.TYPE_EVENT;
+        }
+        else
         if (stanza.selectSingleNode("//*[local-name()='markable' and namespace-uri()='urn:xmpp:chat-markers:0']")!=null)
         {
             return EmptyMessageType.TYPE_CHATMARKER_MARKABLE;

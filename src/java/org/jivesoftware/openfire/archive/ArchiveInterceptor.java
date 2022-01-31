@@ -104,7 +104,8 @@ public class ArchiveInterceptor implements PacketInterceptor {
 
                             long bitmask = conversationManager.getSpeficifEmptyMessageArchivingEnabled();
 
-                            if (emptyMessageType==EmptyMessageType.TYPE_UNKNOWN && ((bitmask & EmptyMessageType.TYPE_UNKNOWN.getValue())==EmptyMessageType.TYPE_UNKNOWN.getValue())||
+                            if (emptyMessageType!=EmptyMessageType.TYPE_EVENT && (
+                                emptyMessageType==EmptyMessageType.TYPE_UNKNOWN && ((bitmask & EmptyMessageType.TYPE_UNKNOWN.getValue())==EmptyMessageType.TYPE_UNKNOWN.getValue())||
                                 (bitmask & EmptyMessageType.TYPE_CHATMARKER_MARKABLE.getValue())==EmptyMessageType.TYPE_CHATMARKER_MARKABLE.getValue()||
                                 (bitmask & EmptyMessageType.TYPE_CHATMARKER_RECEIVED.getValue())==EmptyMessageType.TYPE_CHATMARKER_RECEIVED.getValue()||
                                 (bitmask & EmptyMessageType.TYPE_CHATMARKER_DISPLAYED.getValue())==EmptyMessageType.TYPE_CHATMARKER_DISPLAYED.getValue()||
@@ -116,7 +117,7 @@ public class ArchiveInterceptor implements PacketInterceptor {
                                 (bitmask & EmptyMessageType.TYPE_CHATSTATE_NOTIFICATION_INACTIVE.getValue())==EmptyMessageType.TYPE_CHATSTATE_NOTIFICATION_INACTIVE.getValue()||
                                 (bitmask & EmptyMessageType.TYPE_CHATSTATE_NOTIFICATION_GONE.getValue())==EmptyMessageType.TYPE_CHATSTATE_NOTIFICATION_GONE.getValue()||
                                 (bitmask & EmptyMessageType.TYPE_MESSAGE_DELIVERY_RECEIPTS_RECEIVED.getValue())==EmptyMessageType.TYPE_MESSAGE_DELIVERY_RECEIPTS_RECEIVED.getValue()||
-                                (bitmask & EmptyMessageType.TYPE_MESSAGE_DELIVERY_RECEIPTS_REQUEST.getValue())==EmptyMessageType.TYPE_MESSAGE_DELIVERY_RECEIPTS_REQUEST.getValue())
+                                (bitmask & EmptyMessageType.TYPE_MESSAGE_DELIVERY_RECEIPTS_REQUEST.getValue())==EmptyMessageType.TYPE_MESSAGE_DELIVERY_RECEIPTS_REQUEST.getValue()))
                             {
                                 eventsQueue.addChatEvent(conversationManager.getConversationKey(sender, receiver),
                                     ConversationEvent.getEmptyMessageReceivedEvent(sender, receiver,

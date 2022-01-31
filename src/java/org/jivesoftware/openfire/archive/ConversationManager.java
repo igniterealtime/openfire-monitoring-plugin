@@ -874,7 +874,8 @@ public class ConversationManager implements ComponentEventListener{
 
                         long bitmask = getSpeficifEmptyMessageArchivingEnabled();
 
-                        if (emptyMessageType==EmptyMessageType.TYPE_UNKNOWN && ((bitmask & EmptyMessageType.TYPE_UNKNOWN.getValue())==EmptyMessageType.TYPE_UNKNOWN.getValue())||
+                        if (emptyMessageType!=EmptyMessageType.TYPE_EVENT && (
+                            emptyMessageType==EmptyMessageType.TYPE_UNKNOWN && ((bitmask & EmptyMessageType.TYPE_UNKNOWN.getValue())==EmptyMessageType.TYPE_UNKNOWN.getValue())||
                             (bitmask & EmptyMessageType.TYPE_CHATMARKER_MARKABLE.getValue())==EmptyMessageType.TYPE_CHATMARKER_MARKABLE.getValue()||
                             (bitmask & EmptyMessageType.TYPE_CHATMARKER_RECEIVED.getValue())==EmptyMessageType.TYPE_CHATMARKER_RECEIVED.getValue()||
                             (bitmask & EmptyMessageType.TYPE_CHATMARKER_DISPLAYED.getValue())==EmptyMessageType.TYPE_CHATMARKER_DISPLAYED.getValue()||
@@ -886,7 +887,7 @@ public class ConversationManager implements ComponentEventListener{
                             (bitmask & EmptyMessageType.TYPE_CHATSTATE_NOTIFICATION_INACTIVE.getValue())==EmptyMessageType.TYPE_CHATSTATE_NOTIFICATION_INACTIVE.getValue()||
                             (bitmask & EmptyMessageType.TYPE_CHATSTATE_NOTIFICATION_GONE.getValue())==EmptyMessageType.TYPE_CHATSTATE_NOTIFICATION_GONE.getValue()||
                             (bitmask & EmptyMessageType.TYPE_MESSAGE_DELIVERY_RECEIPTS_RECEIVED.getValue())==EmptyMessageType.TYPE_MESSAGE_DELIVERY_RECEIPTS_RECEIVED.getValue()||
-                            (bitmask & EmptyMessageType.TYPE_MESSAGE_DELIVERY_RECEIPTS_REQUEST.getValue())==EmptyMessageType.TYPE_MESSAGE_DELIVERY_RECEIPTS_REQUEST.getValue())
+                            (bitmask & EmptyMessageType.TYPE_MESSAGE_DELIVERY_RECEIPTS_REQUEST.getValue())==EmptyMessageType.TYPE_MESSAGE_DELIVERY_RECEIPTS_REQUEST.getValue()))
                         {
                             messageArchiver.archive(new ArchivedMessage(conversation.getConversationID(), sender, receiver, date, body, stanza, false, null) );
                         }
@@ -962,7 +963,8 @@ public class ConversationManager implements ComponentEventListener{
 
                     long bitmask = getSpeficifEmptyMessageArchivingForMUCEnabled();
 
-                    if (emptyMessageType==EmptyMessageType.TYPE_UNKNOWN && ((bitmask & EmptyMessageType.TYPE_UNKNOWN.getValue())==EmptyMessageType.TYPE_UNKNOWN.getValue())||
+                    if (emptyMessageType!=EmptyMessageType.TYPE_EVENT && (
+                        emptyMessageType==EmptyMessageType.TYPE_UNKNOWN && ((bitmask & EmptyMessageType.TYPE_UNKNOWN.getValue())==EmptyMessageType.TYPE_UNKNOWN.getValue())||
                         (bitmask & EmptyMessageType.TYPE_CHATMARKER_MARKABLE.getValue())==EmptyMessageType.TYPE_CHATMARKER_MARKABLE.getValue()||
                         (bitmask & EmptyMessageType.TYPE_CHATMARKER_RECEIVED.getValue())==EmptyMessageType.TYPE_CHATMARKER_RECEIVED.getValue()||
                         (bitmask & EmptyMessageType.TYPE_CHATMARKER_DISPLAYED.getValue())==EmptyMessageType.TYPE_CHATMARKER_DISPLAYED.getValue()||
@@ -974,7 +976,7 @@ public class ConversationManager implements ComponentEventListener{
                         (bitmask & EmptyMessageType.TYPE_CHATSTATE_NOTIFICATION_INACTIVE.getValue())==EmptyMessageType.TYPE_CHATSTATE_NOTIFICATION_INACTIVE.getValue()||
                         (bitmask & EmptyMessageType.TYPE_CHATSTATE_NOTIFICATION_GONE.getValue())==EmptyMessageType.TYPE_CHATSTATE_NOTIFICATION_GONE.getValue()||
                         (bitmask & EmptyMessageType.TYPE_MESSAGE_DELIVERY_RECEIPTS_RECEIVED.getValue())==EmptyMessageType.TYPE_MESSAGE_DELIVERY_RECEIPTS_RECEIVED.getValue()||
-                        (bitmask & EmptyMessageType.TYPE_MESSAGE_DELIVERY_RECEIPTS_REQUEST.getValue())==EmptyMessageType.TYPE_MESSAGE_DELIVERY_RECEIPTS_REQUEST.getValue())
+                        (bitmask & EmptyMessageType.TYPE_MESSAGE_DELIVERY_RECEIPTS_REQUEST.getValue())==EmptyMessageType.TYPE_MESSAGE_DELIVERY_RECEIPTS_REQUEST.getValue()))
                     {
                         messageArchiver.archive( new ArchivedMessage(conversation.getConversationID(), sender, jid, date, body, roomArchivingStanzasEnabled ? stanza : "", false, receiverIfPM));
                     }
