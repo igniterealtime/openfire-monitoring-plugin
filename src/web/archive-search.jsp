@@ -90,7 +90,13 @@
         }
 
         if (startDate != null && startDate.length() > 0) {
-            DateFormat formatter = new SimpleDateFormat("MM/dd/yy");
+            DateFormat formatter;
+            if (startDate.contains("/")) {
+                // This was used by the old calendarjs code. Retain it to not break old links/bookmarks, etc.
+                formatter = new SimpleDateFormat("MM/dd/yy");
+            } else {
+                formatter = new SimpleDateFormat("yyyy-MM-dd");
+            }
             try {
                 Date date = formatter.parse(startDate);
                 search.setDateRangeMin(date);
@@ -102,7 +108,13 @@
         }
 
         if (endDate != null && endDate.length() > 0) {
-            DateFormat formatter = new SimpleDateFormat("MM/dd/yy");
+            DateFormat formatter;
+            if (endDate.contains("/")) {
+                // This was used by the old calendarjs code. Retain it to not break old links/bookmarks, etc.
+                formatter = new SimpleDateFormat("MM/dd/yy");
+            } else {
+                formatter = new SimpleDateFormat("yyyy-MM-dd");
+            }
             try {
                 Date date = formatter.parse(endDate);
                 // The user has chosen an end date and expects that any conversation
@@ -153,11 +165,6 @@
 <script src="/js/scriptaculous.js" type="text/javascript"></script>
 <script type="text/javascript" language="javascript" src="scripts/tooltips/domLib.js"></script>
 <script type="text/javascript" language="javascript" src="scripts/tooltips/domTT.js"></script>
-
-<style type="text/css">@import url( /js/jscalendar/calendar-win2k-cold-1.css );</style>
-<script type="text/javascript" src="/js/jscalendar/calendar.js"></script>
-<script type="text/javascript" src="/js/jscalendar/i18n.jsp"></script>
-<script type="text/javascript" src="/js/jscalendar/calendar-setup.js"></script>
 
 <script type="text/javascript">
     function hover(oRow) {
@@ -547,7 +554,7 @@
 
     <table>
         <tr>
-            <td colspan="3">
+            <td colspan="2">
                 <img src="images/icon_daterange.gif" align="absmiddle" alt="" style="margin: 0px 4px 0px 2px;"/>
                 <b><fmt:message key="archive.search.daterange" /></b>
                 <a onmouseover="domTT_activate(this, event, 'content',
@@ -558,25 +565,17 @@
         <tr valign="top">
             <td><fmt:message key="archive.search.daterange.start" /></td>
             <td>
-                <input type="text" id="startDate" name="startDate" size="13"
+                <input type="date" id="startDate" name="startDate" size="13"
                        value="<%= startDate != null ? StringUtils.escapeForXML(startDate) :
                        LocaleUtils.getLocalizedString("archive.search.daterange.any", "monitoring")%>" class="textfield"/><br/>
-                <span class="jive-description"><fmt:message key="archive.search.daterange.format" /></span>
-            </td>
-            <td>
-                <img src="images/icon_calendarpicker.gif" vspace="3" id="startDateTrigger">
             </td>
         </tr>
         <tr valign="top">
             <td><fmt:message key="archive.search.daterange.end" /></td>
             <td>
-                <input type="text" id="endDate" name="endDate" size="13"
+                <input type="date" id="endDate" name="endDate" size="13"
                        value="<%= endDate != null ? StringUtils.escapeForXML(endDate) :
                        LocaleUtils.getLocalizedString("archive.search.daterange.any", "monitoring") %>" class="textfield"/><br/>
-                <span class="jive-description"><fmt:message key="archive.search.daterange.format" /></span>
-            </td>
-            <td>
-                <img src="images/icon_calendarpicker.gif" vspace="3" id="endDateTrigger">
             </td>
         </tr>
     </table>
@@ -818,22 +817,6 @@
             startDateField.value = "<fmt:message key="archive.search.daterange.any" />";
         }
     }
-
-    Calendar.setup(
-    {
-        inputField  : "startDate",         // ID of the input field
-        ifFormat    : "%m/%d/%y",    // the date format
-        button      : "startDateTrigger",       // ID of the button
-        onUpdate    :  catcalc
-    });
-
-    Calendar.setup(
-    {
-        inputField  : "endDate",         // ID of the input field
-        ifFormat    : "%m/%d/%y",    // the date format
-        button      : "endDateTrigger",       // ID of the button
-        onUpdate    :  catcalc
-    });
 </script>
 </body>
 </html>

@@ -738,10 +738,17 @@ public class GraphEngine {
         } else {
             String[] dates = timeperiod.split("to");
             if (dates.length > 0) {
-                DateFormat formDateFormatter = new SimpleDateFormat("MM/dd/yy");
+
                 String fromDateParam = dates[0];
                 String toDateParam = dates[1];
                 if (fromDateParam != null) {
+                    DateFormat formDateFormatter;
+                    if (fromDateParam.contains("/")) {
+                        // This was used by the old calendarjs code. Retain it to not break old links/bookmarks, etc.
+                        formDateFormatter = new SimpleDateFormat("MM/dd/yy");
+                    } else {
+                        formDateFormatter = new SimpleDateFormat("yyyy-MM-dd");
+                    }
                     try {
                         fromDate = formDateFormatter.parse(fromDateParam);
                     }
@@ -750,6 +757,14 @@ public class GraphEngine {
                     }
                 }
                 if (toDateParam != null) {
+                    DateFormat formDateFormatter;
+                    if (toDateParam.contains("/")) {
+                        // This was used by the old calendarjs code. Retain it to not break old links/bookmarks, etc.
+                        formDateFormatter = new SimpleDateFormat("MM/dd/yy");
+                    } else {
+                        formDateFormatter = new SimpleDateFormat("yyyy-MM-dd");
+                    }
+
                     try {
                         toDate = formDateFormatter.parse(toDateParam);
                         // Make this date be the end of the day (so it's the day *inclusive*, not *exclusive*)
