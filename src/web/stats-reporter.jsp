@@ -63,14 +63,9 @@
 
     <style type="text/css">
         .dateerror { font-weight: bold; color:red;}
-        .dateerrorinput {background-color:red};
+        .dateerrorinput {background-color:red;}
         .datenormal { font-weight: normal; color:black;}
     </style>
-
-    <style type="text/css">@import url( /js/jscalendar/calendar-win2k-cold-1.css );</style>
-    <script type="text/javascript" src="/js/jscalendar/calendar.js"></script>
-    <script type="text/javascript" src="/js/jscalendar/i18n.jsp"></script>
-    <script type="text/javascript" src="/js/jscalendar/calendar-setup.js"></script>
 
     <script type="text/javascript">
 
@@ -221,20 +216,27 @@
         }
 
         function getDate(datestring) {
-            dateSplit = datestring.split('/');
+            if (datestring.indexOf('/')  !== -1) {
+                dateSplit = datestring.split('/');
+            } else {
+                dateSplit = datestring.split('-');
+            }
+
             if (dateSplit.length < 3) {
                 return false;
             }
 
             var monthLength = new Array(31,28,31,30,31,30,31,31,30,31,30,31);
-            var day = parseInt(dateSplit[1]);
-            var month = parseInt(dateSplit[0]);
-            var year = parseInt(dateSplit[2]);
+            var day = parseInt(datestring.indexOf('/') !== -1 ? dateSplit[1] : dateSplit[2]);
+            var month = parseInt(datestring.indexOf('/') !== -1 ? dateSplit[0] : dateSplit[1]);
+            var year = parseInt(datestring.indexOf('/') !== -1 ? dateSplit[2] : dateSplit[0]);
 
             if (!day || !month || !year)
                 return false;
 
-            year = year + 2000;
+            if (datestring.indexOf('/') !== -1) {
+                year = year + 2000;
+            }
 
             if (year/4 == parseInt(year/4))
                 monthLength[1] = 29;
@@ -362,15 +364,12 @@
                                     <fmt:message key="allreports.daterange.specific.startdate" />
                                 </td>
                                 <td>
-                                    <input type="text" size="10" name="fromDate" id="fromDate" maxlength="10"
+                                    <input type="date" size="10" name="fromDate" id="fromDate" maxlength="10"
                                      onclick="checkSpecific();"
                                      onchange="viewStat(currentStat);"
                                      <%= ("specific".equals(dateRangeType) ? "" : "disabled") %>
                                      value="<%= (fromDateParam != null ? fromDateParam : "") %>"
                                      >
-                                </td>
-                                <td>
-                                    &nbsp;<img src="images/icon_calendarpicker.gif" id="fromDateCal" />
                                 </td>
                             </tr>
                             <tr>
@@ -378,14 +377,11 @@
                                     <fmt:message key="allreports.daterange.specific.enddate" />
                                 </td>
                                 <td>
-                                    <input type="text" size="10" name="toDate" id="toDate" maxlength="10"
+                                    <input type="date" size="10" name="toDate" id="toDate" maxlength="10"
                                      onclick="checkSpecific();"
                                      onchange="viewStat(currentStat);"
                                      <%= ("specific".equals(dateRangeType) ? "" : "disabled") %>
                                      value="<%= (toDateParam != null ? toDateParam : "") %>">
-                                </td>
-                                <td>
-                                    &nbsp;<img src="images/icon_calendarpicker.gif" id="toDateCal" />
                                 </td>
                             </tr>
                             </table>
@@ -553,26 +549,6 @@
 </tr>
 </table>
 <br>
-
-<script type="text/javascript" >
-    Calendar.setup(
-    {
-        inputField  : "fromDate",       // ID of the input field
-        ifFormat    : "%m/%d/%y",       // the date format
-        button      : "fromDateCal",    // ID of the button
-        onUpdate    :  viewStat
-    });
-
-    Calendar.setup(
-    {
-        inputField  : "toDate",         // ID of the input field
-        ifFormat    : "%m/%d/%y",       // the date format
-        button      : "toDateCal",      // ID of the button
-        onUpdate    :  viewStat
-    });
-
-</script>
-
 
 </body>
 </html>
