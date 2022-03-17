@@ -66,11 +66,6 @@
 <script type="text/javascript" language="javascript" src="scripts/tooltips/domTT.js"></script>
 <script type="text/javascript" language="javascript" src="scripts/tooltips/domLib.js"></script>
 <style type="text/css">
-#lightbox{
-    top: 20%;
-    margin-top: -20px;
-    }
-
 .jive-testPanel {
     display: block;
     position: relative;
@@ -133,7 +128,9 @@
     <div class="jive-testPanel-content">
 
         <div align="right" class="jive-testPanel-close">
-            <a href="#" class="lbAction" rel="deactivate"><fmt:message key="archive.group_conversation.close" /></a>
+            <form method="dialog">
+                <button><fmt:message key="archive.group_conversation.close" /></button>
+            </form>
         </div>
 
 

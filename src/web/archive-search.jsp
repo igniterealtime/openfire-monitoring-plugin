@@ -371,12 +371,6 @@
     }
 </style>
 
-<style type="text/css" title="setupStyle" media="screen">
-    @import "../../style/lightbox.css";
-</style>
-
-<script language="JavaScript" type="text/javascript" src="../../js/lightbox.js"></script>
-
 <script type="text/javascript">
     var selectedConversation;
 
@@ -414,14 +408,21 @@
     }
 
     function showOccupants(conversationID, start) {
-        var aref = document.getElementById('lbmessage');
-        aref.href = 'archive-conversation-participants.jsp?conversationID=' + conversationID + '&start=' + start;
-        var lbCont = document.getElementById('lbContent');
-        if (lbCont != null) {
-            document.getElementById('lightbox').removeChild(lbCont);
+        new Ajax.Request('archive-conversation-participants.jsp?conversationID=' + conversationID + '&start=' + start, {
+            method: 'get',
+            onSuccess: function(transport) {
+                showOcc(transport.responseText);
+            }
+        });
+    }
+    function showOcc(result) {
+        var occupantsDialog = document.getElementById('occupants');
+        if (typeof occupantsDialog.showModal === "function") {
+            occupantsDialog.innerHTML = result;
+            occupantsDialog.showModal();
+        } else {
+            alert("The <dialog> API is not supported by this browser.");
         }
-        lb = new lightbox(aref);
-        lb.activate();
     }
 
     function grayOut(ele) {
@@ -515,6 +516,8 @@
 <% } %>
 
 <a href="archive-conversation-participants.jsp?conversationID=" id="lbmessage" title="<fmt:message key="archive.group_conversation.participants" />" style="display:none;"></a>
+
+<dialog id="occupants"></dialog>
 
 <form action="archive-search.jsp" name="f">
 <!-- Search Table -->
