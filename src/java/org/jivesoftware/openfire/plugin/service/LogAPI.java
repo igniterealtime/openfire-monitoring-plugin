@@ -62,6 +62,7 @@ public class LogAPI
 
         final List<MultiUserChatService> multiUserChatServices = XMPPServer.getInstance().getMultiUserChatManager().getMultiUserChatServices();
         final List<String> serviceNames = multiUserChatServices.stream()
+            //TODO: https://github.com/igniterealtime/openfire-monitoring-plugin/issues/228
             .filter(s -> s.getActiveChatRooms().stream().anyMatch(r -> r.isLogEnabled() && r.isPublicRoom()))
             .map(MultiUserChatService::getServiceName)
             .collect(Collectors.toList() );
@@ -88,6 +89,7 @@ public class LogAPI
             return Response.noContent().build();
         }
 
+        //TODO: https://github.com/igniterealtime/openfire-monitoring-plugin/issues/228
         final List<String> roomNames = multiUserChatService.getActiveChatRooms().stream()
             .filter( r -> r.isLogEnabled() && r.isPublicRoom() )
             .map( MUCRoom::getName )
