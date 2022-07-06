@@ -352,7 +352,7 @@ public class ConversationUtils {
         if (html) {
             UserManager userManager = UserManager.getInstance();
             if (XMPPServer.getInstance().isLocal(jid) &&
-                userManager.isRegisteredUser(jid, true)) {
+                userManager.isRegisteredUser(jid, false)) {
                 formattedJID = "<a href='/user-properties.jsp?username=" +
                     jid.getNode() + "'>" + jid.toBareJID() + "</a>";
             }
