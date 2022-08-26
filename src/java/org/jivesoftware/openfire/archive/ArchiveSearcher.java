@@ -353,9 +353,11 @@ public class ArchiveSearcher {
                 query.append(" LIMIT ").append(numResults).append(" OFFSET ").append(startIndex);
             }
 			// SQL Server optimization: use the OFFSET command to tell the database how many
-            // rows we need returned. The syntax is OFFSET [offset] FETCH NEXT [rows] ROWS ONLY
+            // rows we need returned. The syntax is OFFSET [offset] ROWS FETCH NEXT [rows] ROWS ONLY
 			else if (DbConnectionManager.getDatabaseType() == DbConnectionManager.DatabaseType.sqlserver) {
-                query.append(" OFFSET ").append(startIndex).append(" ROWS FETCH NEXT ").append(numResults).append(" ROWS ONLY ");
+                query.append(" OFFSET ").append(startIndex)
+				.append(" ROWS FETCH NEXT ").append(numResults)
+				.append(" ROWS ONLY ");
             }
         }
 
