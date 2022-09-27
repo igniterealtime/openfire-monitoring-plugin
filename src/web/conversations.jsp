@@ -18,7 +18,8 @@
 
 <%
     // Get handle on the Monitoring plugin
-    MonitoringPlugin plugin = (MonitoringPlugin)XMPPServer.getInstance().getPluginManager().getPlugin("monitoring");
+    MonitoringPlugin plugin = (MonitoringPlugin)XMPPServer.getInstance().getPluginManager().getPluginByName(
+        "monitoring").get();
     ConversationManager conversationManager = plugin.getConversationManager();
 
     XMPPServer server = XMPPServer.getInstance();
@@ -191,7 +192,7 @@ function updateConversations(data) {
         <td>
             <% if (conversation.getRoom() == null) { %>
                 <% for (JID jid : participants) { %>
-                    <% if (server.isLocal(jid) && userManager.isRegisteredUser(jid.getNode())) { %>
+                    <% if (server.isLocal(jid) && userManager.isRegisteredUser(jid, false)) { %>
                         <a title='User Link' href="/user-properties.jsp?username=<%= jid.getNode() %>"><%= StringUtils.escapeHTMLTags(jid.toBareJID()) %></a><br />
                     <% } else { %>
                         <%= StringUtils.escapeHTMLTags(jid.toBareJID()) %><br/>

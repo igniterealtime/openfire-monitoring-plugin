@@ -18,8 +18,8 @@
     Logger logger = LoggerFactory.getLogger("conversation-viewer-jsp");
 
     // Get handle on the Monitoring plugin
-    MonitoringPlugin plugin = (MonitoringPlugin)XMPPServer.getInstance().getPluginManager().getPlugin(
-        "monitoring");
+    MonitoringPlugin plugin = (MonitoringPlugin)XMPPServer.getInstance().getPluginManager().getPluginByName(
+        "monitoring").get();
 
     ConversationManager conversationManager = plugin.getConversationManager();
 
