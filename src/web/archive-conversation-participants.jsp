@@ -26,7 +26,7 @@
     // Get handle on the Monitoring plugin
     XMPPServer server = XMPPServer.getInstance();
     UserManager userManager = server.getUserManager();
-    MonitoringPlugin plugin = (MonitoringPlugin) server.getPluginManager().getPlugin("monitoring");
+    MonitoringPlugin plugin = (MonitoringPlugin) server.getPluginManager().getPluginByName("monitoring").get();
 
     ConversationManager conversationmanager = plugin.getConversationManager();
     List<String[]> values = new ArrayList<String[]>();
@@ -186,14 +186,14 @@
             %>
             <tr>
                 
-                <td><%=StringUtils.escapeHTMLTags(nickname)%> <i>(<%= server.isLocal(participant) && userManager.isRegisteredUser(participant) ? "<a href='/user-properties.jsp?username=" + participant.getNode() + "'>" + participant.toBareJID() + "</a>" : participant.toBareJID() %>)</i></td>
+                <td><%=StringUtils.escapeHTMLTags(nickname)%> <i>(<%= server.isLocal(participant) && userManager.isRegisteredUser(participant, false) ? "<a href='/user-properties.jsp?username=" + participant.getNode() + "'>" + participant.toBareJID() + "</a>" : participant.toBareJID() %>)</i></td>
 
                 <% if (it.hasNext()) {
                     participation = it.next();
                     nickname = participation[0];
                     participant = new  JID(participation[1]);
                 %>
-                <td><%=StringUtils.escapeHTMLTags(nickname)%> <i>(<%= server.isLocal(participant) && userManager.isRegisteredUser(participant) ? "<a href='/user-properties.jsp?username=" + participant.getNode() + "'>" + participant.toBareJID() + "</a>" : participant.toBareJID() %>)</i></td>
+                <td><%=StringUtils.escapeHTMLTags(nickname)%> <i>(<%= server.isLocal(participant) && userManager.isRegisteredUser(participant, false) ? "<a href='/user-properties.jsp?username=" + participant.getNode() + "'>" + participant.toBareJID() + "</a>" : participant.toBareJID() %>)</i></td>
                 <% } else { %>
                 <td>&nbsp;</td>
                 <% } %>

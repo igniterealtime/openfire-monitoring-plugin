@@ -47,8 +47,7 @@ public class ConversationPDFServlet extends HttpServlet {
             return;
         }
 
-        MonitoringPlugin plugin = (MonitoringPlugin)XMPPServer.getInstance().getPluginManager().getPlugin(
-                MonitoringConstants.NAME);
+        MonitoringPlugin plugin = (MonitoringPlugin)XMPPServer.getInstance().getPluginManager().getPluginByName(MonitoringConstants.NAME).get();
         ConversationManager conversationManager = plugin.getConversationManager();
         Conversation conversation;
         if (conversationID > -1) {

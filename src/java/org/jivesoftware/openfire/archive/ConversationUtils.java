@@ -74,8 +74,7 @@ public class ConversationUtils {
     public int getBuildProgress() {
         // Get handle on the Monitoring plugin
         MonitoringPlugin plugin =
-            (MonitoringPlugin)XMPPServer.getInstance().getPluginManager().getPlugin(
-                    MonitoringConstants.NAME);
+            (MonitoringPlugin)XMPPServer.getInstance().getPluginManager().getPluginByName(MonitoringConstants.NAME).get();
 
         ArchiveIndexer archiveIndexer = plugin.getArchiveIndexer();
 
@@ -98,8 +97,7 @@ public class ConversationUtils {
 
         // Get handle on the Monitoring plugin
         MonitoringPlugin plugin =
-            (MonitoringPlugin)XMPPServer.getInstance().getPluginManager().getPlugin(
-                    MonitoringConstants.NAME);
+            (MonitoringPlugin)XMPPServer.getInstance().getPluginManager().getPluginByName(MonitoringConstants.NAME).get();
 
         ConversationManager conversationmanager = plugin.getConversationManager();
 
@@ -123,7 +121,7 @@ public class ConversationUtils {
     public Map<String, ConversationInfo> getConversations(boolean formatParticipants) {
         Map<String, ConversationInfo> cons = new HashMap<String, ConversationInfo>();
         MonitoringPlugin plugin = (MonitoringPlugin)XMPPServer.getInstance().getPluginManager()
-            .getPlugin(MonitoringConstants.NAME);
+            .getPluginByName(MonitoringConstants.NAME).get();
         ConversationManager conversationManager = plugin.getConversationManager();
         Collection<Conversation> conversations = conversationManager.getConversations();
         List<Conversation> lConversations =

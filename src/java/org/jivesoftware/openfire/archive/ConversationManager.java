@@ -276,7 +276,7 @@ public class ConversationManager implements ComponentEventListener{
                         Date maxAgeDate = new Date(now.getTime() - maxAge.toMillis());
                         ArchiveSearch search = new ArchiveSearch();
                         search.setDateRangeMax(maxAgeDate);
-                        MonitoringPlugin plugin = (MonitoringPlugin) XMPPServer.getInstance().getPluginManager().getPlugin(MonitoringConstants.NAME);
+                        MonitoringPlugin plugin = (MonitoringPlugin) XMPPServer.getInstance().getPluginManager().getPluginByName(MonitoringConstants.NAME).get();
                         ArchiveSearcher archiveSearcher = plugin.getArchiveSearcher();
                         Collection<Conversation> conversations = archiveSearcher.search(search);
                         int conversationDeleted = 0;

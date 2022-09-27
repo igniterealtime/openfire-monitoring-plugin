@@ -23,7 +23,7 @@
 <% webManager.init(request, response, session, application, out ); %>
 <%
     // Get handle on the Monitoring plugin
-    MonitoringPlugin plugin = (MonitoringPlugin) XMPPServer.getInstance().getPluginManager().getPlugin("monitoring");
+    MonitoringPlugin plugin = (MonitoringPlugin) XMPPServer.getInstance().getPluginManager().getPluginByName("monitoring").get();
     ConversationManager conversationManager = plugin.getConversationManager();
     ArchiveIndexer archiveIndexer = plugin.getArchiveIndexer();
     MucIndexer mucIndexer = plugin.getMucIndexer();
@@ -445,14 +445,14 @@
                 <p><fmt:message key="archive.settings.logs.description" /></p>
                 <p>
                 <% if ( HttpBindManager.getInstance().isHttpBindActive() ) {
-                    final String unsecuredAddress = "http://" + XMPPServer.getInstance().getServerInfo().getHostname() + ":" + HttpBindManager.getInstance().getHttpBindUnsecurePort() + "/" + MonitoringPlugin.CONTEXT_ROOT + "/";
+                    final String unsecuredAddress = "http://" + XMPPServer.getInstance().getServerInfo().getHostname() + ":" + HttpBindManager.HTTP_BIND_PORT.getValue() + "/" + MonitoringPlugin.CONTEXT_ROOT + "/";
                 %>
                 <fmt:message key="archive.settings.logs.link.unsecure">
                     <fmt:param value="<%=unsecuredAddress%>"/>
                 </fmt:message>
                 <% } %>
                 <% if ( HttpBindManager.getInstance().isHttpsBindActive() ) {
-                    final String securedAddress = "https://" + XMPPServer.getInstance().getServerInfo().getHostname() + ":" + HttpBindManager.getInstance().getHttpBindSecurePort() + "/" + MonitoringPlugin.CONTEXT_ROOT + "/";
+                    final String securedAddress = "https://" + XMPPServer.getInstance().getServerInfo().getHostname() + ":" + HttpBindManager.HTTP_BIND_SECURE_PORT.getValue() + "/" + MonitoringPlugin.CONTEXT_ROOT + "/";
                 %>
                 <fmt:message key="archive.settings.logs.link.secure">
                     <fmt:param value="<%=securedAddress%>"/>
