@@ -18,8 +18,7 @@
 
 <%
     // Get handle on the Monitoring plugin
-    MonitoringPlugin plugin = (MonitoringPlugin)XMPPServer.getInstance().getPluginManager().getPluginByName(
-        "monitoring").get();
+    MonitoringPlugin plugin = (MonitoringPlugin)XMPPServer.getInstance().getPluginManager().getPluginByName(MonitoringConstants.PLUGIN_NAME).get();
     ConversationManager conversationManager = plugin.getConversationManager();
 
     XMPPServer server = XMPPServer.getInstance();

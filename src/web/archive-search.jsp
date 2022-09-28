@@ -20,8 +20,7 @@
     Logger logger = LoggerFactory.getLogger("archive-search-jsp");
 
     // Get handle on the Monitoring plugin
-    MonitoringPlugin plugin = (MonitoringPlugin) XMPPServer.getInstance().getPluginManager().getPluginByName(
-            "monitoring").get();
+    MonitoringPlugin plugin = (MonitoringPlugin) XMPPServer.getInstance().getPluginManager().getPluginByName(MonitoringConstants.PLUGIN_NAME).get();
     ArchiveSearcher archiveSearcher = plugin.getArchiveSearcher();
     ConversationManager conversationManager = plugin.getConversationManager();
 

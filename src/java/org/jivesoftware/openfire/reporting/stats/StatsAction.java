@@ -87,7 +87,7 @@ public class StatsAction {
     }
 
     private Map getUpdatedStat(String statkey, long[] timePeriod) {
-        MonitoringPlugin plugin = (MonitoringPlugin)XMPPServer.getInstance().getPluginManager().getPluginByName(MonitoringConstants.NAME).get();
+        MonitoringPlugin plugin = (MonitoringPlugin)XMPPServer.getInstance().getPluginManager().getPluginByName(MonitoringConstants.PLUGIN_NAME).get();
         StatsViewer viewer = plugin.getStatsViewer();
         String[] lowHigh = getLowAndHigh(statkey, timePeriod);
         Map stat = new HashMap();
@@ -109,7 +109,7 @@ public class StatsAction {
     public List<Map<String, Long>> getNLatestConversations(int count, long mostRecentConversationID) {
         // TODO Fix plugin name 2 lines below and missing classes
         List<Map<String, Long>> cons = new ArrayList<Map<String, Long>>();
-        MonitoringPlugin plugin = (MonitoringPlugin)XMPPServer.getInstance().getPluginManager().getPluginByName(MonitoringConstants.NAME).get();
+        MonitoringPlugin plugin = (MonitoringPlugin)XMPPServer.getInstance().getPluginManager().getPluginByName(MonitoringConstants.PLUGIN_NAME).get();
         ConversationManager conversationManager = plugin.getConversationManager();
         Collection<Conversation> conversations = conversationManager.getConversations();
         List<Conversation> lConversations = Arrays.asList(conversations.toArray(new Conversation[conversations.size()]));
@@ -168,7 +168,7 @@ public class StatsAction {
      * @return low and high values for the given time period / number of datapoints
      */
     public static String[] getLowAndHigh(String key,  long[] timePeriod) {
-        MonitoringPlugin plugin = (MonitoringPlugin)XMPPServer.getInstance().getPluginManager().getPluginByName(MonitoringConstants.NAME).get();
+        MonitoringPlugin plugin = (MonitoringPlugin)XMPPServer.getInstance().getPluginManager().getPluginByName(MonitoringConstants.PLUGIN_NAME).get();
         StatsViewer viewer = plugin.getStatsViewer();
         Statistic.Type type = viewer.getStatistic(key)[0].getStatType();
         double[] lows = viewer.getMin(key, timePeriod[0], timePeriod[1], (int)timePeriod[2]);
