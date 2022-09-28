@@ -1,8 +1,5 @@
 <%@ page contentType="text/html; charset=UTF-8" %>
 <%@ page import="org.jivesoftware.openfire.plugin.MonitoringPlugin" %>
-<%@ page import="org.jivesoftware.openfire.archive.ArchivedMessage" %>
-<%@ page import="org.jivesoftware.openfire.archive.Conversation" %>
-<%@ page import="org.jivesoftware.openfire.archive.ConversationManager" %>
 <%@ page import="org.jivesoftware.openfire.XMPPServer" %>
 <%@ page import="org.xmpp.packet.JID" %>
 <%@ page import="java.util.HashMap" %>
@@ -10,7 +7,7 @@
 <%@ page import="org.jivesoftware.util.*"%><%@ page import="java.util.Collection"%>
 <%@ page import="org.slf4j.LoggerFactory" %>
 <%@ page import="org.slf4j.Logger" %>
-<%@ page import="org.jivesoftware.openfire.archive.ConversationDAO" %>
+<%@ page import="org.jivesoftware.openfire.archive.*" %>
 <%!
      Map<String, String> colorMap = new HashMap<String, String>();
 %>
@@ -18,8 +15,7 @@
     Logger logger = LoggerFactory.getLogger("conversation-viewer-jsp");
 
     // Get handle on the Monitoring plugin
-    MonitoringPlugin plugin = (MonitoringPlugin)XMPPServer.getInstance().getPluginManager().getPluginByName(
-        "monitoring").get();
+    MonitoringPlugin plugin = (MonitoringPlugin)XMPPServer.getInstance().getPluginManager().getPluginByName(MonitoringConstants.PLUGIN_NAME).get();
 
     ConversationManager conversationManager = plugin.getConversationManager();
 

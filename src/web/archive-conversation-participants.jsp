@@ -13,6 +13,7 @@
 <%@ page import="java.util.*" %>
 <%@ page import="org.slf4j.LoggerFactory" %>
 <%@ page import="org.slf4j.Logger" %>
+<%@ page import="org.jivesoftware.openfire.archive.MonitoringConstants" %>
 
 <%@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c" %>
 <%@ taglib uri="http://java.sun.com/jsp/jstl/fmt" prefix="fmt" %>
@@ -26,7 +27,7 @@
     // Get handle on the Monitoring plugin
     XMPPServer server = XMPPServer.getInstance();
     UserManager userManager = server.getUserManager();
-    MonitoringPlugin plugin = (MonitoringPlugin) server.getPluginManager().getPluginByName("monitoring").get();
+    MonitoringPlugin plugin = (MonitoringPlugin) server.getPluginManager().getPluginByName(MonitoringConstants.PLUGIN_NAME).get();
 
     ConversationManager conversationmanager = plugin.getConversationManager();
     List<String[]> values = new ArrayList<String[]>();

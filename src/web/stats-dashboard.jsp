@@ -23,7 +23,7 @@
 
 <%
     String sessionKey = StatisticsModule.SESSIONS_KEY;
-    MonitoringPlugin plugin = (MonitoringPlugin) XMPPServer.getInstance().getPluginManager().getPluginByName("monitoring").get();
+    MonitoringPlugin plugin = (MonitoringPlugin) XMPPServer.getInstance().getPluginManager().getPluginByName(MonitoringConstants.PLUGIN_NAME).get();
     ConversationManager conversationManager = plugin.getConversationManager();
     StatsViewer viewer = plugin.getStatsViewer();
 

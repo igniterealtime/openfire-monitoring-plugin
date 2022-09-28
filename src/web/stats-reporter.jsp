@@ -560,7 +560,7 @@
     public static final String COOKIE_TIMEPERIOD = "openfire-reporting-timeperiod";
     public StatsViewer getStatsViewer() {
         if (statsViewer == null) {
-            MonitoringPlugin plugin = (MonitoringPlugin) XMPPServer.getInstance().getPluginManager().getPluginByName("monitoring").get();
+            MonitoringPlugin plugin = (MonitoringPlugin) XMPPServer.getInstance().getPluginManager().getPluginByName(MonitoringConstants.PLUGIN_NAME).get();
             statsViewer = plugin.getStatsViewer();
         }
         return statsViewer;

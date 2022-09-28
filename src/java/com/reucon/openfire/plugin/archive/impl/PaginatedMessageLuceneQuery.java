@@ -43,7 +43,7 @@ public class PaginatedMessageLuceneQuery
 
     protected IndexSearcher getSearcher() throws IOException
     {
-        final MonitoringPlugin plugin = (MonitoringPlugin) XMPPServer.getInstance().getPluginManager().getPluginByName(MonitoringConstants.NAME).get();
+        final MonitoringPlugin plugin = (MonitoringPlugin) XMPPServer.getInstance().getPluginManager().getPluginByName(MonitoringConstants.PLUGIN_NAME).get();
         final MessageIndexer archiveIndexer = plugin.getMessageIndexer();
         final IndexSearcher searcher = archiveIndexer.getSearcher();
         return searcher;

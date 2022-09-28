@@ -23,7 +23,7 @@
 <% webManager.init(request, response, session, application, out ); %>
 <%
     // Get handle on the Monitoring plugin
-    MonitoringPlugin plugin = (MonitoringPlugin) XMPPServer.getInstance().getPluginManager().getPluginByName("monitoring").get();
+    MonitoringPlugin plugin = (MonitoringPlugin) XMPPServer.getInstance().getPluginManager().getPluginByName(MonitoringConstants.PLUGIN_NAME).get();
     ConversationManager conversationManager = plugin.getConversationManager();
     ArchiveIndexer archiveIndexer = plugin.getArchiveIndexer();
     MucIndexer mucIndexer = plugin.getMucIndexer();
