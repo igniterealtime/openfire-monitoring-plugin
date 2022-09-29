@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008 Jive Software. All rights reserved.
+ * Copyright (C) 2008 Jive Software, 2022 Ignite Realtime Foundation. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -38,6 +38,7 @@ import org.jivesoftware.openfire.archive.ConversationManager;
 import org.jivesoftware.openfire.archive.GroupConversationInterceptor;
 import org.jivesoftware.openfire.archive.MonitoringConstants;
 import org.jivesoftware.openfire.container.Plugin;
+import org.jivesoftware.openfire.container.PluginListener;
 import org.jivesoftware.openfire.container.PluginManager;
 import org.jivesoftware.openfire.http.HttpBindManager;
 import org.jivesoftware.openfire.reporting.graph.GraphEngine;
@@ -62,7 +63,8 @@ import org.xmpp.packet.JID;
  *
  * @author Matt Tucker
  */
-public class MonitoringPlugin implements Plugin {
+public class MonitoringPlugin implements Plugin, PluginListener
+{
 
     /**
      * The context root of the URL under which the public web endpoints are exposed.
@@ -200,6 +202,8 @@ public class MonitoringPlugin implements Plugin {
 
         loadPublicWeb(pluginDirectory);
 
+        manager.addPluginListener(this);
+
         statsEngine.start();
         statisticsModule.start();
         conversationManager.start();
@@ -217,6 +221,8 @@ public class MonitoringPlugin implements Plugin {
         TaskEngine.getInstance().dispose();
 
         unloadPublicWeb();
+
+        XMPPServer.getInstance().getPluginManager().removePluginListener(this);
 
         if (messageIndexer != null) {
             messageIndexer.stop();
@@ -348,5 +354,18 @@ public class MonitoringPlugin implements Plugin {
 
     public StatsViewer getStatsViewer() {
         return statsViewer;
+    }
+
+    @Override
+    public void pluginCreated(String s, Plugin plugin)
+    {}
+
+    @Override
+    public void pluginDestroyed(String s, Plugin plugin)
+    {
+        // Restart the statsEngine to get rid of references to classes from the Plugin that's being unloaded. Fixes issue #238.
+        if (statsEngine != null) {
+            statsEngine.purgeDefinitions();
+        }
     }
 }

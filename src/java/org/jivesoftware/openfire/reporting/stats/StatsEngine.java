@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008 Jive Software. All rights reserved.
+ * Copyright (C) 2008 Jive Software, 2022 Ignite Realtime Foundation. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -96,6 +96,11 @@ public class StatsEngine {
     public void stop() {
         // Clean-up sampling task
         samplingTask.cancel();
+    }
+
+    public void purgeDefinitions() {
+        definitionMap.clear();
+        multiMap.clear();
     }
 
     private void checkDatabase(StatDefinition[] def) throws RrdException, IOException {
