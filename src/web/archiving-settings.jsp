@@ -41,30 +41,27 @@
 <script type="text/javascript">
     // Calls a getBuildProgress
     function getBuildProgress() {
-        var xhr = new XMLHttpRequest();
-        xhr.open("GET", '/plugins/monitoring/api/buildprogress');
+        let xhr = new XMLHttpRequest();
         xhr.onload = function (e) {
-            if (xhr.readyState === 4) {
-                if (xhr.status === 200) {
-                    showBuildProgress(xhr.responseText);
-                }
+            if (xhr.readyState === 4 && xhr.status === 200) {
+                showBuildProgress(xhr.responseText);
             }
         };
+        xhr.open("GET", '/plugins/monitoring/api/buildprogress');
         xhr.send(null);
     }
 
     function showBuildProgress(progress) {
-        var rebuildElement = document.getElementById("rebuildElement");
-        if (progress != null && progress != -1){
+        let rebuildElement = document.getElementById("rebuildElement");
+        let rebuildProgress = document.getElementById('rebuildProgress');
+        if (progress != null && progress !== -1){
             document.getElementById("rebuild").style.display="block";
             // Update progress item.
             rebuildElement.style.display = '';
-            var rebuildProgress = document.getElementById('rebuildProgress');
             rebuildProgress.innerHTML = progress;
             setTimeout("getBuildProgress()", 1000);
         }
         else {
-            var rebuildProgress = document.getElementById('rebuildProgress');
             rebuildProgress.innerHTML = "100";
             // Effect.Fade('rebuildElement');
             document.getElementById("rebuild").style.display="none";
@@ -195,7 +192,7 @@
     Cookie csrfCookie = CookieUtils.getCookie(request, "csrf");
     String csrfParam = ParamUtils.getParameter(request, "csrf");
 
-    Map errors = new HashMap();
+    Map<String, String> errors = new HashMap<>();
     String errorMessage = "";
 
     if ((rebuildIndex || update || updateLogSettings) && (csrfCookie == null || csrfParam == null || !csrfCookie.getValue().equals(csrfParam))) {

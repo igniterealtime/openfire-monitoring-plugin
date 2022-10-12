@@ -18,7 +18,7 @@
 
 <%
     List<String> statList = Arrays.asList(getStatsViewer().getAllHighLevelStatKeys());
-    Collections.sort(statList, statisticComporator);
+    statList.sort(statisticComporator);
 
     String dateRangeType = ParamUtils.getParameter(request,"dateRangeType");
     String dateRangePreset = ParamUtils.getParameter(request,"dateRangePreset");
@@ -57,10 +57,6 @@
 <head>
     <title><fmt:message key="allreports.title" /></title>
     <meta name="pageID" content="stats-reporter"/>
-    <script src="/js/prototype.js" type="text/javascript"></script>
-    <script src="/js/effects.js" type="text/javascript"></script>
-    <script src="/js/scriptaculous.js" type="text/javascript"></script>
-
     <style type="text/css">
         .dateerror { font-weight: bold; color:red;}
         .dateerrorinput {background-color:red;}
@@ -69,22 +65,22 @@
 
     <script type="text/javascript">
 
-        var datesAreValid = true;
+        let datesAreValid = true;
 
-        var stats = {};
+        let stats = {};
         <%
         for (String statKey : statList) { %><% Statistic stat = getStatsViewer().getStatistic(statKey)[0]; %>
             stats["<%= statKey %>"] = {"name":"<%= stat.getName() %>","description":"<%= stat.getDescription() %>"};
         <% } %>
 
-        var currentStat = '<%= STAT_DEFAULT %>';
-        var currentTimePeriod = '<%= timePeriod %>';
+        let currentStat = '<%= STAT_DEFAULT %>';
+        let currentTimePeriod = '<%= timePeriod %>';
         function viewStat(stat) {
-            timePeriod = '';
-            timePeriodName = '';
-            if ($('drt01').checked == true) {
+            let timePeriod = '';
+            let timePeriodName = '';
+            if (document.getElementById('drt01').checked === true) {
                 // get a preset value
-                drselect = $('dateRangePreset');
+                const drselect = document.getElementById('dateRangePreset');
                 timePeriod = drselect[drselect.selectedIndex].value;
                 timePeriodName = drselect[drselect.selectedIndex].text;
                 datesAreValid = true;
@@ -92,59 +88,58 @@
                 // get a date range
                 validateStartAndEndDate();
                 if (datesAreValid) {
-                    timePeriod = $('fromDate').value + 'to' + $('toDate').value;
-                    timePeriodName = $('fromDate').value + ' to ' + $('toDate').value;
+                    timePeriod = document.getElementById('fromDate').value + 'to' + document.getElementById('toDate').value;
+                    timePeriodName = document.getElementById('fromDate').value + ' to ' + document.getElementById('toDate').value;
                 } else {
                     return;
                 }
             }
 
             if (datesAreValid && (stat != currentStat || timePeriod != currentTimePeriod)) {
-                var viewElement = $('viewer');
-                var pdfViewElement = $('pdfviewer');
-                var pdfViewAllElement = $('pdfviewerall');
+                const viewElement = document.getElementById('viewer');
+                const pdfViewElement = document.getElementById('pdfviewer');
+                const pdfViewAllElement = document.getElementById('pdfviewerall');
                 viewElement.style.display = "none";
-                var i = new Image();
+                const i = new Image();
                 i.onload = function() {
                     viewElement.src = i.src;
                     pdfViewElement.href = i.src + "&pdf=true";
                     pdfViewAllElement.href = i.src + "&pdf=all";
-                    $('graph-header').innerHTML = stats[stat].name + ': ' + timePeriodName;
-                    $('graph-description').innerHTML = '<b>' + stats[stat].name + '</b><br /><br />' +
+                    document.getElementById('graph-header').innerHTML = stats[stat].name + ': ' + timePeriodName;
+                    document.getElementById('graph-description').innerHTML = '<b>' + stats[stat].name + '</b><br /><br />' +
                             stats[stat].description;
-                    Effect.Appear('viewer');
+                    document.getElementById('viewer').style.display = 'block';
                     currentStat = stat;
                     currentTimePeriod = timePeriod;
                     createCookie("<%= COOKIE_TIMEPERIOD %>",currentTimePeriod,1000);
                 }
-                var d = new Date();
-                var t = d.getTime()
-                i.src = "graph?stat=" + stat + "&date=" + t + '&timeperiod=' + timePeriod + '&width=500&height=250';
+                i.src = "graph?stat=" + stat + "&date=" + new Date().getTime() + '&timeperiod=' + timePeriod + '&width=500&height=250';
             }
         }
 
 
         function createCookie(name,value,days) {
+            let expires
             if (days) {
-                var date = new Date();
+                const date = new Date();
                 date.setTime(date.getTime()+(days*24*60*60*1000));
-                var expires = "; expires="+date.toGMTString();
+                expires = "; expires="+date.toGMTString();
             }
             else {
-                var expires = "";
+                expires = "";
             }
             document.cookie = name+"="+value+expires+"; path=/";
         }
 
         function writeTimePeriod() {
-            if ($('drt01').checked == true) {
-                drselect = $('dateRangePreset');
+            if (document.getElementById('drt01').checked === true) {
+                const drselect = document.getElementById('dateRangePreset');
                 document.write(drselect[drselect.selectedIndex].text);
             }
             else {
                 // get a date range
-                if ($('fromDate').value != '' && $('toDate').value != '') {
-                    document.write($('fromDate').value + ' to ' + $('toDate').value);
+                if (document.getElementById('fromDate').value !== '' && document.getElementById('toDate').value !== '') {
+                    document.write(document.getElementById('fromDate').value + ' to ' + document.getElementById('toDate').value);
                 }
             }
         }
@@ -166,43 +161,41 @@
         }
 
         function validateStartAndEndDate() {
-            if ($('fromDate').value != '' && $('toDate').value != '') {
-                fromDate = $('fromDate').value;
-                toDate = $('toDate').value;
+            if (document.getElementById('fromDate').value !== '' && document.getElementById('toDate').value !== '') {
+                const fromDate = document.getElementById('fromDate').value;
+                const toDate = document.getElementById('toDate').value;
 
                 if (!isValidDate(fromDate)) {
-                    $('fromDateTitle').className = 'dateerror';
-                    $('fromDate').className = 'dateerrorinput';
+                    document.getElementById('fromDateTitle').className = 'dateerror';
+                    document.getElementById('fromDate').className = 'dateerrorinput';
                     datesAreValid = false;
                     return;
                 }
 
                 if (!isValidDate(toDate)) {
-                    $('toDateTitle').className = 'dateerror';
-                    $('toDate').className = 'dateerrorinput';
+                    document.getElementById('toDateTitle').className = 'dateerror';
+                    document.getElementById('toDate').className = 'dateerrorinput';
                     datesAreValid = false;
                     return;
                 }
 
                 if (!isValidCombination(fromDate, toDate)) {
-                    $('toDateTitle').className = 'dateerror';
-                    $('fromDateTitle').className = 'dateerror';
-                    $('toDate').className = 'dateerrorinput';
-                    $('fromDate').className = 'dateerrorinput';
+                    document.getElementById('toDateTitle').className = 'dateerror';
+                    document.getElementById('fromDateTitle').className = 'dateerror';
+                    document.getElementById('toDate').className = 'dateerrorinput';
+                    document.getElementById('fromDate').className = 'dateerrorinput';
                     datesAreValid = false;
                     return;
                 }
 
                 datesAreValid = true;
-                $('toDate').className = '';
-                $('fromDate').className = '';
-                $('toDateTitle').className = 'datenormal';
-                $('fromDateTitle').className = 'datenormal';
-                return;
+                document.getElementById('toDate').className = '';
+                document.getElementById('fromDate').className = '';
+                document.getElementById('toDateTitle').className = 'datenormal';
+                document.getElementById('fromDateTitle').className = 'datenormal';
             }
             else {
                 datesAreValid = false;
-                return;
             }
         }
 
@@ -226,10 +219,10 @@
                 return false;
             }
 
-            var monthLength = new Array(31,28,31,30,31,30,31,31,30,31,30,31);
-            var day = parseInt(datestring.indexOf('/') !== -1 ? dateSplit[1] : dateSplit[2]);
-            var month = parseInt(datestring.indexOf('/') !== -1 ? dateSplit[0] : dateSplit[1]);
-            var year = parseInt(datestring.indexOf('/') !== -1 ? dateSplit[2] : dateSplit[0]);
+            let monthLength = [31,28,31,30,31,30,31,31,30,31,30,31];
+            let day = parseInt(datestring.indexOf('/') !== -1 ? dateSplit[1] : dateSplit[2]);
+            let month = parseInt(datestring.indexOf('/') !== -1 ? dateSplit[0] : dateSplit[1]);
+            let year = parseInt(datestring.indexOf('/') !== -1 ? dateSplit[2] : dateSplit[0]);
 
             if (!day || !month || !year)
                 return false;
@@ -238,22 +231,24 @@
                 year = year + 2000;
             }
 
-            if (year/4 == parseInt(year/4))
+            if (year/4 == parseInt(year/4)) {
                 monthLength[1] = 29;
+            }
 
-            if (day > monthLength[month-1])
+            if (day > monthLength[month-1]) {
                 return false;
+            }
 
             monthLength[1] = 28;
 
-            var now = new Date();
+            let now = new Date();
             now = now.getTime(); //NN3
 
-            var dateToCheck = new Date();
+            let dateToCheck = new Date();
             dateToCheck.setYear(year);
             dateToCheck.setMonth(month-1);
             dateToCheck.setDate(day);
-            var checkDate = dateToCheck.getTime();
+            let checkDate = dateToCheck.getTime();
             if (now < checkDate) {
                 return false;
             }
@@ -263,18 +258,14 @@
         }
 
         function isValidDate(datestring) {
-            d = getDate(datestring);
+            let d = getDate(datestring);
             if (!d) {
                 return false;
             }
             else {
-                var now = new Date();
+                let now = new Date();
                 now = now.getTime(); //NN3
-                if (now < d) {
-                    return false;
-                } else {
-                    return true;
-                }
+                return now >= d;
             }
         }
     </script>
@@ -424,17 +415,17 @@
         <script type="text/javascript">
             var selectedStat = '<%= STAT_DEFAULT %>';
             function toggleSelected(statname) {
-                $('statDetail' + selectedStat).className = 'allreports_report_default';
-                $('statDetail' + statname).className = 'allreports_report_selected';
+                document.getElementById('statDetail' + selectedStat).className = 'allreports_report_default';
+                document.getElementById('statDetail' + statname).className = 'allreports_report_selected';
                 selectedStat = statname;
             }
             function toggleMouseOver(statname) {
                 if (statname != selectedStat) {
-                    if ($('statDetail' + statname).className == 'allreports_report_hover') {
-                        $('statDetail' + statname).className = 'allreports_report_default';
+                    if (document.getElementById('statDetail' + statname).className == 'allreports_report_hover') {
+                        document.getElementById('statDetail' + statname).className = 'allreports_report_default';
                     }
                     else {
-                        $('statDetail' + statname).className = 'allreports_report_hover';
+                        document.getElementById('statDetail' + statname).className = 'allreports_report_hover';
                     }
                 }
             }

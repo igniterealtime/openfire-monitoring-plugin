@@ -5,7 +5,6 @@
 <%@ page import="org.jivesoftware.openfire.archive.ConversationParticipation" %>
 <%@ page import="org.jivesoftware.openfire.XMPPServer" %>
 <%@ page import="org.jivesoftware.openfire.user.UserManager" %>
-<%@ page import="org.jivesoftware.util.Log" %>
 <%@ page import="org.jivesoftware.util.NotFoundException" %>
 <%@ page import="org.jivesoftware.util.ParamUtils" %>
 <%@ page import="org.jivesoftware.util.StringUtils" %>
@@ -30,22 +29,18 @@
     MonitoringPlugin plugin = (MonitoringPlugin) server.getPluginManager().getPluginByName(MonitoringConstants.PLUGIN_NAME).get();
 
     ConversationManager conversationmanager = plugin.getConversationManager();
-    List<String[]> values = new ArrayList<String[]>();
-    JID room = null;
+    List<String[]> values = new ArrayList<>();
+    JID room;
     String roomName = "";
     try {
         Conversation conversation = conversationmanager.getConversation(conversationID);
-        List<JID> participants = new ArrayList<JID>(conversation.getParticipants());
+        List<JID> participants = new ArrayList<>(conversation.getParticipants());
         for (JID user : participants) {
             for (ConversationParticipation participation : conversation.getParticipations(user)) {
                 values.add(new String[]{participation.getNickname(), user.toString()});
             }
         }
-        Collections.sort(values, new Comparator<String[]>() {
-            public int compare(String[] o1, String[] o2) {
-                return o1[0].compareTo(o2[0]);
-            }
-        });
+        values.sort(Comparator.comparing(o -> o[0]));
         room = conversation.getRoom();
         if (room != null) {
             roomName = room.getNode();
@@ -62,11 +57,9 @@
 <html>
 <head>
 <meta name="decorator" content="none"/>
-</head>
-<body>
-<script type="text/javascript" language="javascript" src="scripts/tooltips/domTT.js"></script>
-<script type="text/javascript" language="javascript" src="scripts/tooltips/domLib.js"></script>
-<style type="text/css">
+<script type="text/javascript" src="scripts/tooltips/domTT.js"></script>
+<script type="text/javascript" src="scripts/tooltips/domLib.js"></script>
+<style>
 .jive-testPanel {
     display: block;
     position: relative;
@@ -123,6 +116,8 @@
     color: #890000;
     }
 </style>
+</head>
+<body>
 
 <!-- BEGIN connection settings test panel -->
 <div class="jive-testPanel">
@@ -176,8 +171,8 @@
                 int from = (curPage-1) * range;
                 int to = curPage * range;
                 // Check ranges
-                from = from > values.size() ? values.size() : from;
-                to = to > values.size() ? values.size() : to;
+                from = Math.min(from, values.size());
+                to = Math.min(to, values.size());
                 // Get subset of participants to display 
                 values = values.subList(from, to);
                 for (Iterator<String[]> it = values.iterator(); it.hasNext();) {
