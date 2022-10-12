@@ -9,7 +9,7 @@
 <%@ page import="org.slf4j.Logger" %>
 <%@ page import="org.jivesoftware.openfire.archive.*" %>
 <%!
-     Map<String, String> colorMap = new HashMap<String, String>();
+     Map<String, String> colorMap = new HashMap<>();
 %>
 <%
     Logger logger = LoggerFactory.getLogger("conversation-viewer-jsp");
@@ -31,7 +31,7 @@
         }
     }
 
-    Map<String, String> colorMap = new HashMap<String, String>();
+    Map<String, String> colorMap = new HashMap<>();
 
     if (conversation != null) {
         Collection<JID> set = conversation.getParticipants();

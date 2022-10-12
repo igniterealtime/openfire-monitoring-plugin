@@ -97,68 +97,6 @@ public class StatsAction {
         return stat;
     }
 
-
-    /**
-     * Retrieves the last n conversations from the system that were created after
-     * the given conversationID.
-     *
-     * @param count the count of conversations to return.
-     * @param mostRecentConversationID the last conversationID that has been retrieved.
-     * @return a List of Map objects.
-     */
-    public List<Map<String, Long>> getNLatestConversations(int count, long mostRecentConversationID) {
-        // TODO Fix plugin name 2 lines below and missing classes
-        List<Map<String, Long>> cons = new ArrayList<Map<String, Long>>();
-        MonitoringPlugin plugin = (MonitoringPlugin)XMPPServer.getInstance().getPluginManager().getPluginByName(MonitoringConstants.PLUGIN_NAME).get();
-        ConversationManager conversationManager = plugin.getConversationManager();
-        Collection<Conversation> conversations = conversationManager.getConversations();
-        List<Conversation> lConversations = Arrays.asList(conversations.toArray(new Conversation[conversations.size()]));
-        Collections.sort(lConversations, conversationComparator);
-        int counter = 0;
-        for (Iterator<Conversation> i = lConversations.iterator(); i.hasNext() && counter < count;) {
-            Conversation con = i.next();
-            if (mostRecentConversationID == con.getConversationID()) {
-                break;
-            } else {
-                Map mCon = new HashMap();
-                mCon.put("conversationid", con.getConversationID());
-                String[] users;
-                int usersIdx = 0;
-                if (con.getRoom() == null) {
-                    users = new String[con.getParticipants().size()];
-                    for (JID jid : con.getParticipants()) {
-                        String identifier = jid.toBareJID();
-                        try {
-                            identifier = UserNameManager.getUserName(jid, jid.toBareJID());
-                        }
-                        catch (UserNotFoundException e) {
-                            // Ignore
-                        }
-                        users[usersIdx++] = StringUtils.abbreviate(identifier, 20);
-                    }
-                }
-                else {
-                    users = new String[2];
-                    users[0] = LocaleUtils.getLocalizedString("dashboard.group_conversation", MonitoringConstants.NAME);
-                    try {
-                        users[1] = "(<i>" + LocaleUtils.getLocalizedString("muc.room.summary.room") +
-                                ": <a href='../../muc-room-occupants.jsp?roomName=" +
-                                URLEncoder.encode(con.getRoom().getNode(), "UTF-8") + "'>" + con.getRoom().getNode() +
-                                "</a></i>)";
-                    } catch (UnsupportedEncodingException e) {
-                        Log.error(e.getMessage(), e);
-                    }
-                }
-                mCon.put("users", users);
-                mCon.put("lastactivity", formatTimeLong(con.getLastActivity()));
-                mCon.put("messages", con.getMessageCount());
-                cons.add(0, mCon);
-                counter++;
-            }
-        }
-        return cons;
-    }
-
     /**
      * Given a statistic key and a start date, end date and number of datapoints, returns
      * a String[] containing the low and high values (in that order) for the given time period.

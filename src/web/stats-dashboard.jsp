@@ -30,8 +30,7 @@
     String timePeriod = "last60minutes";
     Cookie timePeriodCookie = CookieUtils.getCookie(request, COOKIE_TIMEPERIOD);
     if (timePeriodCookie != null) {
-        String cookieValue = timePeriodCookie.getValue();
-        timePeriod = cookieValue;
+        timePeriod = timePeriodCookie.getValue();
     }
 
 %>
@@ -39,8 +38,6 @@
 <head>
     <title><fmt:message key="admin.sidebar.statistics.name" /></title>
     <meta name="pageID" content="statistics"/>
-    <script src="/js/prototype.js" type="text/javascript"></script>
-    <script src="/js/scriptaculous.js" type="text/javascript"></script>
 
     <style type="text/css">
     .stats-description {
@@ -54,16 +51,12 @@
         font-weight : bold;
     }
     .stat {
-        border : 1px;
-        border-color : #ccc;
-        border-style : solid;
+        border: 1px solid #ccc;
         background-color : #fffBe2;
         -moz-border-radius: 5px;
     }
     .stat_selected {
-        border : 1px;
-        border-color : #f6ab4d;
-        border-style : solid;
+        border: 1px solid #f6ab4d;
         background-color : #fffBc2;
         -moz-border-radius: 5px;
     }
@@ -71,29 +64,25 @@
     .stat_enlarge_link {
         display: block;
         position: relative;
-        margin: 4px 0px 2px 6px;
+        margin: 4px 0 2px 6px;
         padding-left: 18px;
         background: url(images/reports_dash-expand-small.gif) no-repeat;
         font-size: 11px;
     }
     .stat_shrink_link {
         position: relative;
-        margin: 4px 0px 2px 6px;
+        margin: 4px 0 2px 6px;
         padding-left: 18px;
         background: url(images/reports_dash-contract-small.gif) no-repeat;
         font-size: 11px;
     }
     .timeControl {
-        border : 1px;
-        border-color : #ccc;
-        border-style : solid;
+        border: 1px solid #ccc;
         background-color : white;
     }
 
     .wrapper {
-        border : 1px;
-        border-color : #ccc;
-        border-style : solid;
+        border: 1px solid #ccc;
         -moz-border-radius: 5px;
     }
 
@@ -115,9 +104,9 @@
 
     .conversation {
         border-bottom : 1px;
-        border-top : 0px;
-        border-right : 0px;
-        border-left : 0px;
+        border-top : 0;
+        border-right : 0;
+        border-left : 0;
         border-color : #ccc;
         border-style : solid;
     }
@@ -141,43 +130,42 @@
 <body>
 
 <script type="text/javascript">
-PeriodicalExecuter.prototype.registerCallback = function() {
-    this.intervalID = setInterval(this.onTimerEvent.bind(this), this.frequency * 1000);
-}
-
-PeriodicalExecuter.prototype.stop = function() {
-    clearInterval(this.intervalID);
-}
-
-var peStats = new PeriodicalExecuter(statsUpdater, 30);
-
-var currentTimePeriod = '<%= timePeriod %>';
+let currentTimePeriod = '<%= timePeriod %>';
+let timeoutID;
 
 function statsUpdater() {
-    new Ajax.Request('/plugins/monitoring/api/stats/updated?timePeriod=' +currentTimePeriod, {
-        method: 'get',
-        onSuccess: function(transport) {
-            updateStats(transport.responseText.evalJSON());
+    let xhr = new XMLHttpRequest();
+    xhr.onreadystatechange = function() {
+        if (xhr.readyState === 4) {
+            if (xhr.status === 200) {
+                updateStats(JSON.parse(xhr.responseText));
+            }
+            timeoutID = setTimeout(statsUpdater, 30000);
         }
-    });
+    }
+    xhr.open("GET", '/plugins/monitoring/api/stats/updated?timePeriod=' +currentTimePeriod, true);
+    xhr.send(null);
 }
 
 function changeTimePeriod(period) {
-    if (currentTimePeriod != period) {
-        $(currentTimePeriod).className = '';
-        $(period).className = 'timeControl';
+    if (currentTimePeriod !== period) {
+        document.getElementById(currentTimePeriod).className = '';
+        document.getElementById(period).className = 'timeControl';
         currentTimePeriod = period;
         createCookie("<%= COOKIE_TIMEPERIOD %>",currentTimePeriod,1000);
-        
+
+        if (timeoutID) {
+            clearTimeout(timeoutID);
+        }
         statsUpdater();
     }
 }
 
 function updateStats(stats) {
-    for (var stat in stats) {
+    for (let stat in stats) {
         updateTable(stat, stats[stat]);
 
-        if (stat == 'conversations' || stat == 'packet_count' || stat == 'sessions') {
+        if (stat === 'conversations' || stat === 'packet_count' || stat === 'sessions') {
             updateGraph('sparklines-' + stat, 'stat=' + stat + '&sparkline=true');
         } else {
             updateGraph('sparklines-' + stat, 'stat=' + stat + '&sparkline=true&color=dark');
@@ -186,194 +174,171 @@ function updateStats(stats) {
 }
 
 function updateTable(id, data) {
-    $(id + '.low').innerHTML = data.low;
-    $(id + '.high').innerHTML = data.high;
-    if ($(id + '.count') != undefined) {
-        $(id + '.count').innerHTML = data.count;
+    document.getElementById(id + '.low').innerHTML = data.low;
+    document.getElementById(id + '.high').innerHTML = data.high;
+    if (document.getElementById(id + '.count') !== undefined && document.getElementById(id + '.count') !== null) {
+        document.getElementById(id + '.count').innerHTML = data.count;
     }
 }
 
 function updateGraph(graphid, graphkey) {
-   var d = new Date();
-   var t = d.getTime()
-   $(graphid).src = 'graph?' + graphkey + '&t=' + t + "&timeperiod=" + currentTimePeriod + "&format=png";
+    const d = new Date();
+    const t = d.getTime();
+    document.getElementById(graphid).src = 'graph?' + graphkey + '&t=' + t + "&timeperiod=" + currentTimePeriod + "&format=png";
 
     statParam = graphkey.split('&');
     statName = statParam[0].split('=');
-    if (isSnapshotDetailVisible && currentSnapshot == statName[1]) {
-        viewElement = $('snapshot-detail-image');
+    if (isSnapshotDetailVisible && currentSnapshot === statName[1]) {
+        viewElement = document.getElementById('snapshot-detail-image');
         viewElement.src = 'graph?stat=' + statName[1] + '&t=' + t + '&timeperiod=' + currentTimePeriod + '&width=700&height=250&format=png'
     }
 }
 
-var lastConversationID = 0;
-var getConversationsDelay = 10000;
-var insertConversationsDelay = 2000;
-var peGetConversations;
-var peInsertConversations;
-var conversations = new Array();
-
-function startupConversations() {
-    conversationUpdater();
-    peGetConversations = new PeriodicalExecuter(conversationUpdater, getConversationsDelay/1000);
+function htmlEncode(s)
+{
+    var el = document.createElement("div");
+    el.innerText = el.textContent = s;
+    s = el.innerHTML;
+    return s;
 }
 
 function conversationUpdater() {
-    new Ajax.Request('/plugins/monitoring/api/stats/latest?count=6&mostRecentConversationID=' +lastConversationID, {
-        method: 'get',
-        onSuccess: function() {
-            updateConversations(transport.responseText.evalJSON());
+    let xhr = new XMLHttpRequest();
+    xhr.onreadystatechange = function() {
+        if (xhr.readyState === 4) {
+            if (xhr.status === 200) {
+                updateConversations(JSON.parse(xhr.responseText));
+            }
+            setTimeout(conversationUpdater, 10000);
         }
-    });
+    }
+    xhr.open("GET", '/plugins/monitoring/api/conversations', true);
+    xhr.send(null);
 }
 
-function updateConversations(data) {
-    // list of map objects with users, lastactivity, messages keys
-    if (data.length > 0) {
-        for (var i=0; i<data.length; i++) {
-            conversations[conversations.length] = data[i];
+function updateConversations(conversations) {
+    if (Object.keys(conversations).length === 0) {
+        if (document.getElementById('conversations-scroller-none') !== undefined && document.getElementById('conversations-scroller-none') !== null) {
+            document.getElementById('conversations-scroller-none').style.display = 'block';
+            document.getElementById('conversations-scroller').style.display = 'none';
         }
-        lastConversationID = conversations[conversations.length -1].conversationid;
-    }
-
-    // adjust insert frequency based on how many are in the queue
-    if (data.length > 0 && Math.round(getConversationsDelay/(data.length)) > 2000) {
-        insertConversationsDelay = Math.round(10000/(data.length));
-    } else {
-        insertConversationsDelay = 2000;
-    }
-
-    if (peInsertConversations) {
-        peInsertConversations.stop();
-    }
-    peInsertConversations = new PeriodicalExecuter(insertConversation, insertConversationsDelay/1000);
-
-}
-
-function insertConversation() {
-    if (conversations.length > 0) {
-
-        if ($('conversations-scroller-none') != undefined) {
-            Element.hide('conversations-scroller-none');
-            Element.show('conversations-scroller');
+    } else{
+        if (document.getElementById('conversations-scroller-none') !== undefined && document.getElementById('conversations-scroller-none') !== null) {
+            document.getElementById('conversations-scroller-none').style.display = 'none';
+            document.getElementById('conversations-scroller').style.display = 'block';
         }
 
-        var conversation = conversations.shift();
-        convTableID = 'conversations-scroller';
-        var tbody = $(convTableID);
-        var rows = tbody.getElementsByTagName("div");
-        for (var i = rows.length-1; i > 0; i--) {
-            rows[i].innerHTML = rows[i-1].innerHTML;
-        }
-        newRow = document.createElement("div");
-        newRow.setAttribute("class", "conversation");
-        newRow.setAttribute('conversationid', conversation.conversationid);
+        let i = 0;
+        for (let i = 0; i < Object.keys(conversations).length; i++){
+            const key = Object.keys(conversations)[i];
+            const conversation = conversations[key];
+            const tbody = document.getElementById('conversations-scroller');
+            const rows = tbody.getElementsByTagName("div");
+            if (i >= rows.length) {
+                // No more room to display more active conversations.
+                break;
+            }
+            let newRow = document.createElement("div");
+            newRow.setAttribute("class", "conversation");
+            newRow.setAttribute('conversationid', conversation.conversationID);
 
-        users = conversation.users;
-        userString = '';
-        for (i=0; i<users.length; i++) {
-            userString += users[i] + "<br />";
-        }
+            let userString;
+            if (!conversation.allParticipants) {
+                userString = conversation.participant1 + '<br />' + conversation.participant2;
+            } else {
+                userString = '<fmt:message key="dashboard.group_conversation"/>';
+                userString = userString + '<br />(<i>' + '<%=LocaleUtils.getLocalizedString("muc.room.summary.room")%>' +
+                        ': <a href="../../muc-room-occupants.jsp?roomJID=' + encodeURIComponent(conversation.roomJID) + '">' +
+                        htmlEncode(conversation.roomJID.substr(0, conversation.roomJID.indexOf('@'))) +
+                        '</a></i>)';
+            }
 
-        newRowHTML =
-        '<table cellspacing="0" cellpadding="0" border="0">' +
-            '<tr>' +
+            newRow.innerHTML = '<table cellspacing="0" cellpadding="0" border="0">' +
+                '<tr>' +
                 '<td style="width:8px;"><img src="images/blank.gif" height="40" width="8" alt="" border="0" /></td>' +
                 '<td style="width:147px;">' +
                 userString +
                 '</td>' +
                 '<td align="center" style="width:85px;">' +
-                conversation.lastactivity +
+                conversation.lastActivity +
                 '</td>' +
                 '<td><img src="images/blank.gif" width="6" alt="" border="0" /></td>' +
-                '<td align="center" style="width:77px;">' + conversation.messages + '</td>' +
-            '</tr>' +
-        '</table>';
+                '<td align="center" style="width:77px;">' + conversation.messageCount + '</td>' +
+                '</tr>' +
+                '</table>';
 
-        newRow.innerHTML = newRowHTML;
-
-        if (!isIE()) {
-            rows[0].style.display = 'none';
-            rows[0].innerHTML = newRow.innerHTML;
-            new Effect.Appear(rows[0]);
-        } else {
-            rows[0].innerHTML = newRow.innerHTML;
+            rows[i].innerHTML = newRow.innerHTML;
         }
     }
 }
 
-function isIE() {
-    return navigator.appName.indexOf('Microsoft') != -1;
-}
-
-var isSnapshotDetailVisible = false;
-var currentSnapshot = '';
+let isSnapshotDetailVisible = false;
+let currentSnapshot = '';
 
 
 function displaySnapshotDetail(snapshot) {
     if (!isSnapshotDetailVisible) {
-        $('snapshot-detail-image').src = 'graph?stat=' + snapshot + '&t=' + t + '&timeperiod=' + currentTimePeriod + '&width=700&height=250&format=png';
-        Effect.SlideDown('snapshot-detail');
+        document.getElementById('snapshot-detail-image').src = 'graph?stat=' + snapshot + '&t=' + t + '&timeperiod=' + currentTimePeriod + '&width=700&height=250&format=png';
+        document.getElementById('snapshot-detail').style.display = 'block';
         isSnapshotDetailVisible = true;
         toggleSnapshotSelected(snapshot);
         currentSnapshot = snapshot;
     } else {
-        if ($('snapshot-detail-image').src.indexOf(snapshot) == -1) {
-            viewElement = $('snapshot-detail-image');
+        if (document.getElementById('snapshot-detail-image').src.indexOf(snapshot) === -1) {
+            let viewElement = document.getElementById('snapshot-detail-image');
             viewElement.style.display = "none";
             viewElement.src = '/images/blank.gif';
-            var i = new Image();
+            const i = new Image();
             i.onload = function() {
                 viewElement.src = i.src;
-                Effect.Appear('snapshot-detail-image');
+                document.getElementById('snapshot-detail-image').style.display = 'block';
             }
-            var d = new Date();
-            var t = d.getTime()
-            i.src = 'graph?stat=' + snapshot + '&t=' + t + '&timeperiod=' + currentTimePeriod + '&width=700&height=250&format=png';
+            i.src = 'graph?stat=' + snapshot + '&t=' + new Date().getTime() + '&timeperiod=' + currentTimePeriod + '&width=700&height=250&format=png';
             toggleSnapshotSelected(snapshot);
             currentSnapshot = snapshot;
         } else {
             hideSnapshotDetail();
             currentSnapshot = '';
-            $('table-sessions').className = "stat";
-            $('table-conversations').className = "stat";
-            $('table-packet_count').className = "stat";
+            document.getElementById('table-sessions').className = "stat";
+            document.getElementById('table-conversations').className = "stat";
+            document.getElementById('table-packet_count').className = "stat";
         }
     }
 }
 
 function toggleSnapshotSelected(selected) {
-    $('table-' + selected).className = "stat_selected";
-    $(selected + '-enlarge').className = 'stat_shrink_link';
-    $(selected + '-enlarge').innerHTML = '<fmt:message key="dashboard.snapshot.enlarge" />';
-    if (currentSnapshot != '') {
-        $('table-' + currentSnapshot).className = "stat";
-        $(currentSnapshot + '-enlarge').className = 'stat_enlarge_link';
-        $(currentSnapshot + '-enlarge').innerHTML = '<fmt:message key="dashboard.snapshot.shrink" />';
+    document.getElementById('table-' + selected).className = "stat_selected";
+    document.getElementById(selected + '-enlarge').className = 'stat_shrink_link';
+    document.getElementById(selected + '-enlarge').innerHTML = '<fmt:message key="dashboard.snapshot.enlarge" />';
+    if (currentSnapshot !== '') {
+        document.getElementById('table-' + currentSnapshot).className = "stat";
+        document.getElementById(currentSnapshot + '-enlarge').className = 'stat_enlarge_link';
+        document.getElementById(currentSnapshot + '-enlarge').innerHTML = '<fmt:message key="dashboard.snapshot.shrink" />';
     }
 
 }
 
 function hideSnapshotDetail() {
     if (isSnapshotDetailVisible) {
-        $(currentSnapshot + '-enlarge').className = 'stat_enlarge_link';
-        $(currentSnapshot + '-enlarge').innerHTML = '<fmt:message key="dashboard.snapshot.enlarge" />';
-        Effect.SlideUp('snapshot-detail');
+        document.getElementById(currentSnapshot + '-enlarge').className = 'stat_enlarge_link';
+        document.getElementById(currentSnapshot + '-enlarge').innerHTML = '<fmt:message key="dashboard.snapshot.enlarge" />';
+        document.getElementById('snapshot-detail').style.display = 'none';
         currentSnapshot = '';
-        $('table-sessions').className = "stat";
-        $('table-conversations').className = "stat";
-        $('table-packet_count').className = "stat";
+        document.getElementById('table-sessions').className = "stat";
+        document.getElementById('table-conversations').className = "stat";
+        document.getElementById('table-packet_count').className = "stat";
         isSnapshotDetailVisible = false;
     }
 }
 
 function createCookie(name,value,days) {
+    let expires;
     if (days) {
-        var date = new Date();
+        const date = new Date();
         date.setTime(date.getTime()+(days*24*60*60*1000));
-        var expires = "; expires="+date.toGMTString();
+        expires = "; expires="+date.toGMTString();
     } else {
-        var expires = "";
+        expires = "";
     }
     document.cookie = name+"="+value+expires+"; path=/";
 }
@@ -717,7 +682,7 @@ function createCookie(name,value,days) {
                         </tr>
                         </thead>
                         <tr>
-                            <td style="padding:0px 0px 0px 8px;background-color:#bbbbbb">
+                            <td style="padding:0 0 0 8px;background-color:#bbbbbb">
                                 <table cellspacing="0" cellpadding="0" border="0">
                                 <tr>
                                     <td style="width:147px;color:white;font-size:8pt;">
@@ -735,7 +700,7 @@ function createCookie(name,value,days) {
                             </td>
                         </tr>
                         <tr>
-                            <td style="padding:0px">
+                            <td style="padding:0">
                                 <%
                                 // Get handle on the Monitoring plugin
                                 Collection<Conversation> conversations = conversationManager.getConversations();
@@ -791,7 +756,7 @@ function createCookie(name,value,days) {
                                         <div class="conversation"
                                             <% if (i == 3) {%>style="opacity: 0.7;filter:alpha(opacity=10);" <%}%>
                                             <% if (i == 4) {%>style="opacity: 0.4;filter:alpha(opacity=10);" <%}%>
-                                            <% if (i == 5) {%>style="opacity: 0.2;filter:alpha(opacity=10);border-bottom:0px;" <%}%>
+                                            <% if (i == 5) {%>style="opacity: 0.2;filter:alpha(opacity=10);border-bottom:0;" <%}%>
                                             >
                                             <table cellspacing="0" cellpadding="0" border="0">
                                             <tr>
@@ -826,7 +791,8 @@ function createCookie(name,value,days) {
 <br>
 
 <script type="text/javascript">
-    window.onload = startupConversations;
+    statsUpdater();
+    conversationUpdater();
 </script>
 
 </body>
@@ -838,11 +804,7 @@ function createCookie(name,value,days) {
     /**
      * Sorts conversations by last modified time
      */
-    final Comparator<Conversation> conversationComparator = new Comparator<Conversation>() {
-        public int compare(Conversation conv1, Conversation conv2) {
-           return conv2.getLastActivity().compareTo(conv1.getLastActivity());
-        }
-    };
+    final Comparator<Conversation> conversationComparator = (conv1, conv2) -> conv2.getLastActivity().compareTo(conv1.getLastActivity());
 
 
 %>

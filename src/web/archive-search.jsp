@@ -160,8 +160,6 @@
 <head>
 <title><fmt:message key="archive.search.title" /></title>
 <meta name="pageID" content="archive-search"/>
-<script src="/js/prototype.js" type="text/javascript"></script>
-<script src="/js/scriptaculous.js" type="text/javascript"></script>
 <script type="text/javascript" language="javascript" src="scripts/tooltips/domLib.js"></script>
 <script type="text/javascript" language="javascript" src="scripts/tooltips/domTT.js"></script>
 
@@ -221,7 +219,7 @@
 
 
     .stat {
-        margin: 0px 0px 8px 0px;
+        margin: 0 0 8px 0;
         border: 1px solid #cccccc;
         -moz-border-radius: 3px;
     }
@@ -287,7 +285,7 @@
     .light-gray-border-bottom {
         border-color: #bbb;
         border-style: solid;
-        border-width: 0px 0px 1px 0px;
+        border-width: 0 0 1px 0;
     }
 
     .small-description {
@@ -306,7 +304,7 @@
       .pagination {
         border-color: #bbb;
         border-style: solid;
-        border-width: 0px 0px 1px 0px;
+        border-width: 0 0 1px 0;
         font-size: 10px;
         font-family: Verdana, Arial, sans-serif;
 
@@ -315,7 +313,7 @@
     .content {
         border-color: #bbb;
         border-style: solid;
-        border-width: 0px 0px 1px 0px;
+        border-width: 0 0 1px 0;
     }
 
     /* Default DOM Tooltip Style */
@@ -355,18 +353,18 @@
     }
 
     #searchResults {
-        margin: 10px 0px 10px 0px;
+        margin: 10px 0 10px 0;
     }
 
     #searchResults h3 {
         font-size: 14px;
-        padding: 0px;
-        margin: 0px 0px 2px 0px;
+        padding: 0;
+        margin: 0 0 2px 0;
         color: #555555;
     }
 
     #searchResults p.resultDescription {
-        margin: 0px 0px 12px 0px;
+        margin: 0 0 12px 0;
     }
 </style>
 
@@ -375,45 +373,49 @@
 
     function showConversation(conv) {
         selectedConversation = conv;
-        
-        new Ajax.Request('/plugins/monitoring/api/conversations/' +conv, {
-            method: 'get',
-            onSuccess: function(transport) {
-                showConv(transport.responseText.evalJSON());
+
+        let xhr = new XMLHttpRequest();
+        xhr.onload = function () {
+            if (xhr.readyState === 4 && xhr.status === 200) {
+                showConv(JSON.parse(xmlHttp.responseText));
             }
-        });
+        };
+        xhr.open("GET", '/plugins/monitoring/api/conversations/' +conv);
+        xhr.send(null);
     }
 
     function showConv(results) {
-        $('chat-viewer-empty').style.display = 'none';
-        $('chat-viewer').style.display = '';
+        document.getElementById('chat-viewer-empty').style.display = 'none';
+        document.getElementById('chat-viewer').style.display = '';
         if (results.allParticipants != null) {
-            $('con-participant1').innerHTML = results.allParticipants.length;
-            $('con-participant2').innerHTML = '(<a href="#" onclick="showOccupants(' + results.conversationID + ', 0);return false;">view</a>)';
+            document.getElementById('con-participant1').innerHTML = results.allParticipants.length;
+            document.getElementById('con-participant2').innerHTML = '(<a href="#" onclick="showOccupants(' + results.conversationID + ', 0);return false;">view</a>)';
         }
         else {
-            $('con-participant1').innerHTML = results.participant1 + ',';
-            $('con-participant2').innerHTML = results.participant2;
+            document.getElementById('con-participant1').innerHTML = results.participant1 + ',';
+            document.getElementById('con-participant2').innerHTML = results.participant2;
         }
-        $('con-chatTime').innerHTML = results.date;
-        $('conversation-body').innerHTML = results.body;
-        $('con-noMessages').innerHTML = results.messageCount;
-        $('con-duration').innerHTML = results.duration;
+        document.getElementById('con-chatTime').innerHTML = results.date;
+        document.getElementById('conversation-body').innerHTML = results.body;
+        document.getElementById('con-noMessages').innerHTML = results.messageCount;
+        document.getElementById('con-duration').innerHTML = results.duration;
         <% if (conversationManager.isArchivingEnabled()) { %>
-            $('con-chat-link').innerHTML = '<a href="conversation?conversationID='+selectedConversation+'" class="very-small-label"  style="text-decoration:none" target=_blank>View PDF</a>';
+            document.getElementById('con-chat-link').innerHTML = '<a href="conversation?conversationID='+selectedConversation+'" class="very-small-label"  style="text-decoration:none" target=_blank>View PDF</a>';
         <% } else { %>
-            Element.hide('pdf-image');
+            document.getElementById('pdf-image').style.display = 'none';
         <% } %>
     }
 
     function showOccupants(conversationID, start) {
-        new Ajax.Request('archive-conversation-participants.jsp?conversationID=' + conversationID + '&start=' + start, {
-            method: 'get',
-            onSuccess: function(transport) {
-                showOcc(transport.responseText);
-            }
-        });
+        var xmlHttp = new XMLHttpRequest();
+        xmlHttp.onreadystatechange = function() {
+            if (xmlHttp.readyState === 4 && xmlHttp.status === 200)
+                showOcc(xmlHttp.responseText);
+        }
+        xmlHttp.open("GET", 'archive-conversation-participants.jsp?conversationID=' + conversationID + '&start=' + start, true);
+        xmlHttp.send(null);
     }
+
     function showOcc(result) {
         var occupantsDialog = document.getElementById('occupants');
         if (typeof occupantsDialog.showModal === "function") {
@@ -425,7 +427,7 @@
     }
 
     function grayOut(ele) {
-        if (ele.value == 'Any') {
+        if (ele.value === 'Any') {
             ele.style.backgroundColor = "#FFFBE2";
         }
         else {
@@ -435,49 +437,19 @@
     
   //# sourceURL=archive-search.jsp
 </script>
-<script type="text/javascript" src="/js/behaviour.js"></script>
 <script type="text/javascript">
-    // Add a nice little rollover effect to any row in a jive-table object. This will help
-    // visually link left and right columns.
-
-    var selectedElement;
-
-    var myrules = {
-        '.conversation-table TR' : function(el) {
-            var backgroundColor;
-            var selected = false;
-            el.onmouseover = function() {
-
-                if (selectedElement != null && selectedElement == this) {
-                    return;
-                }
-                backgroundColor = this.style.backgroundColor;
-                this.style.backgroundColor = '#dedede';
-                this.style.cursor = 'pointer';
-            }
-
-            el.onmouseout = function() {
-                if (selectedElement != this) {
-                    this.style.backgroundColor = backgroundColor;
-                }
-            }
-
-            el.onmousedown = function() {
-                this.style.backgroundColor = '#fffBc2';
-                if (selectedElement != null) {
-                    selectedElement.style.backgroundColor = backgroundColor;
-                }
-                selectedElement = this;
-            }
-        }
-    };
-
-    var textfieldRules = {
-        '.textfield' : function(el) {
+    document.addEventListener("DOMContentLoaded", function(event) {
+        let textFieldElements = document.getElementsByClassName('textfield');
+        for (var i = 0; i < textFieldElements.length; ++i) {
+            let el = textFieldElements[i];
+            el.getcla
             el.onblur = function() {
-                var va = el.value;
-                if (va.length == 0 || va == 'Any' || va == 'any') {
+                let va = el.value;
+                if (va.length === 0 || va === 'Any' || va === 'any') {
                     this.style.backgroundColor = '#efefef';
+                    if (el.classList.contains('datefield')) {
+                        el.type = 'text';
+                    }
                     el.value = "<%= anyText%>";
                 }
                 else {
@@ -486,20 +458,26 @@
             }
 
             el.onfocus = function() {
-                var va = el.value;
-                if (va == 'Any') {
+                let va = el.value;
+                if (va === "<%= anyText%>") {
                     this.style.backgroundColor = '#ffffff';
                     el.value = "";
+                    if (el.classList.contains('datefield')) {
+                        el.type = 'date';
+                    }
                 }
             }
         }
-    };
-
-    Behaviour.register(textfieldRules);
-    Behaviour.register(myrules);
+    });
 </script>
 <style type="text/css">
     @import "style/style.css";
+
+    /* Add a nice little rollover effect to any row in a jive-table object. This will help visually link left and right columns. */
+    .conversation-table tr:hover{
+        background: #dedede;
+        cursor: pointer;
+    }
 </style>
 </head>
 <body>
@@ -557,7 +535,7 @@
     <table>
         <tr>
             <td colspan="2">
-                <img src="images/icon_daterange.gif" align="absmiddle" alt="" style="margin: 0px 4px 0px 2px;"/>
+                <img src="images/icon_daterange.gif" align="absmiddle" alt="" style="margin: 0 4px 0 2px;"/>
                 <b><fmt:message key="archive.search.daterange" /></b>
                 <a onmouseover="domTT_activate(this, event, 'content',
                     '<fmt:message key="archive.search.daterange.tooltip"/>',
@@ -567,17 +545,17 @@
         <tr valign="top">
             <td><fmt:message key="archive.search.daterange.start" /></td>
             <td>
-                <input type="date" id="startDate" name="startDate" size="13"
+                <input type="<%= startDate != null ? "date" : "text" %>" id="startDate" name="startDate" size="13"
                        value="<%= startDate != null ? StringUtils.escapeForXML(startDate) :
-                       LocaleUtils.getLocalizedString("archive.search.daterange.any", "monitoring")%>" class="textfield"/><br/>
+                       LocaleUtils.getLocalizedString("archive.search.daterange.any", "monitoring")%>" class="textfield datefield"/><br/>
             </td>
         </tr>
         <tr valign="top">
             <td><fmt:message key="archive.search.daterange.end" /></td>
             <td>
-                <input type="date" id="endDate" name="endDate" size="13"
+                <input type="<%= startDate != null ? "date" : "text" %>" id="endDate" name="endDate" size="13"
                        value="<%= endDate != null ? StringUtils.escapeForXML(endDate) :
-                       LocaleUtils.getLocalizedString("archive.search.daterange.any", "monitoring") %>" class="textfield"/><br/>
+                       LocaleUtils.getLocalizedString("archive.search.daterange.any", "monitoring") %>" class="textfield datefield"/><br/>
             </td>
         </tr>
     </table>
@@ -776,7 +754,7 @@
                             <span class="small-label"><fmt:message key="archive.search.results.duration" /></span>&nbsp;
                             <span class="small-text" id="con-duration"></span>
                         </td>
-                        <td id="pdf-image" width="1%" bgcolor="#f0f0f0" nowrap align="right" class="light-gray-border-bottom" style="padding: 4px 3px 3px 0px;">
+                        <td id="pdf-image" width="1%" bgcolor="#f0f0f0" nowrap align="right" class="light-gray-border-bottom" style="padding: 4px 3px 3px 0;">
                             <img src="images/icon_pdf.gif" alt="" align="texttop" border="0" /> <span id="con-chat-link"></span>
                         </td>
 
@@ -809,14 +787,15 @@
     grayOut(f.endDate);
 
      function catcalc(cal) {
-        var endDateField = $('endDate');
-        var startDateField = $('startDate');
+        var endDateField = document.getElementById('endDate');
+        var startDateField = document.getElementById('startDate');
 
         var endTime = new Date(endDateField.value);
         var startTime = new Date(startDateField.value);
         if(endTime.getTime() < startTime.getTime()){
             alert("<fmt:message key="archive.search.daterange.error" />");
             startDateField.value = "<fmt:message key="archive.search.daterange.any" />";
+            startDateField.type = 'text';
         }
     }
 </script>

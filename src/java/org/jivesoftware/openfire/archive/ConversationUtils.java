@@ -119,15 +119,12 @@ public class ConversationUtils {
      * @return a Map of ConversationInfo objects.
      */
     public Map<String, ConversationInfo> getConversations(boolean formatParticipants) {
-        Map<String, ConversationInfo> cons = new HashMap<String, ConversationInfo>();
+        Map<String, ConversationInfo> cons = new HashMap<>();
         MonitoringPlugin plugin = (MonitoringPlugin)XMPPServer.getInstance().getPluginManager()
-            .getPluginByName(MonitoringConstants.NAME).get();
+            .getPluginByName(MonitoringConstants.PLUGIN_NAME).get();
         ConversationManager conversationManager = plugin.getConversationManager();
         Collection<Conversation> conversations = conversationManager.getConversations();
-        List<Conversation> lConversations =
-            Arrays.asList(conversations.toArray(new Conversation[conversations.size()]));
-        for (Iterator<Conversation> i = lConversations.iterator(); i.hasNext();) {
-            Conversation con = i.next();
+        for (Conversation con : conversations) {
             ConversationInfo info = toConversationInfo(conversationManager, con, formatParticipants);
             cons.put(Long.toString(con.getConversationID()), info);
         }

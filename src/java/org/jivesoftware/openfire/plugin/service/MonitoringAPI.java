@@ -20,14 +20,6 @@ public class MonitoringAPI {
     private ConversationUtils conversationUtils = new ConversationUtils();
 
     @GET
-    @Path("/stats/latest")
-    public Response getLatest(@QueryParam("count") int count, 
-            @QueryParam("mostRecentConversationID") long mostRecentConversationID) {
-        return Response.ok(statsAction.getNLatestConversations(
-                count, mostRecentConversationID)).build();
-    }
-
-    @GET
     @Path("/stats/updated")
     public Response getUpdated(@QueryParam("timePeriod") String timePeriod) {
         return Response.ok(statsAction.getUpdatedStats(timePeriod)).build();

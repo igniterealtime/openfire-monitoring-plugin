@@ -29,31 +29,51 @@
     <head>
         <title>Conversations</title>
         <meta name="pageID" content="active-conversations"/>
-        <script src="/js/prototype.js" type="text/javascript"></script>
-        <script src="/js/scriptaculous.js" type="text/javascript"></script>
     </head>
     <body>
 
 <style type="text/css">
     @import "style/style.css";
+
+    @keyframes FadeIn {
+        from {
+            background-color: lightyellow;
+        }
+
+        to {
+            background-color: unset;
+        }
+    }
+
+    #conversations tr {
+        animation: FadeIn 3.0s ease-in-out forwards;
+    }
 </style>
 <script type="text/javascript">
-var peConversations = new PeriodicalExecuter(conversationUpdater, 10);
-
 function conversationUpdater() {
-    new Ajax.Request('/plugins/monitoring/api/conversations', {
-        method: 'get',
-        onSuccess: function(transport) {
-            updateConversations(transport.responseText.evalJSON());
+    let xhr = new XMLHttpRequest();
+    xhr.onreadystatechange = function() {
+        if (xhr.readyState === 4) {
+            if (xhr.status === 200) {
+                updateConversations(JSON.parse(xhr.responseText));
+            }
+            setTimeout(conversationUpdater, 10000);
         }
-    });
+    }
+    xhr.open("GET", '/plugins/monitoring/api/conversations', true);
+    xhr.send(null);
 }
 
+setTimeout(conversationUpdater, 10000);
+
 function updateConversations(data) {
-    conversationsTable = $('conversations');
-    rows = conversationsTable.getElementsByTagName("tr");
+    let users;
+    let conversation;
+    let i;
+    let conversationsTable = document.getElementById('conversations');
+    let rows = conversationsTable.getElementsByTagName("tr");
     // loop over existing rows in the table
-    var rowsToDelete = [];
+    let rowsToDelete = [];
     for (i = 0; i < rows.length; i++) {
         // is this a conversation row?
         if (rows[i].id === 'noconversations') {
@@ -74,7 +94,6 @@ function updateConversations(data) {
                     cells[1].innerHTML = conversation.duration;
                     cells[2].innerHTML = conversation.lastActivity;
                     cells[3].innerHTML = conversation.messageCount;
-                    new Effect.Highlight(row, {duration: 3.0});
                 }
             // doesn't exist in update, delete from table
             } else {
@@ -87,13 +106,12 @@ function updateConversations(data) {
         conversationsTable.deleteRow(rowsToDelete[i]);
     }
 
-
     // then add any new conversations from the update
-    counter = 0;
-    for (var c in data) {
+    let counter = 0;
+    for (let c in data) {
         counter++;
         // does this conversation already exist?
-        if (!$('conversation-' + c)) {
+        if (!document.getElementById('conversation-' + c)) {
             conversation = data[c];
             if (!conversation.allParticipants) {
                 users = conversation.participant1 + '<br />' + conversation.participant2;
@@ -102,10 +120,10 @@ function updateConversations(data) {
                 users = users.replace('{0}', '<a href="../../muc-room-occupants.jsp?roomJID=' + conversation.roomJID + '">');
                 users = users.replace('{1}', '</a');
             }
-            var newTR = document.createElement("tr");
+            let newTR = document.createElement("tr");
             newTR.setAttribute('id', 'conversation-' + c)
             conversationsTable.appendChild(newTR);
-            var TD = document.createElement("TD");
+            let TD = document.createElement("TD");
             TD.innerHTML = users;
             newTR.appendChild(TD);
 
@@ -124,14 +142,14 @@ function updateConversations(data) {
     }
 
     // update activeConversations number
-    $('activeConversations').innerHTML = counter;
+    document.getElementById('activeConversations').innerHTML = counter;
 
     // When there's no data in the table, add the 'no conversations' placeholder.
     if (counter === 0 && !document.getElementById('noconversations')) {
-        var noConvTR = document.createElement("tr");
+        let noConvTR = document.createElement("tr");
         noConvTR.setAttribute('id', 'noconversations');
         conversationsTable.appendChild(noConvTR);
-        var noConvTD = document.createElement("TD")
+        let noConvTD = document.createElement("TD")
         noConvTD.setAttribute('colspan', '4');
         noConvTD.innerHTML = '<fmt:message key="archive.converations.no_conversations" />';
         noConvTR.appendChild(noConvTD);
