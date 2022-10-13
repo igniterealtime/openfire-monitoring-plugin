@@ -81,6 +81,7 @@ public abstract class LuceneIndexer
             directory = FSDirectory.open(searchDir.toPath());
             if ( !DirectoryReader.indexExists(directory) )
             {
+                Log.info("Unable to find a Lucene index in {}. rebuilding.", directory);
                 // Create a new index.
                 removeAndRebuildSearchDir();
                 indexCreated = true;
@@ -150,8 +151,12 @@ public abstract class LuceneIndexer
         }
 
         // If the index has never been updated, build it from scratch.
-        if ( getLastModified().equals( Instant.EPOCH ) || indexCreated )
-        {
+        if (getLastModified().equals(Instant.EPOCH)) {
+            Log.info("Lucene index has never been modified. Removing and rebuilding.");
+            indexCreated = true;
+        }
+
+        if (indexCreated) {
             taskEngine.submit(this::rebuildIndex);
         }
 
