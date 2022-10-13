@@ -333,6 +333,7 @@ public abstract class LuceneIndexer
             try {
                 FileUtils.cleanDirectory(searchDir);
                 Files.write(searchDir.toPath().resolve("openfire-schema.version"), String.valueOf(this.schemaVersion).getBytes());
+                indexProperties = loadPropertiesFile(searchDir);
             } catch ( IOException e ) {
                 Log.warn("An exception occurred while trying to clean directory '{}' as part of a rebuild of the Lucene index that's in it.", searchDir);
             }
