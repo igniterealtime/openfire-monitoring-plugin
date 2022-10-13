@@ -450,8 +450,7 @@ public abstract class LuceneIndexer
             }
             // Ignore.
         }
-        InputStream stream = new FileInputStream(indexPropertiesFile);
-        return new XMLProperties(stream);
+        return new XMLProperties(indexPropertiesFile.toPath());
     }
 
     /**
