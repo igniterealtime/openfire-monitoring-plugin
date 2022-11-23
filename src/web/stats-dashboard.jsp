@@ -182,15 +182,13 @@ function updateTable(id, data) {
 }
 
 function updateGraph(graphid, graphkey) {
-    const d = new Date();
-    const t = d.getTime();
-    document.getElementById(graphid).src = 'graph?' + graphkey + '&t=' + t + "&timeperiod=" + currentTimePeriod + "&format=png";
+    document.getElementById(graphid).src = 'graph?' + graphkey + "&timeperiod=" + currentTimePeriod + "&format=png";
 
     statParam = graphkey.split('&');
     statName = statParam[0].split('=');
     if (isSnapshotDetailVisible && currentSnapshot === statName[1]) {
         viewElement = document.getElementById('snapshot-detail-image');
-        viewElement.src = 'graph?stat=' + statName[1] + '&t=' + t + '&timeperiod=' + currentTimePeriod + '&width=700&height=250&format=png'
+        viewElement.src = 'graph?stat=' + statName[1] + '&timeperiod=' + currentTimePeriod + '&width=700&height=250&format=png'
     }
 }
 
@@ -278,7 +276,7 @@ let currentSnapshot = '';
 
 function displaySnapshotDetail(snapshot) {
     if (!isSnapshotDetailVisible) {
-        document.getElementById('snapshot-detail-image').src = 'graph?stat=' + snapshot + '&t=' + t + '&timeperiod=' + currentTimePeriod + '&width=700&height=250&format=png';
+        document.getElementById('snapshot-detail-image').src = 'graph?stat=' + snapshot + '&timeperiod=' + currentTimePeriod + '&width=700&height=250&format=png';
         document.getElementById('snapshot-detail').style.display = 'block';
         isSnapshotDetailVisible = true;
         toggleSnapshotSelected(snapshot);
@@ -293,7 +291,7 @@ function displaySnapshotDetail(snapshot) {
                 viewElement.src = i.src;
                 document.getElementById('snapshot-detail-image').style.display = 'block';
             }
-            i.src = 'graph?stat=' + snapshot + '&t=' + new Date().getTime() + '&timeperiod=' + currentTimePeriod + '&width=700&height=250&format=png';
+            i.src = 'graph?stat=' + snapshot + '&timeperiod=' + currentTimePeriod + '&width=700&height=250&format=png';
             toggleSnapshotSelected(snapshot);
             currentSnapshot = snapshot;
         } else {
