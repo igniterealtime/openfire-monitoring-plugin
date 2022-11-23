@@ -377,7 +377,7 @@
         let xhr = new XMLHttpRequest();
         xhr.onload = function () {
             if (xhr.readyState === 4 && xhr.status === 200) {
-                showConv(JSON.parse(xmlHttp.responseText));
+                showConv(JSON.parse(xhr.responseText));
             }
         };
         xhr.open("GET", '/plugins/monitoring/api/conversations/' +conv);
@@ -407,13 +407,13 @@
     }
 
     function showOccupants(conversationID, start) {
-        var xmlHttp = new XMLHttpRequest();
-        xmlHttp.onreadystatechange = function() {
-            if (xmlHttp.readyState === 4 && xmlHttp.status === 200)
-                showOcc(xmlHttp.responseText);
+        var xhr = new XMLHttpRequest();
+        xhr.onreadystatechange = function() {
+            if (xhr.readyState === 4 && xhr.status === 200)
+                showOcc(xhr.responseText);
         }
-        xmlHttp.open("GET", 'archive-conversation-participants.jsp?conversationID=' + conversationID + '&start=' + start, true);
-        xmlHttp.send(null);
+        xhr.open("GET", 'archive-conversation-participants.jsp?conversationID=' + conversationID + '&start=' + start, true);
+        xhr.send(null);
     }
 
     function showOcc(result) {
