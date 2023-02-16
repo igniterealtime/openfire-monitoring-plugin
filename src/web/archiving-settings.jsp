@@ -54,7 +54,7 @@
     function showBuildProgress(progress) {
         let rebuildElement = document.getElementById("rebuildElement");
         let rebuildProgress = document.getElementById('rebuildProgress');
-        if (progress != null && progress !== -1){
+        if (progress != null && progress !== '-1'){
             document.getElementById("rebuild").style.display="block";
             // Update progress item.
             rebuildElement.style.display = '';
