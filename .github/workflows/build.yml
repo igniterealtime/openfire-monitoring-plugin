@@ -1,4 +1,4 @@
-# Version 2021-10-27
+# Version 2023-03-03
 name: Java CI
 on: [push, pull_request]
 
@@ -7,11 +7,11 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        java: [ "1.8", "11" ]
+        java: [ "8", "11" ]
 
     steps:
       # Checkout Repo
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
 
       # Create a variable with this plugin's name
       - id: get-id
@@ -19,25 +19,26 @@ jobs:
         run: |
           set -x
           id=$(echo ${{ github.repository }} | cut -d- -f2)
-          echo "::set-output name=id::$id"
+          echo "id=$id" >> $GITHUB_OUTPUT
           echo "id is '$id'"
           tag=$(echo ${{ github.ref }} | cut -d '/' -f3)
-          echo "::set-output name=tag::$tag"
+          echo "tag=$tag" >> $GITHUB_OUTPUT
           echo "tag is '$tag'"
           version=$(echo ${{ github.ref }} | cut -d '/' -f3 | cut -c 2-)
-          echo "::set-output name=version::$version"
+          echo "version=$version" >> $GITHUB_OUTPUT
           echo "version is '$version'"
           rel_id=$(curl -sL https://api.github.com/repos/${{github.repository}}/releases | jq -r --arg TAG "$tag" '.[] | select(.tag_name==$TAG) | .id')
-          echo ::set-output name=rel_id::$rel_id
+          echo "rel_id=$rel_id" >> $GITHUB_OUTPUT
           echo "rel_id is '$rel_id'"
 
       - name: Setup JDK ${{ matrix.java }}
-        uses: actions/setup-java@v1
+        uses: actions/setup-java@v3
         with:
           java-version: ${{ matrix.java }}
+          distribution: adopt
 
       - name: Cache Maven repository
-        uses: actions/cache@v1
+        uses: actions/cache@v3
         with:
           path: ~/.m2/repository
           key: ${{ runner.os }}-java${{ matrix.java }}-maven-${{ hashFiles('**/pom.xml') }}
@@ -55,7 +56,7 @@ jobs:
 
       - name: Conditionally Deploy to Igniterealtime Archiva
         id: deploy
-        if: ${{ contains(github.repository, 'igniterealtime/') && ( ( github.event_name == 'push' && github.ref == 'refs/heads/main' ) || contains(github.ref, 'refs/tags/') ) && matrix.java == '1.8' }}
+        if: ${{ contains(github.repository, 'igniterealtime/') && ( ( github.event_name == 'push' && github.ref == 'refs/heads/main' ) || contains(github.ref, 'refs/tags/') ) && matrix.java == '8' }}
         run: mvn -B deploy --settings target/ci-tooling/maven-settings-for-openfire-plugins.xml
         env:
           CI_DEPLOY_USERNAME: ${{ secrets.IGNITE_REALTIME_MAVEN_USERNAME }}
@@ -63,7 +64,7 @@ jobs:
 
       - name: Conditionally Push Artifact to Github Release
         uses: actions/upload-release-asset@v1
-        if: ${{ contains(github.repository, 'igniterealtime/') && github.event_name == 'push' && contains(github.ref, 'refs/tags/') && matrix.java == '1.8' }}
+        if: ${{ contains(github.repository, 'igniterealtime/') && github.event_name == 'push' && contains(github.ref, 'refs/tags/') && matrix.java == '8' }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
