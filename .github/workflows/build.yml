@@ -59,8 +59,8 @@ jobs:
         if: ${{ contains(github.repository, 'igniterealtime/') && ( ( github.event_name == 'push' && github.ref == 'refs/heads/main' ) || contains(github.ref, 'refs/tags/') ) && matrix.java == '8' }}
         run: mvn -B deploy --settings target/ci-tooling/maven-settings-for-openfire-plugins.xml
         env:
-          CI_DEPLOY_USERNAME2: ${{ secrets.IGNITE_REALTIME_MAVEN_USERNAME }}
-          CI_DEPLOY_PASSWORD2: ${{ secrets.IGNITE_REALTIME_MAVEN_PASSWORD }}
+          CI_DEPLOY_USERNAME: ${{ secrets.IGNITE_REALTIME_MAVEN_USERNAME }}
+          CI_DEPLOY_PASSWORD: ${{ secrets.IGNITE_REALTIME_MAVEN_PASSWORD }}
 
       - name: Conditionally Push Artifact to Github Release
         uses: actions/upload-release-asset@v1
