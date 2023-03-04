@@ -49,7 +49,7 @@ jobs:
       - name: Igniterealtime CI Tooling
         run: |
           git clone --depth 1 https://github.com/igniterealtime/ci-tooling.git target/ci-tooling
-          cp target/ci-tooling/maven-settings-for-openfire-plugins.xml $HOME/.m2/settings.xml
+          # cp target/ci-tooling/maven-settings-for-openfire-plugins.xml $HOME/.m2/settings.xml
 
       - name: Build with Maven
         run:  mvn -B package
@@ -57,7 +57,7 @@ jobs:
       - name: Conditionally Deploy to Igniterealtime Archiva
         id: deploy
         if: ${{ contains(github.repository, 'igniterealtime/') && ( ( github.event_name == 'push' && github.ref == 'refs/heads/main' ) || contains(github.ref, 'refs/tags/') ) && matrix.java == '8' }}
-        run: mvn -B deploy -X --settings target/ci-tooling/maven-settings-for-openfire-plugins.xml
+        run: mvn -B deploy --settings target/ci-tooling/maven-settings-for-openfire-plugins.xml
         env:
           CI_DEPLOY_USERNAME: ${{ secrets.IGNITE_REALTIME_MAVEN_USERNAME }}
           CI_DEPLOY_PASSWORD: ${{ secrets.IGNITE_REALTIME_MAVEN_PASSWORD }}
