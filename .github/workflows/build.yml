@@ -37,11 +37,6 @@ jobs:
           java-version: ${{ matrix.java }}
           distribution: temurin
 
-      - name: Temp downgrade maven to 3.8.7
-        uses: stCarolas/setup-maven@v.4.5
-        with:
-          maven-version: 3.8.7
-
       - name: Cache Maven repository
         uses: actions/cache@v3
         with:
@@ -63,7 +58,7 @@ jobs:
         id: deploy
         if: ${{ contains(github.repository, 'igniterealtime/') && ( ( github.event_name == 'push' && github.ref == 'refs/heads/main' ) || contains(github.ref, 'refs/tags/') ) && matrix.java == '8' }}
         run: |
-          mvn -B deploy --settings target/ci-tooling/maven-settings-for-openfire-plugins.xml
+          mvn -B deploy -Dmaven.resolver.transport=wagon --settings target/ci-tooling/maven-settings-for-openfire-plugins.xml
         env:
           CI_DEPLOY_USERNAME: ${{ secrets.IGNITE_REALTIME_MAVEN_USERNAME }}
           CI_DEPLOY_PASSWORD: ${{ secrets.IGNITE_REALTIME_MAVEN_PASSWORD }}
