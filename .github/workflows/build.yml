@@ -40,6 +40,11 @@ jobs:
           server-username: ${{ secrets.IGNITE_REALTIME_MAVEN_USERNAME }}
           server-password: ${{ secrets.IGNITE_REALTIME_MAVEN_PASSWORD }}
 
+      - name: Temp downgrade maven to 3.8.7
+        uses: stCarolas/setup-maven@v.4.5
+        with:
+          maven-version: 3.8.7
+
       - name: Cache Maven repository
         uses: actions/cache@v3
         with:
