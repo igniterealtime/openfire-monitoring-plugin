@@ -27,7 +27,7 @@ jobs:
           version=$(echo ${{ github.ref }} | cut -d '/' -f3 | cut -c 2-)
           echo "version=$version" >> $GITHUB_OUTPUT
           echo "version is '$version'"
-          rel_id=$(curl -sL https://api.github.com/repos/${{github.repository}}/releases | jq -r --arg TAG "$tag" '.[] | select(.tag_name==$TAG) | .id')
+          rel_id=$(curl -sL --header 'authorization: Bearer ${{ secrets.GITHUB_TOKEN }}' https://api.github.com/repos/${{github.repository}}/releases | jq -r --arg TAG "$tag" '.[] | select(.tag_name==$TAG) | .id')
           echo "rel_id=$rel_id" >> $GITHUB_OUTPUT
           echo "rel_id is '$rel_id'"
 
