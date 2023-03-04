@@ -36,6 +36,9 @@ jobs:
         with:
           java-version: ${{ matrix.java }}
           distribution: temurin
+          server-id: igniterealtime
+          server-username: ${{ secrets.IGNITE_REALTIME_MAVEN_USERNAME }}
+          server-password: ${{ secrets.IGNITE_REALTIME_MAVEN_PASSWORD }}
 
       - name: Cache Maven repository
         uses: actions/cache@v3
@@ -46,10 +49,10 @@ jobs:
             ${{ runner.os }}-java${{ matrix.java }}-maven-
             ${{ runner.os }}-
 
-      - name: Igniterealtime CI Tooling
-        run: |
-          git clone --depth 1 https://github.com/igniterealtime/ci-tooling.git target/ci-tooling
-          cp target/ci-tooling/maven-settings-for-openfire-plugins.xml $HOME/.m2/settings.xml
+            #- name: Igniterealtime CI Tooling
+            # run: |
+            #   git clone --depth 1 https://github.com/igniterealtime/ci-tooling.git target/ci-tooling
+            #    cp target/ci-tooling/maven-settings-for-openfire-plugins.xml $HOME/.m2/settings.xml
 
       - name: Build with Maven
         run:  mvn -B package
@@ -58,10 +61,7 @@ jobs:
         id: deploy
         if: ${{ contains(github.repository, 'igniterealtime/') && ( ( github.event_name == 'push' && github.ref == 'refs/heads/main' ) || contains(github.ref, 'refs/tags/') ) && matrix.java == '8' }}
         run: |
-          mvn -B deploy -Dmaven.resolver.transport=wagon --settings target/ci-tooling/maven-settings-for-openfire-plugins.xml
-        env:
-          CI_DEPLOY_USERNAME: ${{ secrets.IGNITE_REALTIME_MAVEN_USERNAME }}
-          CI_DEPLOY_PASSWORD: ${{ secrets.IGNITE_REALTIME_MAVEN_PASSWORD }}
+          mvn -B deploy -Dmaven.resolver.transport=wagon
 
       - name: Conditionally Push Artifact to Github Release
         uses: actions/upload-release-asset@v1
