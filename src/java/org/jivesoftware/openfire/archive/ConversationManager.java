@@ -874,7 +874,7 @@ public class ConversationManager implements ComponentEventListener{
 
                         long bitmask = getSpeficifEmptyMessageArchivingEnabled();
 
-                        if (emptyMessageType!=EmptyMessageType.TYPE_EVENT && (bitmask & emptyMessageType.getValue()) == emptyMessageType.getValue())
+                        if (emptyMessageType!=EmptyMessageType.TYPE_TO_IGNORE && (bitmask & emptyMessageType.getValue()) == emptyMessageType.getValue())
                         {
                             messageArchiver.archive(new ArchivedMessage(conversation.getConversationID(), sender, receiver, date, body, stanza, false, null) );
                         }
@@ -950,7 +950,7 @@ public class ConversationManager implements ComponentEventListener{
 
                     long bitmask = getSpeficifEmptyMessageArchivingForMUCEnabled();
 
-                    if (emptyMessageType!=EmptyMessageType.TYPE_EVENT && (bitmask & emptyMessageType.getValue()) == emptyMessageType.getValue())
+                    if (emptyMessageType!=EmptyMessageType.TYPE_TO_IGNORE && (bitmask & emptyMessageType.getValue()) == emptyMessageType.getValue())
                     {
                         messageArchiver.archive( new ArchivedMessage(conversation.getConversationID(), sender, jid, date, body, roomArchivingStanzasEnabled ? stanza : "", false, receiverIfPM));
                     }

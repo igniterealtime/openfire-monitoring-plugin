@@ -161,7 +161,7 @@ public class GroupConversationInterceptor implements MUCEventListener {
 
                 long bitmask = conversationManager.getSpeficifEmptyMessageArchivingForMUCEnabled();
 
-                if (emptyMessageType!=EmptyMessageType.TYPE_EVENT && (bitmask & emptyMessageType.getValue()) == emptyMessageType.getValue())
+                if (emptyMessageType!=EmptyMessageType.TYPE_TO_IGNORE && (bitmask & emptyMessageType.getValue()) == emptyMessageType.getValue())
                 {
                     ConversationEventsQueue eventsQueue = conversationManager.getConversationEventsQueue();
 

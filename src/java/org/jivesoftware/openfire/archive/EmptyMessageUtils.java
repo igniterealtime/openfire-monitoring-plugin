@@ -13,7 +13,12 @@ public class EmptyMessageUtils {
     private static final Logger Log = LoggerFactory.getLogger(EmptyMessageUtils.class);
 
     public enum EmptyMessageType {
-        TYPE_EVENT(-1),
+
+        /**
+         * A generic type that signifies that the type of the message child element is recognized, but must never be
+         * saved in a message archive. For example: Pubsub event messages.
+         */
+        TYPE_TO_IGNORE(-1),
         TYPE_UNKNOWN(1),
 
         TYPE_CHATMARKER_MARKABLE(2),  //XMLNS = urn:xmpp:chat-markers:0
@@ -61,7 +66,7 @@ public class EmptyMessageUtils {
     {
         if (stanza.selectSingleNode("//*[local-name()='event' and namespace-uri()='http://jabber.org/protocol/pubsub#event']")!=null)
         {
-            return EmptyMessageType.TYPE_EVENT;
+            return EmptyMessageType.TYPE_TO_IGNORE;
         }
         else
         if (stanza.selectSingleNode("//*[local-name()='markable' and namespace-uri()='urn:xmpp:chat-markers:0']")!=null)
