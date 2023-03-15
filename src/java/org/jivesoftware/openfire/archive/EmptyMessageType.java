@@ -1,12 +1,11 @@
 package org.jivesoftware.openfire.archive;
 
-import org.dom4j.DocumentException;
 import org.dom4j.Element;
-import org.dom4j.io.SAXReader;
+import org.jivesoftware.util.SAXReaderUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.ByteArrayInputStream;
+import java.util.concurrent.ExecutionException;
 
 /**
  * Enumeration of types of messages that typically have no body.
@@ -121,10 +120,9 @@ public enum EmptyMessageType
         value = newValue;
     }
 
-    private static Element parseWithSAX(String xmlString) throws DocumentException
+    private static Element parseWithSAX(String xmlString) throws ExecutionException, InterruptedException
     {
-        SAXReader xmlReader = new SAXReader();
-        return xmlReader.read(new ByteArrayInputStream(xmlString.getBytes())).getRootElement();
+        return SAXReaderUtil.readRootElement(xmlString);
     }
 
     public static EmptyMessageType getMessageType(String stanza)
