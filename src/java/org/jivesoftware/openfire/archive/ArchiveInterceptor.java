@@ -16,7 +16,6 @@
 
 package org.jivesoftware.openfire.archive;
 
-import org.jivesoftware.openfire.archive.EmptyMessageUtils.EmptyMessageType;
 import org.jivesoftware.openfire.cluster.ClusterManager;
 import org.jivesoftware.openfire.interceptor.InterceptorManager;
 import org.jivesoftware.openfire.interceptor.PacketInterceptor;
@@ -100,11 +99,11 @@ public class ArchiveInterceptor implements PacketInterceptor {
                         }
                         else
                         {
-                            EmptyMessageType emptyMessageType = EmptyMessageUtils.getMessageType(message.getElement()); 
+                            EmptyMessageType emptyMessageType = EmptyMessageType.getMessageType(message.getElement());
 
                             long bitmask = conversationManager.getSpeficifEmptyMessageArchivingEnabled();
 
-                            if (emptyMessageType!=EmptyMessageType.TYPE_TO_IGNORE && (bitmask & emptyMessageType.getValue()) == emptyMessageType.getValue())
+                            if (emptyMessageType!=EmptyMessageType.IGNORE && (bitmask & emptyMessageType.getValue()) == emptyMessageType.getValue())
                             {
                                 eventsQueue.addChatEvent(conversationManager.getConversationKey(sender, receiver),
                                     ConversationEvent.getEmptyMessageReceivedEvent(sender, receiver,

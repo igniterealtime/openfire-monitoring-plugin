@@ -24,7 +24,6 @@ import org.dom4j.Element;
 import org.jivesoftware.database.DbConnectionManager;
 import org.jivesoftware.openfire.XMPPServer;
 import org.jivesoftware.openfire.XMPPServerInfo;
-import org.jivesoftware.openfire.archive.EmptyMessageUtils.EmptyMessageType;
 import org.jivesoftware.openfire.archive.cluster.GetConversationCountTask;
 import org.jivesoftware.openfire.archive.cluster.GetConversationTask;
 import org.jivesoftware.openfire.archive.cluster.GetConversationsTask;
@@ -870,11 +869,11 @@ public class ConversationManager implements ComponentEventListener{
                 }
                 else
                     if (isEmptyMessageArchivingEnabled()) {
-                        EmptyMessageType emptyMessageType = EmptyMessageUtils.getMessageType(stanza);
+                        EmptyMessageType emptyMessageType = EmptyMessageType.getMessageType(stanza);
 
                         long bitmask = getSpeficifEmptyMessageArchivingEnabled();
 
-                        if (emptyMessageType!=EmptyMessageType.TYPE_TO_IGNORE && (bitmask & emptyMessageType.getValue()) == emptyMessageType.getValue())
+                        if (emptyMessageType!=EmptyMessageType.IGNORE && (bitmask & emptyMessageType.getValue()) == emptyMessageType.getValue())
                         {
                             messageArchiver.archive(new ArchivedMessage(conversation.getConversationID(), sender, receiver, date, body, stanza, false, null) );
                         }
@@ -946,11 +945,11 @@ public class ConversationManager implements ComponentEventListener{
                 }
                 else
                 if (isEmptyMessageArchivingForMUCEnabled()) {
-                    EmptyMessageType emptyMessageType = EmptyMessageUtils.getMessageType(stanza);
+                    EmptyMessageType emptyMessageType = EmptyMessageType.getMessageType(stanza);
 
                     long bitmask = getSpeficifEmptyMessageArchivingForMUCEnabled();
 
-                    if (emptyMessageType!=EmptyMessageType.TYPE_TO_IGNORE && (bitmask & emptyMessageType.getValue()) == emptyMessageType.getValue())
+                    if (emptyMessageType!=EmptyMessageType.IGNORE && (bitmask & emptyMessageType.getValue()) == emptyMessageType.getValue())
                     {
                         messageArchiver.archive( new ArchivedMessage(conversation.getConversationID(), sender, jid, date, body, roomArchivingStanzasEnabled ? stanza : "", false, receiverIfPM));
                     }

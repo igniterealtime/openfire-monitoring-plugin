@@ -1,8 +1,7 @@
 <%@ page contentType="text/html; charset=UTF-8" %>
 <%@ page errorPage="/error.jsp" %>
 <%@ page import="org.jivesoftware.openfire.plugin.MonitoringPlugin"%>
-<%@ page import="org.jivesoftware.openfire.archive.ArchiveIndexer" %>
-<%@ page import="org.jivesoftware.openfire.archive.ConversationManager, org.jivesoftware.util.ByteFormat, org.jivesoftware.util.ParamUtils" %>
+<%@ page import="org.jivesoftware.util.ByteFormat, org.jivesoftware.util.ParamUtils" %>
 <%@ page import="org.jivesoftware.openfire.XMPPServer" %>
 <%@ page import="org.jivesoftware.util.StringUtils" %>
 <%@ page import="org.jivesoftware.util.CookieUtils" %>
@@ -14,9 +13,8 @@
 <%@ page import="org.jivesoftware.openfire.plugin.service.LogAPI" %>
 <%@ page import="org.jivesoftware.openfire.http.HttpBindManager" %>
 <%@ page import="com.reucon.openfire.plugin.archive.impl.MessageIndexer" %>
-<%@ page import="org.jivesoftware.openfire.archive.MonitoringConstants" %>
 <%@ page import="org.jivesoftware.openfire.cluster.ClusterManager" %>
-<%@ page import="org.jivesoftware.openfire.archive.EmptyMessageUtils" %>
+<%@ page import="org.jivesoftware.openfire.archive.*" %>
 
 <%@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c" %>
 <%@ taglib uri="http://java.sun.com/jsp/jstl/fmt" prefix="fmt" %>
@@ -474,31 +472,31 @@
                         </div>
                         <div id="selectBitmask">
                           <label for="b1">
-                            <input type="checkbox" id="b1" value="1" name="bitmask[]" <%= ((bitmaskEmptyMsg & EmptyMessageUtils.EmptyMessageType.TYPE_UNKNOWN.getValue())==EmptyMessageUtils.EmptyMessageType.TYPE_UNKNOWN.getValue()) ? "checked" : ""%> /><fmt:message key="archive.settings.empty.unknownmessages"/></label>
+                            <input type="checkbox" id="b1" value="1" name="bitmask[]" <%= ((bitmaskEmptyMsg & EmptyMessageType.UNKNOWN.getValue())== EmptyMessageType.UNKNOWN.getValue()) ? "checked" : ""%> /><fmt:message key="archive.settings.empty.unknownmessages"/></label>
                           <label for="b2">
-                            <input type="checkbox" id="b2" value="2" name="bitmask[]" <%= ((bitmaskEmptyMsg & EmptyMessageUtils.EmptyMessageType.TYPE_CHATMARKER_MARKABLE.getValue())==EmptyMessageUtils.EmptyMessageType.TYPE_CHATMARKER_MARKABLE.getValue()) ? "checked" : ""%> /><fmt:message key="archive.settings.empty.chatmarker_type_markable"/></label>
+                            <input type="checkbox" id="b2" value="2" name="bitmask[]" <%= ((bitmaskEmptyMsg & EmptyMessageType.CHATMARKER_MARKABLE.getValue())== EmptyMessageType.CHATMARKER_MARKABLE.getValue()) ? "checked" : ""%> /><fmt:message key="archive.settings.empty.chatmarker_type_markable"/></label>
                           <label for="b4">
-                            <input type="checkbox" id="b4" value="4" name="bitmask[]" <%= ((bitmaskEmptyMsg & EmptyMessageUtils.EmptyMessageType.TYPE_CHATMARKER_RECEIVED.getValue())==EmptyMessageUtils.EmptyMessageType.TYPE_CHATMARKER_RECEIVED.getValue()) ? "checked" : ""%> /><fmt:message key="archive.settings.empty.chatmarker_type_received"/></label>
+                            <input type="checkbox" id="b4" value="4" name="bitmask[]" <%= ((bitmaskEmptyMsg & EmptyMessageType.CHATMARKER_RECEIVED.getValue())== EmptyMessageType.CHATMARKER_RECEIVED.getValue()) ? "checked" : ""%> /><fmt:message key="archive.settings.empty.chatmarker_type_received"/></label>
                           <label for="b8">
-                            <input type="checkbox" id="b8" value="8" name="bitmask[]" <%= ((bitmaskEmptyMsg & EmptyMessageUtils.EmptyMessageType.TYPE_CHATMARKER_DISPLAYED.getValue())==EmptyMessageUtils.EmptyMessageType.TYPE_CHATMARKER_DISPLAYED.getValue()) ? "checked" : ""%> /><fmt:message key="archive.settings.empty.chatmarker_type_displayed"/></label>
+                            <input type="checkbox" id="b8" value="8" name="bitmask[]" <%= ((bitmaskEmptyMsg & EmptyMessageType.CHATMARKER_DISPLAYED.getValue())== EmptyMessageType.CHATMARKER_DISPLAYED.getValue()) ? "checked" : ""%> /><fmt:message key="archive.settings.empty.chatmarker_type_displayed"/></label>
                           <label for="b16">
-                            <input type="checkbox" id="b16" value="16" name="bitmask[]" <%= ((bitmaskEmptyMsg & EmptyMessageUtils.EmptyMessageType.TYPE_CHATMARKER_ACKNOWLEDGED.getValue())==EmptyMessageUtils.EmptyMessageType.TYPE_CHATMARKER_ACKNOWLEDGED.getValue()) ? "checked" : ""%> /><fmt:message key="archive.settings.empty.chatmarker_type_acknowledged"/></label>
+                            <input type="checkbox" id="b16" value="16" name="bitmask[]" <%= ((bitmaskEmptyMsg & EmptyMessageType.CHATMARKER_ACKNOWLEDGED.getValue())== EmptyMessageType.CHATMARKER_ACKNOWLEDGED.getValue()) ? "checked" : ""%> /><fmt:message key="archive.settings.empty.chatmarker_type_acknowledged"/></label>
                           <label for="b32">
-                            <input type="checkbox" id="b32" value="32" name="bitmask[]" <%= ((bitmaskEmptyMsg & EmptyMessageUtils.EmptyMessageType.TYPE_MESSAGE_RETRACTION.getValue())==EmptyMessageUtils.EmptyMessageType.TYPE_MESSAGE_RETRACTION.getValue()) ? "checked" : ""%>  /><fmt:message key="archive.settings.empty.retraction"/></label>
+                            <input type="checkbox" id="b32" value="32" name="bitmask[]" <%= ((bitmaskEmptyMsg & EmptyMessageType.MESSAGE_RETRACTION.getValue())== EmptyMessageType.MESSAGE_RETRACTION.getValue()) ? "checked" : ""%>  /><fmt:message key="archive.settings.empty.retraction"/></label>
                           <label for="b64">
-                            <input type="checkbox" id="b64" value="64" name="bitmask[]" <%= ((bitmaskEmptyMsg & EmptyMessageUtils.EmptyMessageType.TYPE_CHATSTATE_NOTIFICATION_ACTIVE.getValue())==EmptyMessageUtils.EmptyMessageType.TYPE_CHATSTATE_NOTIFICATION_ACTIVE.getValue()) ? "checked" : ""%> /><fmt:message key="archive.settings.empty.chatstate_notification_active"/></label>
+                            <input type="checkbox" id="b64" value="64" name="bitmask[]" <%= ((bitmaskEmptyMsg & EmptyMessageType.CHATSTATE_NOTIFICATION_ACTIVE.getValue())== EmptyMessageType.CHATSTATE_NOTIFICATION_ACTIVE.getValue()) ? "checked" : ""%> /><fmt:message key="archive.settings.empty.chatstate_notification_active"/></label>
                           <label for="b128">
-                            <input type="checkbox" id="b128" value="128" name="bitmask[]" <%= ((bitmaskEmptyMsg & EmptyMessageUtils.EmptyMessageType.TYPE_CHATSTATE_NOTIFICATION_COMPOSING.getValue())==EmptyMessageUtils.EmptyMessageType.TYPE_CHATSTATE_NOTIFICATION_COMPOSING.getValue()) ? "checked" : ""%> /><fmt:message key="archive.settings.empty.chatstate_notification_inactive"/></label>
+                            <input type="checkbox" id="b128" value="128" name="bitmask[]" <%= ((bitmaskEmptyMsg & EmptyMessageType.CHATSTATE_NOTIFICATION_COMPOSING.getValue())== EmptyMessageType.CHATSTATE_NOTIFICATION_COMPOSING.getValue()) ? "checked" : ""%> /><fmt:message key="archive.settings.empty.chatstate_notification_inactive"/></label>
                           <label for="b256">
-                            <input type="checkbox" id="b256" value="256" name="bitmask[]" <%= ((bitmaskEmptyMsg & EmptyMessageUtils.EmptyMessageType.TYPE_CHATSTATE_NOTIFICATION_PAUSED.getValue())==EmptyMessageUtils.EmptyMessageType.TYPE_CHATSTATE_NOTIFICATION_PAUSED.getValue()) ? "checked" : ""%> /><fmt:message key="archive.settings.empty.chatstate_notification_composing"/></label>
+                            <input type="checkbox" id="b256" value="256" name="bitmask[]" <%= ((bitmaskEmptyMsg & EmptyMessageType.CHATSTATE_NOTIFICATION_PAUSED.getValue())== EmptyMessageType.CHATSTATE_NOTIFICATION_PAUSED.getValue()) ? "checked" : ""%> /><fmt:message key="archive.settings.empty.chatstate_notification_composing"/></label>
                           <label for="b512">
-                            <input type="checkbox" id="b512" value="512" name="bitmask[]" <%= ((bitmaskEmptyMsg & EmptyMessageUtils.EmptyMessageType.TYPE_CHATSTATE_NOTIFICATION_INACTIVE.getValue())==EmptyMessageUtils.EmptyMessageType.TYPE_CHATSTATE_NOTIFICATION_INACTIVE.getValue()) ? "checked" : ""%> /><fmt:message key="archive.settings.empty.chatstate_notification_paused"/></label>
+                            <input type="checkbox" id="b512" value="512" name="bitmask[]" <%= ((bitmaskEmptyMsg & EmptyMessageType.CHATSTATE_NOTIFICATION_INACTIVE.getValue())== EmptyMessageType.CHATSTATE_NOTIFICATION_INACTIVE.getValue()) ? "checked" : ""%> /><fmt:message key="archive.settings.empty.chatstate_notification_paused"/></label>
                           <label for="b1024">
-                            <input type="checkbox" id="b1024" value="1024" name="bitmask[]" <%= ((bitmaskEmptyMsg & EmptyMessageUtils.EmptyMessageType.TYPE_CHATSTATE_NOTIFICATION_GONE.getValue())==EmptyMessageUtils.EmptyMessageType.TYPE_CHATSTATE_NOTIFICATION_GONE.getValue()) ? "checked" : ""%> /><fmt:message key="archive.settings.empty.chatstate_notification_gone"/></label>
+                            <input type="checkbox" id="b1024" value="1024" name="bitmask[]" <%= ((bitmaskEmptyMsg & EmptyMessageType.CHATSTATE_NOTIFICATION_GONE.getValue())== EmptyMessageType.CHATSTATE_NOTIFICATION_GONE.getValue()) ? "checked" : ""%> /><fmt:message key="archive.settings.empty.chatstate_notification_gone"/></label>
                           <label for="b2048">
-                            <input type="checkbox" id="b2048" value="2048" name="bitmask[]" <%= ((bitmaskEmptyMsg & EmptyMessageUtils.EmptyMessageType.TYPE_MESSAGE_DELIVERY_RECEIPTS_RECEIVED.getValue())==EmptyMessageUtils.EmptyMessageType.TYPE_MESSAGE_DELIVERY_RECEIPTS_RECEIVED.getValue()) ? "checked" : ""%> /><fmt:message key="archive.settings.empty.message_delivery_receipts_received"/></label>
+                            <input type="checkbox" id="b2048" value="2048" name="bitmask[]" <%= ((bitmaskEmptyMsg & EmptyMessageType.MESSAGE_DELIVERY_RECEIPTS_RECEIVED.getValue())== EmptyMessageType.MESSAGE_DELIVERY_RECEIPTS_RECEIVED.getValue()) ? "checked" : ""%> /><fmt:message key="archive.settings.empty.message_delivery_receipts_received"/></label>
                           <label for="b4096">
-                            <input type="checkbox" id="b4096" value="4096" name="bitmask[]" <%= ((bitmaskEmptyMsg & EmptyMessageUtils.EmptyMessageType.TYPE_MESSAGE_DELIVERY_RECEIPTS_REQUEST.getValue())==EmptyMessageUtils.EmptyMessageType.TYPE_MESSAGE_DELIVERY_RECEIPTS_REQUEST.getValue()) ? "checked" : ""%> /><fmt:message key="archive.settings.empty.message_delivery_receipts_request"/></label>
+                            <input type="checkbox" id="b4096" value="4096" name="bitmask[]" <%= ((bitmaskEmptyMsg & EmptyMessageType.MESSAGE_DELIVERY_RECEIPTS_REQUEST.getValue())== EmptyMessageType.MESSAGE_DELIVERY_RECEIPTS_REQUEST.getValue()) ? "checked" : ""%> /><fmt:message key="archive.settings.empty.message_delivery_receipts_request"/></label>
                         </div>
                       </div>
                     </td>
@@ -523,31 +521,31 @@
                         </div>
                         <div id="selectBitmaskMUC">
                           <label for="a1">
-                            <input type="checkbox" id="a1" value="1"name="bitmaskmuc[]" <%= ((bitmaskEmptyMsgMUC & EmptyMessageUtils.EmptyMessageType.TYPE_UNKNOWN.getValue())==EmptyMessageUtils.EmptyMessageType.TYPE_UNKNOWN.getValue()) ? "checked" : ""%> /><fmt:message key="archive.settings.empty.unknownmessages"/></label>
+                            <input type="checkbox" id="a1" value="1"name="bitmaskmuc[]" <%= ((bitmaskEmptyMsgMUC & EmptyMessageType.UNKNOWN.getValue())== EmptyMessageType.UNKNOWN.getValue()) ? "checked" : ""%> /><fmt:message key="archive.settings.empty.unknownmessages"/></label>
                           <label for="a2">
-                            <input type="checkbox" id="a2" value="2"name="bitmaskmuc[]" <%= ((bitmaskEmptyMsgMUC & EmptyMessageUtils.EmptyMessageType.TYPE_CHATMARKER_MARKABLE.getValue())==EmptyMessageUtils.EmptyMessageType.TYPE_CHATMARKER_MARKABLE.getValue()) ? "checked" : ""%> /><fmt:message key="archive.settings.empty.chatmarker_type_markable"/></label>
+                            <input type="checkbox" id="a2" value="2"name="bitmaskmuc[]" <%= ((bitmaskEmptyMsgMUC & EmptyMessageType.CHATMARKER_MARKABLE.getValue())== EmptyMessageType.CHATMARKER_MARKABLE.getValue()) ? "checked" : ""%> /><fmt:message key="archive.settings.empty.chatmarker_type_markable"/></label>
                           <label for="a4">
-                            <input type="checkbox" id="a4" value="4"name="bitmaskmuc[]" <%= ((bitmaskEmptyMsgMUC & EmptyMessageUtils.EmptyMessageType.TYPE_CHATMARKER_RECEIVED.getValue())==EmptyMessageUtils.EmptyMessageType.TYPE_CHATMARKER_RECEIVED.getValue()) ? "checked" : ""%> /><fmt:message key="archive.settings.empty.chatmarker_type_received"/></label>
+                            <input type="checkbox" id="a4" value="4"name="bitmaskmuc[]" <%= ((bitmaskEmptyMsgMUC & EmptyMessageType.CHATMARKER_RECEIVED.getValue())== EmptyMessageType.CHATMARKER_RECEIVED.getValue()) ? "checked" : ""%> /><fmt:message key="archive.settings.empty.chatmarker_type_received"/></label>
                           <label for="a8">
-                            <input type="checkbox" id="a8" value="8"name="bitmaskmuc[]" <%= ((bitmaskEmptyMsgMUC & EmptyMessageUtils.EmptyMessageType.TYPE_CHATMARKER_DISPLAYED.getValue())==EmptyMessageUtils.EmptyMessageType.TYPE_CHATMARKER_DISPLAYED.getValue()) ? "checked" : ""%> /><fmt:message key="archive.settings.empty.chatmarker_type_displayed"/></label>
+                            <input type="checkbox" id="a8" value="8"name="bitmaskmuc[]" <%= ((bitmaskEmptyMsgMUC & EmptyMessageType.CHATMARKER_DISPLAYED.getValue())== EmptyMessageType.CHATMARKER_DISPLAYED.getValue()) ? "checked" : ""%> /><fmt:message key="archive.settings.empty.chatmarker_type_displayed"/></label>
                           <label for="a16">
-                            <input type="checkbox" id="a16" value="16"name="bitmaskmuc[]" <%= ((bitmaskEmptyMsgMUC & EmptyMessageUtils.EmptyMessageType.TYPE_CHATMARKER_ACKNOWLEDGED.getValue())==EmptyMessageUtils.EmptyMessageType.TYPE_CHATMARKER_ACKNOWLEDGED.getValue()) ? "checked" : ""%> /><fmt:message key="archive.settings.empty.chatmarker_type_acknowledged"/></label>
+                            <input type="checkbox" id="a16" value="16"name="bitmaskmuc[]" <%= ((bitmaskEmptyMsgMUC & EmptyMessageType.CHATMARKER_ACKNOWLEDGED.getValue())== EmptyMessageType.CHATMARKER_ACKNOWLEDGED.getValue()) ? "checked" : ""%> /><fmt:message key="archive.settings.empty.chatmarker_type_acknowledged"/></label>
                           <label for="a32">
-                            <input type="checkbox" id="a32" value="32"name="bitmaskmuc[]" <%= ((bitmaskEmptyMsgMUC & EmptyMessageUtils.EmptyMessageType.TYPE_MESSAGE_RETRACTION.getValue())==EmptyMessageUtils.EmptyMessageType.TYPE_MESSAGE_RETRACTION.getValue()) ? "checked" : ""%>  /><fmt:message key="archive.settings.empty.retraction"/></label>
+                            <input type="checkbox" id="a32" value="32"name="bitmaskmuc[]" <%= ((bitmaskEmptyMsgMUC & EmptyMessageType.MESSAGE_RETRACTION.getValue())== EmptyMessageType.MESSAGE_RETRACTION.getValue()) ? "checked" : ""%>  /><fmt:message key="archive.settings.empty.retraction"/></label>
                           <label for="a64">
-                            <input type="checkbox" id="a64" value="64"name="bitmaskmuc[]" <%= ((bitmaskEmptyMsgMUC & EmptyMessageUtils.EmptyMessageType.TYPE_CHATSTATE_NOTIFICATION_ACTIVE.getValue())==EmptyMessageUtils.EmptyMessageType.TYPE_CHATSTATE_NOTIFICATION_ACTIVE.getValue()) ? "checked" : ""%> /><fmt:message key="archive.settings.empty.chatstate_notification_active"/></label>
+                            <input type="checkbox" id="a64" value="64"name="bitmaskmuc[]" <%= ((bitmaskEmptyMsgMUC & EmptyMessageType.CHATSTATE_NOTIFICATION_ACTIVE.getValue())== EmptyMessageType.CHATSTATE_NOTIFICATION_ACTIVE.getValue()) ? "checked" : ""%> /><fmt:message key="archive.settings.empty.chatstate_notification_active"/></label>
                           <label for="a128">
-                            <input type="checkbox" id="a128" value="128"name="bitmaskmuc[]" <%= ((bitmaskEmptyMsgMUC & EmptyMessageUtils.EmptyMessageType.TYPE_CHATSTATE_NOTIFICATION_COMPOSING.getValue())==EmptyMessageUtils.EmptyMessageType.TYPE_CHATSTATE_NOTIFICATION_COMPOSING.getValue()) ? "checked" : ""%> /><fmt:message key="archive.settings.empty.chatstate_notification_inactive"/></label>
+                            <input type="checkbox" id="a128" value="128"name="bitmaskmuc[]" <%= ((bitmaskEmptyMsgMUC & EmptyMessageType.CHATSTATE_NOTIFICATION_COMPOSING.getValue())== EmptyMessageType.CHATSTATE_NOTIFICATION_COMPOSING.getValue()) ? "checked" : ""%> /><fmt:message key="archive.settings.empty.chatstate_notification_inactive"/></label>
                           <label for="a256">
-                            <input type="checkbox" id="a256" value="256"name="bitmaskmuc[]" <%= ((bitmaskEmptyMsgMUC & EmptyMessageUtils.EmptyMessageType.TYPE_CHATSTATE_NOTIFICATION_PAUSED.getValue())==EmptyMessageUtils.EmptyMessageType.TYPE_CHATSTATE_NOTIFICATION_PAUSED.getValue()) ? "checked" : ""%> /><fmt:message key="archive.settings.empty.chatstate_notification_composing"/></label>
+                            <input type="checkbox" id="a256" value="256"name="bitmaskmuc[]" <%= ((bitmaskEmptyMsgMUC & EmptyMessageType.CHATSTATE_NOTIFICATION_PAUSED.getValue())== EmptyMessageType.CHATSTATE_NOTIFICATION_PAUSED.getValue()) ? "checked" : ""%> /><fmt:message key="archive.settings.empty.chatstate_notification_composing"/></label>
                           <label for="a512">
-                            <input type="checkbox" id="a512" value="512"name="bitmaskmuc[]" <%= ((bitmaskEmptyMsgMUC & EmptyMessageUtils.EmptyMessageType.TYPE_CHATSTATE_NOTIFICATION_INACTIVE.getValue())==EmptyMessageUtils.EmptyMessageType.TYPE_CHATSTATE_NOTIFICATION_INACTIVE.getValue()) ? "checked" : ""%> /><fmt:message key="archive.settings.empty.chatstate_notification_paused"/></label>
+                            <input type="checkbox" id="a512" value="512"name="bitmaskmuc[]" <%= ((bitmaskEmptyMsgMUC & EmptyMessageType.CHATSTATE_NOTIFICATION_INACTIVE.getValue())== EmptyMessageType.CHATSTATE_NOTIFICATION_INACTIVE.getValue()) ? "checked" : ""%> /><fmt:message key="archive.settings.empty.chatstate_notification_paused"/></label>
                           <label for="a1024">
-                            <input type="checkbox" id="a1024" value="1024" name="bitmaskmuc[]" <%= ((bitmaskEmptyMsgMUC & EmptyMessageUtils.EmptyMessageType.TYPE_CHATSTATE_NOTIFICATION_GONE.getValue())==EmptyMessageUtils.EmptyMessageType.TYPE_CHATSTATE_NOTIFICATION_GONE.getValue()) ? "checked" : ""%> /><fmt:message key="archive.settings.empty.chatstate_notification_gone"/></label>
+                            <input type="checkbox" id="a1024" value="1024" name="bitmaskmuc[]" <%= ((bitmaskEmptyMsgMUC & EmptyMessageType.CHATSTATE_NOTIFICATION_GONE.getValue())== EmptyMessageType.CHATSTATE_NOTIFICATION_GONE.getValue()) ? "checked" : ""%> /><fmt:message key="archive.settings.empty.chatstate_notification_gone"/></label>
                           <label for="a2048">
-                            <input type="checkbox" id="a2048" value="2048"name="bitmaskmuc[]" <%= ((bitmaskEmptyMsgMUC & EmptyMessageUtils.EmptyMessageType.TYPE_MESSAGE_DELIVERY_RECEIPTS_RECEIVED.getValue())==EmptyMessageUtils.EmptyMessageType.TYPE_MESSAGE_DELIVERY_RECEIPTS_RECEIVED.getValue()) ? "checked" : ""%> /><fmt:message key="archive.settings.empty.message_delivery_receipts_received"/></label>
+                            <input type="checkbox" id="a2048" value="2048"name="bitmaskmuc[]" <%= ((bitmaskEmptyMsgMUC & EmptyMessageType.MESSAGE_DELIVERY_RECEIPTS_RECEIVED.getValue())== EmptyMessageType.MESSAGE_DELIVERY_RECEIPTS_RECEIVED.getValue()) ? "checked" : ""%> /><fmt:message key="archive.settings.empty.message_delivery_receipts_received"/></label>
                           <label for="a4096">
-                            <input type="checkbox" id="a4096" value="4096" name="bitmaskmuc[]" <%= ((bitmaskEmptyMsgMUC & EmptyMessageUtils.EmptyMessageType.TYPE_MESSAGE_DELIVERY_RECEIPTS_REQUEST.getValue())==EmptyMessageUtils.EmptyMessageType.TYPE_MESSAGE_DELIVERY_RECEIPTS_REQUEST.getValue()) ? "checked" : ""%> /><fmt:message key="archive.settings.empty.message_delivery_receipts_request"/></label>
+                            <input type="checkbox" id="a4096" value="4096" name="bitmaskmuc[]" <%= ((bitmaskEmptyMsgMUC & EmptyMessageType.MESSAGE_DELIVERY_RECEIPTS_REQUEST.getValue())== EmptyMessageType.MESSAGE_DELIVERY_RECEIPTS_REQUEST.getValue()) ? "checked" : ""%> /><fmt:message key="archive.settings.empty.message_delivery_receipts_request"/></label>
                         </div>
                       </div>
                     </td></tr>

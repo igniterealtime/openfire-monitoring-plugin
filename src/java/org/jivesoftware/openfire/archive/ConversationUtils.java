@@ -40,7 +40,6 @@ import com.itextpdf.layout.element.Text;
 import com.itextpdf.layout.properties.Leading;
 import com.itextpdf.layout.properties.Property;
 import org.jivesoftware.openfire.XMPPServer;
-import org.jivesoftware.openfire.archive.EmptyMessageUtils.EmptyMessageType;
 import org.jivesoftware.openfire.plugin.MonitoringPlugin;
 import org.jivesoftware.openfire.user.UserManager;
 import org.jivesoftware.util.JiveGlobals;
@@ -224,39 +223,39 @@ public class ConversationUtils {
 
                 if (body==null&&OUTPUT_EMPTY_MESSAGES.getValue())
                 {
-                    switch (EmptyMessageUtils.getMessageType(message.getStanza()))
+                    switch (EmptyMessageType.getMessageType(message.getStanza()))
                     {
-                        case TYPE_CHATMARKER_MARKABLE:
+                        case CHATMARKER_MARKABLE:
                                 bodyLessText="--message markable--";
                             break;
-                        case TYPE_CHATMARKER_RECEIVED:
+                        case CHATMARKER_RECEIVED:
                                 bodyLessText="--message received XEP-0333 --";
                             break;
-                        case TYPE_MESSAGE_DELIVERY_RECEIPTS_RECEIVED:
+                        case MESSAGE_DELIVERY_RECEIPTS_RECEIVED:
                                 bodyLessText="--message received XEP-0184 --";
                             break;
-                        case TYPE_CHATMARKER_DISPLAYED:
+                        case CHATMARKER_DISPLAYED:
                                 bodyLessText="--message displayed--";
                             break;
-                        case TYPE_CHATMARKER_ACKNOWLEDGED:
+                        case CHATMARKER_ACKNOWLEDGED:
                                 bodyLessText="--message acknowleged--";
                             break;
-                        case TYPE_MESSAGE_RETRACTION:
+                        case MESSAGE_RETRACTION:
                                 bodyLessText="--message retraction: "+message.getStanza()+"--";
                             break;
-                        case TYPE_CHATSTATE_NOTIFICATION_ACTIVE:
+                        case CHATSTATE_NOTIFICATION_ACTIVE:
                                 bodyLessText="--chatstate notification: active --";
                             break;
-                        case TYPE_CHATSTATE_NOTIFICATION_COMPOSING:
+                        case CHATSTATE_NOTIFICATION_COMPOSING:
                                 bodyLessText="--chatstate notification: composing --";
                             break;
-                        case TYPE_CHATSTATE_NOTIFICATION_PAUSED:
+                        case CHATSTATE_NOTIFICATION_PAUSED:
                                 bodyLessText="--chatstate notification: paused --";
                             break;
-                        case TYPE_CHATSTATE_NOTIFICATION_INACTIVE:
+                        case CHATSTATE_NOTIFICATION_INACTIVE:
                                 bodyLessText="--chatstate notification: inactive --";
                             break;
-                        case TYPE_CHATSTATE_NOTIFICATION_GONE:
+                        case CHATSTATE_NOTIFICATION_GONE:
                                 bodyLessText="--chatstate notification: gone --";
                             break;
                         default:
@@ -383,39 +382,39 @@ public class ConversationUtils {
 
             if (body==null&&OUTPUT_EMPTY_MESSAGES.getValue())
             {
-                switch (EmptyMessageUtils.getMessageType(message.getStanza()))
+                switch (EmptyMessageType.getMessageType(message.getStanza()))
                 {
-                    case TYPE_CHATMARKER_MARKABLE:
+                    case CHATMARKER_MARKABLE:
                             bodyLessText="--message markable--";
                         break;
-                    case TYPE_CHATMARKER_RECEIVED:
+                    case CHATMARKER_RECEIVED:
                             bodyLessText="--message received XEP-0333 --";
                         break;
-                    case TYPE_MESSAGE_DELIVERY_RECEIPTS_RECEIVED:
+                    case MESSAGE_DELIVERY_RECEIPTS_RECEIVED:
                             bodyLessText="--message received XEP-0184 --";
                         break;
-                    case TYPE_CHATMARKER_DISPLAYED:
+                    case CHATMARKER_DISPLAYED:
                             bodyLessText="--message displayed--";
                         break;
-                    case TYPE_CHATMARKER_ACKNOWLEDGED:
+                    case CHATMARKER_ACKNOWLEDGED:
                             bodyLessText="--message acknowleged--";
                         break;
-                    case TYPE_MESSAGE_RETRACTION:
+                    case MESSAGE_RETRACTION:
                             bodyLessText="--message retraction: "+message.getStanza()+"--";
                         break;
-                    case TYPE_CHATSTATE_NOTIFICATION_ACTIVE:
+                    case CHATSTATE_NOTIFICATION_ACTIVE:
                             bodyLessText="--chatstate notification: active --";
                         break;
-                    case TYPE_CHATSTATE_NOTIFICATION_COMPOSING:
+                    case CHATSTATE_NOTIFICATION_COMPOSING:
                             bodyLessText="--chatstate notification: composing --";
                         break;
-                    case TYPE_CHATSTATE_NOTIFICATION_PAUSED:
+                    case CHATSTATE_NOTIFICATION_PAUSED:
                             bodyLessText="--chatstate notification: paused --";
                         break;
-                    case TYPE_CHATSTATE_NOTIFICATION_INACTIVE:
+                    case CHATSTATE_NOTIFICATION_INACTIVE:
                             bodyLessText="--chatstate notification: inactive --";
                         break;
-                    case TYPE_CHATSTATE_NOTIFICATION_GONE:
+                    case CHATSTATE_NOTIFICATION_GONE:
                             bodyLessText="--chatstate notification: gone --";
                         break;
                     default:

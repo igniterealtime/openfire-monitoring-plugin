@@ -17,7 +17,6 @@
 package org.jivesoftware.openfire.archive;
 
 import org.jivesoftware.openfire.XMPPServer;
-import org.jivesoftware.openfire.archive.EmptyMessageUtils.EmptyMessageType;
 import org.jivesoftware.openfire.cluster.ClusterManager;
 import org.jivesoftware.openfire.muc.MUCEventDispatcher;
 import org.jivesoftware.openfire.muc.MUCEventListener;
@@ -157,11 +156,11 @@ public class GroupConversationInterceptor implements MUCEventListener {
             }
             else
             {
-                EmptyMessageType emptyMessageType = EmptyMessageUtils.getMessageType(message.getElement());
+                EmptyMessageType emptyMessageType = EmptyMessageType.getMessageType(message.getElement());
 
                 long bitmask = conversationManager.getSpeficifEmptyMessageArchivingForMUCEnabled();
 
-                if (emptyMessageType!=EmptyMessageType.TYPE_TO_IGNORE && (bitmask & emptyMessageType.getValue()) == emptyMessageType.getValue())
+                if (emptyMessageType!=EmptyMessageType.IGNORE && (bitmask & emptyMessageType.getValue()) == emptyMessageType.getValue())
                 {
                     ConversationEventsQueue eventsQueue = conversationManager.getConversationEventsQueue();
 
