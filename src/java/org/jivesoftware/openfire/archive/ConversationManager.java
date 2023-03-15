@@ -438,7 +438,7 @@ public class ConversationManager implements ComponentEventListener{
      * 
      * @return returns the bitmask which kind of body less messages will be saved
      */
-    public long getSpeficifEmptyMessageArchivingEnabled() {
+    public long getSpecificEmptyMessageArchivingEnabled() {
         return emptyMessageBitmask;
     }
 
@@ -447,7 +447,7 @@ public class ConversationManager implements ComponentEventListener{
      *
      * @return returns the bitmask which kind of body less muc messages will be saved
      */
-    public long getSpeficifEmptyMessageArchivingForMUCEnabled() {
+    public long getSpecificEmptyMessageArchivingForMUCEnabled() {
         return emptyMessageBitmaskMUC;
     }
 
@@ -871,7 +871,7 @@ public class ConversationManager implements ComponentEventListener{
                     if (isEmptyMessageArchivingEnabled()) {
                         EmptyMessageType emptyMessageType = EmptyMessageType.getMessageType(stanza);
 
-                        long bitmask = getSpeficifEmptyMessageArchivingEnabled();
+                        long bitmask = getSpecificEmptyMessageArchivingEnabled();
 
                         if (emptyMessageType!=EmptyMessageType.IGNORE && (bitmask & emptyMessageType.getValue()) == emptyMessageType.getValue())
                         {
@@ -947,7 +947,7 @@ public class ConversationManager implements ComponentEventListener{
                 if (isEmptyMessageArchivingForMUCEnabled()) {
                     EmptyMessageType emptyMessageType = EmptyMessageType.getMessageType(stanza);
 
-                    long bitmask = getSpeficifEmptyMessageArchivingForMUCEnabled();
+                    long bitmask = getSpecificEmptyMessageArchivingForMUCEnabled();
 
                     if (emptyMessageType!=EmptyMessageType.IGNORE && (bitmask & emptyMessageType.getValue()) == emptyMessageType.getValue())
                     {

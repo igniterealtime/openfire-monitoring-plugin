@@ -268,8 +268,8 @@
     Map<String, String> errors = new HashMap<>();
     String errorMessage = "";
 
-    long bitmaskEmptyMsg = conversationManager.getSpeficifEmptyMessageArchivingEnabled();
-    long bitmaskEmptyMsgMUC = conversationManager.getSpeficifEmptyMessageArchivingForMUCEnabled();
+    long bitmaskEmptyMsg = conversationManager.getSpecificEmptyMessageArchivingEnabled();
+    long bitmaskEmptyMsgMUC = conversationManager.getSpecificEmptyMessageArchivingForMUCEnabled();
 
     if ((rebuildIndex || update || updateLogSettings) && (csrfCookie == null || csrfParam == null || !csrfCookie.getValue().equals(csrfParam))) {
         rebuildIndex = false;

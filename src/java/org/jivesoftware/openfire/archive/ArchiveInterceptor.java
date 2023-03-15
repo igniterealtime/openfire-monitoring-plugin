@@ -101,7 +101,7 @@ public class ArchiveInterceptor implements PacketInterceptor {
                         {
                             EmptyMessageType emptyMessageType = EmptyMessageType.getMessageType(message.getElement());
 
-                            long bitmask = conversationManager.getSpeficifEmptyMessageArchivingEnabled();
+                            long bitmask = conversationManager.getSpecificEmptyMessageArchivingEnabled();
 
                             if (emptyMessageType!=EmptyMessageType.IGNORE && (bitmask & emptyMessageType.getValue()) == emptyMessageType.getValue())
                             {
