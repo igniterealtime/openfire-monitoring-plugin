@@ -156,6 +156,16 @@ public class ConversationEvent {
         return event;
     }
 
+    public static ConversationEvent emptyMessageReceivedEvent(JID sender, JID receiver, String stanza, Date date) {
+        ConversationEvent event = new ConversationEvent();
+        event.type = Type.chatMessageReceived;
+        event.sender = sender;
+        event.receiver = receiver;
+        event.date = date;
+        event.stanza=stanza;
+        return event;
+    }
+
     private enum Type {
         /**
          * Event triggered when a room was destroyed.
@@ -194,15 +204,5 @@ public class ConversationEvent {
     @Override
     public int hashCode() {
         return Objects.hash(type, date, body, stanza, sender, receiver, roomJID, user, nickname);
-    }
-
-    public static ConversationEvent getEmptyMessageReceivedEvent(JID sender, JID receiver, String stanza, Date date) {
-        ConversationEvent event = new ConversationEvent();
-        event.type = Type.chatMessageReceived;
-        event.sender = sender;
-        event.receiver = receiver;
-        event.date = date;
-        event.stanza=stanza;
-        return event;
     }
 }

@@ -159,7 +159,7 @@ public class GroupConversationInterceptor implements MUCEventListener {
                 ConversationEventsQueue eventsQueue = conversationManager.getConversationEventsQueue();
 
                 eventsQueue.addGroupChatEvent(conversationManager.getRoomConversationKey(roomJID),
-                    ConversationEvent.getEmptyMessageReceivedEvent(roomJID, user, message.toXML(), new Date()));
+                    ConversationEvent.emptyMessageReceivedEvent(roomJID, user, message.toXML(), new Date()));
             }
         }
     }

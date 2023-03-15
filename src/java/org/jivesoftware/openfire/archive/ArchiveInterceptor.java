@@ -100,7 +100,7 @@ public class ArchiveInterceptor implements PacketInterceptor {
                         else if (conversationManager.isEmptyMessageArchivingEnabledFor(message))
                         {
                             eventsQueue.addChatEvent(conversationManager.getConversationKey(sender, receiver),
-                                ConversationEvent.getEmptyMessageReceivedEvent(sender, receiver,
+                                ConversationEvent.emptyMessageReceivedEvent(sender, receiver,
                                         message.toXML(),
                                         new Date()));
                         }
