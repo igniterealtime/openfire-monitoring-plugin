@@ -60,8 +60,6 @@ public class ConversationEvent {
 
     private String nickname;
 
-    private EmptyMessageType emptyMessageType;
-
     /**
      * Do not use this constructor. It only exists for serialization purposes.
      */
@@ -198,12 +196,11 @@ public class ConversationEvent {
         return Objects.hash(type, date, body, stanza, sender, receiver, roomJID, user, nickname);
     }
 
-    public static ConversationEvent getEmptyMessageReceivedEvent(JID sender, JID receiver, EmptyMessageType emptyMessageType, String stanza, Date date) {
+    public static ConversationEvent getEmptyMessageReceivedEvent(JID sender, JID receiver, String stanza, Date date) {
         ConversationEvent event = new ConversationEvent();
         event.type = Type.chatMessageReceived;
         event.sender = sender;
         event.receiver = receiver;
-        event.emptyMessageType = emptyMessageType;
         event.date = date;
         event.stanza=stanza;
         return event;

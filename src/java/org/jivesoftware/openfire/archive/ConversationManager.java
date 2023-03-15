@@ -463,6 +463,54 @@ public class ConversationManager implements ComponentEventListener{
     }
 
     /**
+     * Checks if with the current configuration, message archiving should be enabled for the provided message stanza,
+     * assuming that it has no body. It does so by evaluating child elements of the stanza for occurrence of elements
+     * identified in {@link EmptyMessageType}.
+     *
+     * This method does not verify if the stanza indeed has no body.
+     *
+     * @param message the stanza to evaluate
+     * @return true if the stanza is eligible for archiving, otherwise false.
+     */
+    public boolean isEmptyMessageArchivingEnabledFor(final Message message)
+    {
+        if (!isEmptyMessageArchivingEnabled()) {
+            return false;
+        }
+
+        final EmptyMessageType emptyMessageType = EmptyMessageType.getMessageType(message.getElement());
+        if (emptyMessageType!=EmptyMessageType.IGNORE) {
+            return false;
+        }
+        final long bitmask = getSpecificEmptyMessageArchivingEnabled();
+        return (bitmask & emptyMessageType.getValue()) == emptyMessageType.getValue();
+    }
+
+    /**
+     * Checks if with the current configuration, message archiving should be enabled for the provided message stanza,
+     * assuming that it has no body. It does so by evaluating child elements of the stanza for occurrence of elements
+     * identified in {@link EmptyMessageType}.
+     *
+     * This method does not verify if the stanza indeed has no body.
+     *
+     * @param message the stanza to evaluate
+     * @return true if the stanza is eligible for archiving, otherwise false.
+     */
+    public boolean isEmptyMessageArchivingEnabledFor(final String message)
+    {
+        if (!isEmptyMessageArchivingEnabled()) {
+            return false;
+        }
+
+        final EmptyMessageType emptyMessageType = EmptyMessageType.getMessageType(message);
+        if (emptyMessageType!=EmptyMessageType.IGNORE) {
+            return false;
+        }
+        final long bitmask = getSpecificEmptyMessageArchivingEnabled();
+        return (bitmask & emptyMessageType.getValue()) == emptyMessageType.getValue();
+    }
+
+    /**
      * Sets whether message archiving is enabled. When enabled, all messages in conversations are stored in the database. Note: it's not possible for
      * meta-data archiving to be disabled when message archiving is enabled; enabling message archiving automatically enables meta-data archiving.
      *
@@ -864,20 +912,9 @@ public class ConversationManager implements ComponentEventListener{
                 conversationArchiver.archive(conversation);
             }
             if (messageArchivingEnabled) {
-                if (body != null) {
+                if ((body != null && !body.isEmpty()) || isEmptyMessageArchivingEnabledFor(stanza)) {
                     messageArchiver.archive(new ArchivedMessage(conversation.getConversationID(), sender, receiver, date, body, stanza, false, null) );
                 }
-                else
-                    if (isEmptyMessageArchivingEnabled()) {
-                        EmptyMessageType emptyMessageType = EmptyMessageType.getMessageType(stanza);
-
-                        long bitmask = getSpecificEmptyMessageArchivingEnabled();
-
-                        if (emptyMessageType!=EmptyMessageType.IGNORE && (bitmask & emptyMessageType.getValue()) == emptyMessageType.getValue())
-                        {
-                            messageArchiver.archive(new ArchivedMessage(conversation.getConversationID(), sender, receiver, date, body, stanza, false, null) );
-                        }
-                    }
             }
             // Notify listeners of the conversation update.
             for (ConversationListener listener : conversationListeners) {

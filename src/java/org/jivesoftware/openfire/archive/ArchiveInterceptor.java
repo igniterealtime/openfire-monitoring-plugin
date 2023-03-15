@@ -89,7 +89,7 @@ public class ArchiveInterceptor implements PacketInterceptor {
                         JID sender = message.getFrom();
                         JID receiver = message.getTo();
                         ConversationEventsQueue eventsQueue = conversationManager.getConversationEventsQueue();
-                        if (message.getBody()!=null)
+                        if (message.getBody() != null && !message.getBody().isEmpty())
                         {
                             eventsQueue.addChatEvent(conversationManager.getConversationKey(sender, receiver),
                                 ConversationEvent.chatMessageReceived(sender, receiver,
@@ -97,20 +97,12 @@ public class ArchiveInterceptor implements PacketInterceptor {
                                         conversationManager.isMessageArchivingEnabled() ? message.toXML() : null,
                                         new Date()));
                         }
-                        else
+                        else if (conversationManager.isEmptyMessageArchivingEnabledFor(message))
                         {
-                            EmptyMessageType emptyMessageType = EmptyMessageType.getMessageType(message.getElement());
-
-                            long bitmask = conversationManager.getSpecificEmptyMessageArchivingEnabled();
-
-                            if (emptyMessageType!=EmptyMessageType.IGNORE && (bitmask & emptyMessageType.getValue()) == emptyMessageType.getValue())
-                            {
-                                eventsQueue.addChatEvent(conversationManager.getConversationKey(sender, receiver),
-                                    ConversationEvent.getEmptyMessageReceivedEvent(sender, receiver,
-                                            emptyMessageType,
-                                            conversationManager.isMessageArchivingEnabled() ? message.toXML() : null,
-                                            new Date()));
-                            }
+                            eventsQueue.addChatEvent(conversationManager.getConversationKey(sender, receiver),
+                                ConversationEvent.getEmptyMessageReceivedEvent(sender, receiver,
+                                        message.toXML(),
+                                        new Date()));
                         }
                     }
                 }
