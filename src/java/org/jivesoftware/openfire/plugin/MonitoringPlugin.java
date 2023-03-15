@@ -64,7 +64,7 @@ public class MonitoringPlugin implements Plugin, PluginListener
     /**
      * The context root of the URL under which the public web endpoints are exposed.
      */
-    public static final String CONTEXT_ROOT = "monitoring";
+    public static final String CONTEXT_ROOT = "logs";
 
     private static final SystemProperty<Boolean> MOCK_VIEWER_ENABLED = SystemProperty.Builder.ofType( Boolean.class )
        .setKey("stats.mock.viewer" )
