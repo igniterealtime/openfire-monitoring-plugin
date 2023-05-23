@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008 Jive Software, 2022 Ignite Realtime Foundation. All rights reserved.
+ * Copyright (C) 2008 Jive Software, 2022-2023 Ignite Realtime Foundation. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -29,7 +29,6 @@ import org.apache.tomcat.SimpleInstanceManager;
 import org.eclipse.jetty.apache.jsp.JettyJasperInitializer;
 import org.eclipse.jetty.plus.annotation.ContainerInitializer;
 import org.eclipse.jetty.webapp.WebAppContext;
-import org.jivesoftware.admin.AuthCheckFilter;
 import org.jivesoftware.openfire.XMPPServer;
 import org.jivesoftware.openfire.archive.ArchiveIndexer;
 import org.jivesoftware.openfire.archive.ArchiveInterceptor;
@@ -77,11 +76,6 @@ public class MonitoringPlugin implements Plugin, PluginListener
        .setDynamic( true )
        .setPlugin(MonitoringConstants.PLUGIN_NAME)
        .build();
-
-    private final String[] publicResources = new String[]
-        {
-            CONTEXT_ROOT + "/*"
-        };
 
     private WebAppContext context = null;
 
@@ -292,12 +286,6 @@ public class MonitoringPlugin implements Plugin, PluginListener
 
     protected void loadPublicWeb(File pluginDirectory)
     {
-        Log.debug( "Excluding all public resources from the Authorization-Check filter." );
-        for ( final String publicResource : publicResources )
-        {
-            AuthCheckFilter.addExclude(publicResource );
-        }
-
         Log.debug( "Adding the public web sources to the same context as the one that's providing the BOSH interface." );
         context = new WebAppContext( null, pluginDirectory.getPath() + File.separator + "classes/", "/" + CONTEXT_ROOT );
         context.setClassLoader( this.getClass().getClassLoader() );
@@ -319,12 +307,6 @@ public class MonitoringPlugin implements Plugin, PluginListener
             HttpBindManager.getInstance().removeJettyHandler( context );
             context.destroy();
             context = null;
-        }
-
-        for ( final String publicResource : publicResources )
-        {
-            Log.debug( "Removing Authorization-Check filter exemptions." );
-            AuthCheckFilter.removeExclude( publicResource );
         }
     }
 
