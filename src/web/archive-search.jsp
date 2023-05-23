@@ -13,11 +13,23 @@
 <%@ page import="com.reucon.openfire.plugin.archive.xep.AbstractXepSupport" %>
 <%@ page import="org.jivesoftware.openfire.archive.*" %>
 <%@ page import="org.jivesoftware.openfire.cluster.ClusterManager" %>
+<%@ page import="org.jivesoftware.openfire.archive.ConversationUtils" %>
 
 <%@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c" %>
 <%@ taglib uri="http://java.sun.com/jsp/jstl/fmt" prefix="fmt" %>
 <%
     Logger logger = LoggerFactory.getLogger("archive-search-jsp");
+
+    boolean update = request.getParameter("update") != null;
+
+    boolean outputEmptymessages = ParamUtils.getParameter(request,"outputEmptymessages")!=null&&ParamUtils.getParameter(request,"outputEmptymessages").equals("on")?true:false;
+
+    if (update) {
+        ConversationUtils.OUTPUT_EMPTY_MESSAGES.setValue(outputEmptymessages);
+    }
+
+    // Set page vars
+    outputEmptymessages = ConversationUtils.OUTPUT_EMPTY_MESSAGES.getValue();
 
     // Get handle on the Monitoring plugin
     MonitoringPlugin plugin = (MonitoringPlugin) XMPPServer.getInstance().getPluginManager().getPluginByName(MonitoringConstants.PLUGIN_NAME).get();
@@ -496,6 +508,30 @@
 
 <dialog id="occupants"></dialog>
 
+<form action="archive-search.jsp">
+    <div class="jive-contentBoxHeader">
+        <fmt:message key="archive.search.output.emptymessages" />
+    </div>
+    <div class="jive-contentBox">
+        <table cellpadding="3" cellspacing="0" border="0">
+        <tbody>
+            <tr valign="top">
+                <td width="1%" nowrap>
+                    <input type="checkbox" name="outputEmptymessages" id="outputEmptymessages"  <%=(outputEmptymessages?"checked" : "")%>>
+                </td>
+                <td width="99%">
+                    <label for="outputEmptymessages">
+                     <b><fmt:message key="archive.search.output.emptymessages.enable" /></b>
+                    </label>
+                </td>
+            </tr>
+        </tbody>
+        </table>
+        <br>
+        <input type="submit" name="update" value="<fmt:message key="archive.search.output.save_settings" />">
+    </div>
+</form>
+
 <form action="archive-search.jsp" name="f">
 <!-- Search Table -->
 <div>
@@ -688,6 +724,12 @@
                                             i++;
                                             continue;
                                         }
+
+                                        if (conversation.getMessages(conversationManager).size() == 0)
+                                        {
+                                            continue;
+                                        }
+
                                         Map<String, JID> participants = getParticipants(conversation);
                                         String color = "#FFFFFF";
                                         if (i % 2 == 0) {

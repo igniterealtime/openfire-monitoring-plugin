@@ -46,6 +46,7 @@ import org.jivesoftware.util.JiveGlobals;
 import org.jivesoftware.util.LocaleUtils;
 import org.jivesoftware.util.NotFoundException;
 import org.jivesoftware.util.StringUtils;
+import org.jivesoftware.util.SystemProperty;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.xmpp.packet.JID;
@@ -64,7 +65,14 @@ import java.util.concurrent.Future;
 public class ConversationUtils {
 
     private static final Logger Log = LoggerFactory.getLogger(ConversationUtils.class);
-            
+
+    public static final SystemProperty<Boolean> OUTPUT_EMPTY_MESSAGES = SystemProperty.Builder.ofType( Boolean.class )
+            .setKey("conversation.output.emptymessages" )
+            .setDefaultValue( false )
+            .setDynamic( true )
+            .setPlugin(MonitoringConstants.PLUGIN_NAME)
+            .build();
+    
     /**
      * Returns the status of the rebuilding of the messaging/metadata archives. This is done
      * asynchronously.
@@ -199,6 +207,7 @@ public class ConversationUtils {
             document.add( new Paragraph().add(new Text("\n")));
 
             final Paragraph messageParagraph = new Paragraph();
+            boolean foundReadableMessages = false;
             for (ArchivedMessage message : conversation.getMessages(conversationManager))
             {
                 String time = JiveGlobals.formatTime(message.getSentDate());
@@ -209,29 +218,88 @@ public class ConversationUtils {
                 }
                 String body = message.getBody();
                 String prefix;
+                String resource = message.getToJID().getResource();
+                String bodyLessText = null;
 
-                if (!message.isRoomEvent()) {
-                    if (to == null) {
-                        prefix = "[" + time + "] " + from + ":  ";
-                    } else {
-                        prefix = "[" + time + "] " + from + " -> " + to + ":  ";
+                if (body==null&&OUTPUT_EMPTY_MESSAGES.getValue())
+                {
+                    switch (EmptyMessageType.getMessageType(message.getStanza()))
+                    {
+                        case CHATMARKER_MARKABLE:
+                                bodyLessText="--message markable--";
+                            break;
+                        case CHATMARKER_RECEIVED:
+                                bodyLessText="--message received XEP-0333 --";
+                            break;
+                        case MESSAGE_DELIVERY_RECEIPTS_RECEIVED:
+                                bodyLessText="--message received XEP-0184 --";
+                            break;
+                        case CHATMARKER_DISPLAYED:
+                                bodyLessText="--message displayed--";
+                            break;
+                        case CHATMARKER_ACKNOWLEDGED:
+                                bodyLessText="--message acknowleged--";
+                            break;
+                        case MESSAGE_RETRACTION:
+                                bodyLessText="--message retraction: "+message.getStanza()+"--";
+                            break;
+                        case CHATSTATE_NOTIFICATION_ACTIVE:
+                                bodyLessText="--chatstate notification: active --";
+                            break;
+                        case CHATSTATE_NOTIFICATION_COMPOSING:
+                                bodyLessText="--chatstate notification: composing --";
+                            break;
+                        case CHATSTATE_NOTIFICATION_PAUSED:
+                                bodyLessText="--chatstate notification: paused --";
+                            break;
+                        case CHATSTATE_NOTIFICATION_INACTIVE:
+                                bodyLessText="--chatstate notification: inactive --";
+                            break;
+                        case CHATSTATE_NOTIFICATION_GONE:
+                                bodyLessText="--chatstate notification: gone --";
+                            break;
+                        default:
+                                bodyLessText="-- unsupported message type --";
+                            break;
                     }
-                    Color color = colorMap.get(message.getFromJID());
-                    if (color == null) {
-                        color = colorMap.get(message.getFromJID().asBareJID());
-                    }
-                    if (color == null) {
-                        color = ColorConstants.BLACK;
-                    }
+                }
 
-                    messageParagraph.add(new Text(prefix).setFont(PdfFontFactory.createFont(StandardFonts.HELVETICA_BOLD)).setFontColor(color));
-                    messageParagraph.add(new Text(body).setFontColor(ColorConstants.BLACK));
+                if (bodyLessText!=null||body!=null)
+                {
+                    foundReadableMessages=true;
+                    if (!message.isRoomEvent()) {
+                        /*
+                         * If body is null, we add the resource to see which device has sent the message.
+                         * */
+                        if (to == null) {
+                            prefix = "[" + time + "] " + from+(body==null?((resource!=null?" ("+resource+")":"")):"")+ ":  ";
+                        } else {
+                            prefix = "[" + time + "] " + from+(body==null?((resource!=null?" ("+resource+")":"")):"")+ " -> " + to + ":  ";
+                        }
+                        Color color = colorMap.get(message.getFromJID());
+                        if (color == null) {
+                            color = colorMap.get(message.getFromJID().asBareJID());
+                        }
+                        if (color == null) {
+                            color = ColorConstants.BLACK;
+                        }
+
+                        messageParagraph.add(new Text(prefix).setFont(PdfFontFactory.createFont(StandardFonts.HELVETICA_BOLD)).setFontColor(color));
+                        messageParagraph.add(new Text(body==null?bodyLessText:body).setFontColor(ColorConstants.BLACK));
+                    }
+                    else {
+                        prefix = "[" + time + "] ";
+                        messageParagraph.add(new Text(prefix)).setFont(PdfFontFactory.createFont(StandardFonts.HELVETICA_OBLIQUE)).setFontColor(ColorConstants.MAGENTA);
+                        messageParagraph.add(new Text(body==null?bodyLessText:body).setFont(PdfFontFactory.createFont(StandardFonts.HELVETICA_OBLIQUE)).setFontColor(ColorConstants.MAGENTA));
+                    }
+                    messageParagraph.add(new Text("\n"));
                 }
-                else {
-                    prefix = "[" + time + "] ";
-                    messageParagraph.add( new Text(prefix)).setFont(PdfFontFactory.createFont(StandardFonts.HELVETICA_OBLIQUE)).setFontColor(ColorConstants.MAGENTA);
-                    messageParagraph.add( new Text(body).setFont(PdfFontFactory.createFont(StandardFonts.HELVETICA_OBLIQUE)).setFontColor(ColorConstants.MAGENTA));
-                }
+            }
+            
+
+            if (conversation.getMessages(conversationManager).size() == 0||!foundReadableMessages) {
+                messageParagraph.add(new Text(LocaleUtils.getLocalizedString("archive.search.results.archive_disabled",
+                        MonitoringConstants.NAME) ));
                 messageParagraph.add(new Text("\n"));
             }
 
@@ -293,6 +361,7 @@ public class ConversationUtils {
         info.setDate(JiveGlobals.formatDateTime(conversation.getStartDate()));
         info.setLastActivity(JiveGlobals.formatTime(conversation.getLastActivity()));
         // Create body.
+        boolean foundReadableMessages = false;
         final StringBuilder builder = new StringBuilder();
         builder.append("<table width=100%>");
         for (ArchivedMessage message : conversation.getMessages(conversationManager)) {
@@ -302,28 +371,80 @@ public class ConversationUtils {
             if (conversation.getRoom() != null) {
                 from = message.getToJID().getResource();
             }
-            from = StringUtils.escapeHTMLTags(from);
+            /*
+             * If body is null, then it is a chatmarker, so we add the ressource to see which device has sent the marker.
+             * */
+            from = StringUtils.escapeHTMLTags(from)+(message.getBody()==null?(" ("+message.getFromJID().getResource()+")"):"");
             to = to == null ? null : StringUtils.escapeHTMLTags(to);
             String cssLabel = cssLabels.get(message.getFromJID().toBareJID());
             String body = StringUtils.escapeHTMLTags(message.getBody());
-            builder.append("<tr valign=top>");
-            if (!message.isRoomEvent()) {
-                builder.append("<td width=1% nowrap class=" + cssLabel + ">").append("[").append(time).append("]").append("</td>");
-                builder.append("<td width=1% class=" + cssLabel + ">").append(from);
-                if (to != null) {
-                    builder.append("&rarr;").append(to);
+            String bodyLessText = null;
+
+            if (body==null&&OUTPUT_EMPTY_MESSAGES.getValue())
+            {
+                switch (EmptyMessageType.getMessageType(message.getStanza()))
+                {
+                    case CHATMARKER_MARKABLE:
+                            bodyLessText="--message markable--";
+                        break;
+                    case CHATMARKER_RECEIVED:
+                            bodyLessText="--message received XEP-0333 --";
+                        break;
+                    case MESSAGE_DELIVERY_RECEIPTS_RECEIVED:
+                            bodyLessText="--message received XEP-0184 --";
+                        break;
+                    case CHATMARKER_DISPLAYED:
+                            bodyLessText="--message displayed--";
+                        break;
+                    case CHATMARKER_ACKNOWLEDGED:
+                            bodyLessText="--message acknowleged--";
+                        break;
+                    case MESSAGE_RETRACTION:
+                            bodyLessText="--message retraction: "+message.getStanza()+"--";
+                        break;
+                    case CHATSTATE_NOTIFICATION_ACTIVE:
+                            bodyLessText="--chatstate notification: active --";
+                        break;
+                    case CHATSTATE_NOTIFICATION_COMPOSING:
+                            bodyLessText="--chatstate notification: composing --";
+                        break;
+                    case CHATSTATE_NOTIFICATION_PAUSED:
+                            bodyLessText="--chatstate notification: paused --";
+                        break;
+                    case CHATSTATE_NOTIFICATION_INACTIVE:
+                            bodyLessText="--chatstate notification: inactive --";
+                        break;
+                    case CHATSTATE_NOTIFICATION_GONE:
+                            bodyLessText="--chatstate notification: gone --";
+                        break;
+                    default:
+                            bodyLessText="-- unsupported message type --";
+                        break;
                 }
-                builder.append(": ").append("</td>");
-                builder.append("<td class=conversation-body>").append(body).append("</td");
             }
-            else {
-                builder.append("<td width=1% nowrap class=conversation-label3>").append("[").append(time).append("]").append("</td>");
-                builder.append("<td colspan=2 class=conversation-label3><i>").append(body).append("</i></td");
+
+            if (bodyLessText!=null||body!=null)
+            {
+                foundReadableMessages=true;
+                builder.append("<tr valign=top>");
+                if (!message.isRoomEvent()) {
+                    builder.append("<td width=1% nowrap class=" + cssLabel + ">").append("[").append(time).append("]").append("</td>");
+                    builder.append("<td width=1% class=" + cssLabel + ">").append(from);
+                    if (to != null) {
+                        builder.append("&rarr;").append(to);
+                    }
+                    builder.append(": ").append("</td>");
+                    builder.append("<td class=conversation-body>").append(body!=null?body:bodyLessText).append("</td");
+                }
+                else {
+                    builder.append("<td width=1% nowrap class=conversation-label3>").append("[").append(time).append("]").append("</td>");
+                    builder.append("<td colspan=2 class=conversation-label3><i>").append(body!=null?body:bodyLessText).append("</i></td");
+                }
+                builder.append("</tr>");
             }
-            builder.append("</tr>");
         }
 
-        if (conversation.getMessages(conversationManager).size() == 0) {
+        if (conversation.getMessages(conversationManager).size() == 0||!foundReadableMessages) {
             builder.append("<span class=small-description>" +
                 LocaleUtils.getLocalizedString("archive.search.results.archive_disabled",
                         MonitoringConstants.NAME) +

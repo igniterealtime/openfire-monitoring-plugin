@@ -100,6 +100,13 @@ public class ConversationManager implements ComponentEventListener{
      * Flag that indicates if messages of one-to-one chats should be archived.
      */
     private boolean messageArchivingEnabled;
+
+    /**
+     * Bitmasks which enables saving messages without body
+     */
+    private long emptyMessageBitmask;
+    private long emptyMessageBitmaskMUC;
+
     /**
      * Flag that indicates if messages of group chats (in MUC rooms) should be archived.
      */
@@ -136,6 +143,20 @@ public class ConversationManager implements ComponentEventListener{
         .setDynamic(true)
         .setPlugin(MonitoringConstants.PLUGIN_NAME)
         .build();
+
+    public static SystemProperty<Long> EMPTY_MESSAGE_ARCHIVING_BITMASK = SystemProperty.Builder.ofType(Long.class)
+            .setKey("conversation.emptyMessageArchivingBitmask")
+            .setDefaultValue((long)0)
+            .setDynamic(true)
+            .setPlugin(MonitoringConstants.PLUGIN_NAME)
+            .build();
+
+    public static SystemProperty<Long> EMPTY_MESSAGE_ARCHIVING_BITMASK_MUC = SystemProperty.Builder.ofType(Long.class)
+            .setKey("conversation.emptyMessageArchivingBitmaskMUC")
+            .setDefaultValue((long)0)
+            .setDynamic(true)
+            .setPlugin(MonitoringConstants.PLUGIN_NAME)
+            .build();
 
     public static SystemProperty<Boolean> MESSAGE_ARCHIVING_ENABLED = SystemProperty.Builder.ofType(Boolean.class)
         .setKey("conversation.messageArchiving")
@@ -207,6 +228,9 @@ public class ConversationManager implements ComponentEventListener{
     public void start() {
         metadataArchivingEnabled = METADATA_ARCHIVING_ENABLED.getValue();
         messageArchivingEnabled = MESSAGE_ARCHIVING_ENABLED.getValue();
+        emptyMessageBitmask=EMPTY_MESSAGE_ARCHIVING_BITMASK.getValue();
+        emptyMessageBitmaskMUC=EMPTY_MESSAGE_ARCHIVING_BITMASK_MUC.getValue();
+
         if (messageArchivingEnabled && !metadataArchivingEnabled) {
             Log.warn("Metadata archiving must be enabled when message archiving is enabled. Overriding setting.");
             metadataArchivingEnabled = true;
@@ -392,6 +416,42 @@ public class ConversationManager implements ComponentEventListener{
     }
 
     /**
+     * Returns true if empty message archiving is enabled, otherwise false
+     *
+     * @return true if saving of message without body is enabled
+     */
+    public boolean isEmptyMessageArchivingEnabled() {
+        return emptyMessageBitmask!=0;
+    }
+
+    /**
+     * Returns true if empty message archiving is enabled for muc, otherwise false
+     *
+     * @return true if saving of muc message without body is enabled
+     */
+    public boolean isEmptyMessageArchivingForMUCEnabled() {
+        return emptyMessageBitmaskMUC!=0;
+    }
+
+    /**
+     * Returns the bitmask for the empty messages which will be saved by this plugin
+     * 
+     * @return returns the bitmask which kind of body less messages will be saved
+     */
+    public long getSpecificEmptyMessageArchivingEnabled() {
+        return emptyMessageBitmask;
+    }
+
+    /**
+     * Returns the bitmask for the empty messages in a muc which will be saved by this plugin
+     *
+     * @return returns the bitmask which kind of body less muc messages will be saved
+     */
+    public long getSpecificEmptyMessageArchivingForMUCEnabled() {
+        return emptyMessageBitmaskMUC;
+    }
+
+    /**
      * Returns true if message archiving is enabled for one-to-one chats. When enabled, all messages in one-to-one conversations are stored in the
      * database. Note: it's not possible for meta-data archiving to be disabled when message archiving is enabled; enabling message archiving
      * automatically enables meta-data archiving.
@@ -400,6 +460,54 @@ public class ConversationManager implements ComponentEventListener{
      */
     public boolean isMessageArchivingEnabled() {
         return messageArchivingEnabled;
+    }
+
+    /**
+     * Checks if with the current configuration, message archiving should be enabled for the provided message stanza,
+     * assuming that it has no body. It does so by evaluating child elements of the stanza for occurrence of elements
+     * identified in {@link EmptyMessageType}.
+     *
+     * This method does not verify if the stanza indeed has no body.
+     *
+     * @param message the stanza to evaluate
+     * @return true if the stanza is eligible for archiving, otherwise false.
+     */
+    public boolean isEmptyMessageArchivingEnabledFor(final Message message)
+    {
+        if (!isEmptyMessageArchivingEnabled()) {
+            return false;
+        }
+
+        final EmptyMessageType emptyMessageType = EmptyMessageType.getMessageType(message.getElement());
+        if (emptyMessageType!=EmptyMessageType.IGNORE) {
+            return false;
+        }
+        final long bitmask = getSpecificEmptyMessageArchivingEnabled();
+        return (bitmask & emptyMessageType.getValue()) == emptyMessageType.getValue();
+    }
+
+    /**
+     * Checks if with the current configuration, message archiving should be enabled for the provided message stanza,
+     * assuming that it has no body. It does so by evaluating child elements of the stanza for occurrence of elements
+     * identified in {@link EmptyMessageType}.
+     *
+     * This method does not verify if the stanza indeed has no body.
+     *
+     * @param message the stanza to evaluate
+     * @return true if the stanza is eligible for archiving, otherwise false.
+     */
+    public boolean isEmptyMessageArchivingEnabledFor(final String message)
+    {
+        if (!isEmptyMessageArchivingEnabled()) {
+            return false;
+        }
+
+        final EmptyMessageType emptyMessageType = EmptyMessageType.getMessageType(message);
+        if (emptyMessageType!=EmptyMessageType.IGNORE) {
+            return false;
+        }
+        final long bitmask = getSpecificEmptyMessageArchivingEnabled();
+        return (bitmask & emptyMessageType.getValue()) == emptyMessageType.getValue();
     }
 
     /**
@@ -416,6 +524,26 @@ public class ConversationManager implements ComponentEventListener{
         if (enabled) {
             this.metadataArchivingEnabled = true;
         }
+    }
+
+    /**
+     * Sets the bitmask for saving empty messages.
+     *
+     * @param bitmask
+     */
+    public void setEmptyMessageArchivingBitmask(long bitmask) {
+        emptyMessageBitmask=bitmask;
+        EMPTY_MESSAGE_ARCHIVING_BITMASK.setValue(bitmask);
+    }
+
+    /**
+     * Sets the bitmask for saving empty messages in a muc.
+     *
+     * @param bitmask
+     */
+    public void setEmptyMessageArchivingForMUCBitmask(long bitmask) {
+        emptyMessageBitmaskMUC=bitmask;
+        EMPTY_MESSAGE_ARCHIVING_BITMASK_MUC.setValue(bitmask);
     }
 
     /**
@@ -727,7 +855,7 @@ public class ConversationManager implements ComponentEventListener{
      * @param body
      *            body of the message.
      * @param stanza
-     * 			  String encoded message stanza
+     *            String encoded message stanza
      * @param date
      *            date when the message was sent.
      */
@@ -784,8 +912,7 @@ public class ConversationManager implements ComponentEventListener{
                 conversationArchiver.archive(conversation);
             }
             if (messageArchivingEnabled) {
-                if (body != null) {
-                    /* OF-677 - Workaround to prevent null messages being archived */
+                if ((body != null && !body.isEmpty()) || isEmptyMessageArchivingEnabledFor(stanza)) {
                     messageArchiver.archive(new ArchivedMessage(conversation.getConversationID(), sender, receiver, date, body, stanza, false, null) );
                 }
             }
@@ -851,8 +978,18 @@ public class ConversationManager implements ComponentEventListener{
             if (roomArchivingEnabled && (roomsArchived.isEmpty() || roomsArchived.contains(roomJID.getNode()))) {
                 JID jid = new JID(roomJID + "/" + nickname);
                 if (body != null) {
-                    /* OF-677 - Workaround to prevent null messages being archived */
                     messageArchiver.archive( new ArchivedMessage(conversation.getConversationID(), sender, jid, date, body, roomArchivingStanzasEnabled ? stanza : "", false, receiverIfPM));
+                }
+                else
+                if (isEmptyMessageArchivingForMUCEnabled()) {
+                    EmptyMessageType emptyMessageType = EmptyMessageType.getMessageType(stanza);
+
+                    long bitmask = getSpecificEmptyMessageArchivingForMUCEnabled();
+
+                    if (emptyMessageType!=EmptyMessageType.IGNORE && (bitmask & emptyMessageType.getValue()) == emptyMessageType.getValue())
+                    {
+                        messageArchiver.archive( new ArchivedMessage(conversation.getConversationID(), sender, jid, date, body, roomArchivingStanzasEnabled ? stanza : "", false, receiverIfPM));
+                    }
                 }
             }
             // Notify listeners of the conversation update.
@@ -1503,6 +1640,12 @@ public class ConversationManager implements ComponentEventListener{
                     maxTime = DEFAULT_MAX_TIME;
                 }
             }
+            else if (property.equals("conversation.emptyMessageArchivingBitmask")) {
+                emptyMessageBitmask = Long.parseLong((String) params.get("value"));
+            }
+            else if (property.equals("conversation.emptyMessageArchivingBitmaskMUC")) {
+                emptyMessageBitmaskMUC = Long.parseLong((String) params.get("value"));
+            }
         }
 
         public void propertyDeleted(String property, Map<String, Object> params) {
@@ -1524,9 +1667,13 @@ public class ConversationManager implements ComponentEventListener{
                 setMaxAge(MAX_AGE.getDefaultValue());
             } else if (property.equals("conversation.maxRetrievable")) {
                 setMaxRetrievable(MAX_RETRIEVABLE.getDefaultValue());
-            }  else if (property.equals("conversation.maxTimeDebug")) {
+            } else if (property.equals("conversation.maxTimeDebug")) {
                 Log.info("Monitoring plugin max time reset back to " + DEFAULT_MAX_TIME + " minutes");
                 setMaxTime(MAX_TIME.getDefaultValue());
+            } else if (property.equals("conversation.emptyMessageArchivingBitmask")) {
+                setEmptyMessageArchivingBitmask(EMPTY_MESSAGE_ARCHIVING_BITMASK.getDefaultValue());
+            } else if (property.equals("conversation.emptyMessageArchivingBitmaskMUC")) {
+                setEmptyMessageArchivingForMUCBitmask(EMPTY_MESSAGE_ARCHIVING_BITMASK_MUC.getDefaultValue());
             }
         }
 

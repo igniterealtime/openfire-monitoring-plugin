@@ -144,13 +144,23 @@ public class GroupConversationInterceptor implements MUCEventListener {
         }
         else {
             Log.trace("Message received on junior node for room: {}", roomJID);
-            boolean withBody = conversationManager.isRoomArchivingEnabled() && (
-                    conversationManager.getRoomsArchived().isEmpty() ||
-                            conversationManager.getRoomsArchived().contains(roomJID.getNode()));
+            boolean withBody = conversationManager.isRoomArchivingEnabled() && (conversationManager.getRoomsArchived().isEmpty() ||
+                               conversationManager.getRoomsArchived().contains(roomJID.getNode()));
 
-            ConversationEventsQueue eventsQueue = conversationManager.getConversationEventsQueue();
-            eventsQueue.addGroupChatEvent(conversationManager.getRoomConversationKey(roomJID),
-                    ConversationEvent.roomMessageReceived(roomJID, user, null, nickname, withBody ? message.getBody() : null, message.toXML(), now));
+            if (withBody)
+            {
+                ConversationEventsQueue eventsQueue = conversationManager.getConversationEventsQueue();
+
+                eventsQueue.addGroupChatEvent(conversationManager.getRoomConversationKey(roomJID),
+                                              ConversationEvent.roomMessageReceived(roomJID, user, null, nickname, withBody ? message.getBody() : null, message.toXML(), now));
+            }
+            else if (conversationManager.isEmptyMessageArchivingEnabledFor(message))
+            {
+                ConversationEventsQueue eventsQueue = conversationManager.getConversationEventsQueue();
+
+                eventsQueue.addGroupChatEvent(conversationManager.getRoomConversationKey(roomJID),
+                    ConversationEvent.emptyMessageReceivedEvent(roomJID, user, message.toXML(), new Date()));
+            }
         }
     }
 

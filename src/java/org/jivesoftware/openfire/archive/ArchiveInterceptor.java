@@ -68,7 +68,7 @@ public class ArchiveInterceptor implements PacketInterceptor {
             // Ignore any messages that don't have a body so that we skip events.
             // Note: XHTML messages should always include a body so we should be ok. It's
             // possible that we may need special XHTML filtering in the future, however.
-            if (message.getBody() != null) {
+            if (message.getBody() != null||this.conversationManager.isEmptyMessageArchivingEnabled()) {
                 // Only process messages that are between two users, group chat rooms, or gateways.
                 if (conversationManager.isConversation(message)) {
                     //take care on blocklist
@@ -89,11 +89,21 @@ public class ArchiveInterceptor implements PacketInterceptor {
                         JID sender = message.getFrom();
                         JID receiver = message.getTo();
                         ConversationEventsQueue eventsQueue = conversationManager.getConversationEventsQueue();
-                        eventsQueue.addChatEvent(conversationManager.getConversationKey(sender, receiver),
+                        if (message.getBody() != null && !message.getBody().isEmpty())
+                        {
+                            eventsQueue.addChatEvent(conversationManager.getConversationKey(sender, receiver),
                                 ConversationEvent.chatMessageReceived(sender, receiver,
                                         conversationManager.isMessageArchivingEnabled() ? message.getBody() : null,
                                         conversationManager.isMessageArchivingEnabled() ? message.toXML() : null,
                                         new Date()));
+                        }
+                        else if (conversationManager.isEmptyMessageArchivingEnabledFor(message))
+                        {
+                            eventsQueue.addChatEvent(conversationManager.getConversationKey(sender, receiver),
+                                ConversationEvent.emptyMessageReceivedEvent(sender, receiver,
+                                        message.toXML(),
+                                        new Date()));
+                        }
                     }
                 }
             }
