@@ -130,7 +130,7 @@ public class JdbcPersistenceManager implements PersistenceManager {
             firstIndex = firstIndex != null ? firstIndex : 0;
 
             if (DbConnectionManager.getDatabaseType() == DbConnectionManager.DatabaseType.sqlserver) {
-                limitSB.append(" BETWEEN ").append(firstIndex+1);
+                limitSB.append(" WHERE RowNum BETWEEN ").append(firstIndex+1);
                 limitSB.append(" AND ").append(firstIndex+max);
             }
             else {
@@ -146,7 +146,7 @@ public class JdbcPersistenceManager implements PersistenceManager {
         querySB.append(SELECT_CONVERSATIONS_GROUP_BY);
         if (DbConnectionManager.getDatabaseType() == DbConnectionManager.DatabaseType.sqlserver) {
             querySB.insert(0,"SELECT * FROM (SELECT *, ROW_NUMBER() OVER (ORDER BY "+CONVERSATION_ID+") AS RowNum FROM ( ");
-            querySB.append(") ofConversation ) t2 WHERE RowNum");
+            querySB.append(") ofConversation ) t2");
         }
         else {
             querySB.append(" ORDER BY ").append(CONVERSATION_ID);
