@@ -118,7 +118,7 @@
         <repository>
             <id>opennms-repo</id>
             <name>OpenNMS Release Repository</name>
-            <url>https://repo.opennms.org/maven2/</url>
+            <url>https://maven.mirrors.opennms.org/maven2/</url>
         </repository>
     </repositories>
 
