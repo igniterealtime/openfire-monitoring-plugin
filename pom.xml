@@ -13,7 +13,7 @@
     <description>Monitors conversations and statistics of the server.</description>
 
     <properties>
-        <jackson.version>2.12.1</jackson.version>
+        <jackson.version>2.12.7</jackson.version>
         <jersey.version>2.35</jersey.version>
     </properties>
 
@@ -51,6 +51,17 @@
             <groupId>org.glassfish.jersey.media</groupId>
             <artifactId>jersey-media-json-jackson</artifactId>
             <version>${jersey.version}</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>com.fasterxml.jackson.core</groupId>
+                    <artifactId>jackson-databind</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+            <version>${jackson.version}</version>
         </dependency>
         <dependency>
             <groupId>org.jrobin</groupId>
