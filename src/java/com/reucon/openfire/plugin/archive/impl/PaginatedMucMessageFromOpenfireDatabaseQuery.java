@@ -24,6 +24,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.xmpp.packet.JID;
 
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -33,48 +35,29 @@ import java.util.LinkedList;
 import java.util.List;
 
 /**
- * Encapsulates responsibility of creating a database query that retrieves a specific subset (page) of archived messages related to a MUC room.
+ * Encapsulates responsibility of creating a database query that retrieves a specific subset (page) of archived messages
+ * related to a MUC room.
  *
  * Note that this implementation primarily makes use of the database tables that are provided by Openfire (core), and
  * not of the database tables that are provided by the Monitoring plugin.
  *
  * @author Guus der Kinderen, guus.der.kinderen@gmail.com
  */
-public class PaginatedMucMessageFromOpenfireDatabaseQuery
+public class PaginatedMucMessageFromOpenfireDatabaseQuery extends AbstractPaginatedMamMucQuery
 {
-    private static final Logger Log = LoggerFactory.getLogger(PaginatedMucMessageFromOpenfireDatabaseQuery.class );
+    private static final Logger Log = LoggerFactory.getLogger(PaginatedMucMessageFromOpenfireDatabaseQuery.class);
 
-    private final Date startDate;
-    private final Date endDate;
-    private final MUCRoom room;
-    private final JID with;
-
-    public PaginatedMucMessageFromOpenfireDatabaseQuery(Date startDate, Date endDate, MUCRoom room, JID with )
+    /**
+     * Creates a query for messages from a message archive belonging to a multi-user chat room.
+     *
+     * @param startDate Start (inclusive) of period for which to return messages. EPOCH will be used if no value is provided.
+     * @param endDate End (inclusive) of period for which to return messages. 'now' will be used if no value is provided.
+     * @param room The message archive owner (the chat room).
+     * @param with An optional conversation partner (or message author, in case of MUC).
+     */
+    public PaginatedMucMessageFromOpenfireDatabaseQuery(@Nullable final Date startDate, @Nullable final Date endDate, @Nonnull final MUCRoom room, @Nullable final JID with)
     {
-        this.startDate = startDate == null ? new Date( 0L ) : startDate ;
-        this.endDate = endDate == null ? new Date() : endDate;
-        this.room = room;
-        this.with = with;
-    }
-
-    public Date getStartDate()
-    {
-        return startDate;
-    }
-
-    public Date getEndDate()
-    {
-        return endDate;
-    }
-
-    public MUCRoom getRoom()
-    {
-        return room;
-    }
-
-    public JID getWith()
-    {
-        return with;
+        super(startDate, endDate, room, null, with);
     }
 
     @Override
@@ -88,7 +71,8 @@ public class PaginatedMucMessageFromOpenfireDatabaseQuery
             '}';
     }
 
-    protected List<ArchivedMessage> getPage( final Long after, final Long before, final int maxResults, final boolean isPagingBackwards ) throws DataRetrievalException {
+    @Override
+    protected List<ArchivedMessage> getPage(final Long after, final Long before, final int maxResults, final boolean isPagingBackwards) throws DataRetrievalException {
         Log.trace( "Getting page of archived messages. After: {}, Before: {}, Max results: {}, Paging backwards: {}", after, before, maxResults, isPagingBackwards );
         final List<ArchivedMessage> msgs = new LinkedList<>();
 
@@ -152,7 +136,7 @@ public class PaginatedMucMessageFromOpenfireDatabaseQuery
         return msgs;
     }
 
-
+    @Override
     protected int getTotalCount()
     {
         Connection connection = null;

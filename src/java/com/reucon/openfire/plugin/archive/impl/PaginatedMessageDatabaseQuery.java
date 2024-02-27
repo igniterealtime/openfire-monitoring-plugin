@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2020 Ignite Realtime Foundation. All rights reserved.
+ * Copyright (C) 2020-2024 Ignite Realtime Foundation. All rights reserved.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -39,60 +39,21 @@ import java.util.List;
  *
  * @author Guus der Kinderen, guus.der.kinderen@gmail.com
  */
-public class PaginatedMessageDatabaseQuery
+public class PaginatedMessageDatabaseQuery extends AbstractPaginatedMamQuery
 {
-    private static final Logger Log = LoggerFactory.getLogger(PaginatedMessageDatabaseQuery.class );
-
-    @Nonnull
-    private final Date startDate;
-
-    @Nonnull
-    private final Date endDate;
-
-    @Nonnull
-    private final JID owner;
-
-    @Nullable
-    private final JID with;
+    private static final Logger Log = LoggerFactory.getLogger(PaginatedMessageDatabaseQuery.class);
 
     /**
      * Creates a query for messages from a message archive.
      *
-     * @param startDate Start (inclusive) of period for which to return messages. EPOCH will be used if no value is provided.
-     * @param endDate End (inclusive) of period for which to return messages. 'now' will be used if no value is provided.
-     * @param owner The message archive owner.
-     * @param with An optional conversation partner
+     * @param startDate     Start (inclusive) of period for which to return messages. EPOCH will be used if no value is provided.
+     * @param endDate       End (inclusive) of period for which to return messages. 'now' will be used if no value is provided.
+     * @param archiveOwner  The message archive owner.
+     * @param with          An optional conversation partner
      */
-    public PaginatedMessageDatabaseQuery(@Nullable final Date startDate, @Nullable final Date endDate, @Nonnull final JID owner, @Nullable final JID with)
+    public PaginatedMessageDatabaseQuery(@Nullable final Date startDate, @Nullable final Date endDate, @Nonnull final JID archiveOwner, @Nullable final JID with)
     {
-        this.startDate = startDate == null ? new Date( 0L ) : startDate ;
-        this.endDate = endDate == null ? new Date() : endDate;
-        this.owner = owner;
-        this.with = with;
-    }
-
-    @Nonnull
-    public Date getStartDate()
-    {
-        return startDate;
-    }
-
-    @Nonnull
-    public Date getEndDate()
-    {
-        return endDate;
-    }
-
-    @Nonnull
-    public JID getOwner()
-    {
-        return owner;
-    }
-
-    @Nullable
-    public JID getWith()
-    {
-        return with;
+        super(startDate, endDate, archiveOwner, with);
     }
 
     @Override
@@ -101,12 +62,13 @@ public class PaginatedMessageDatabaseQuery
         return "PaginatedMessageQuery{" +
             "startDate=" + startDate +
             ", endDate=" + endDate +
-            ", owner=" + owner +
+            ", archiveOwner=" + archiveOwner +
             ", with='" + with + '\'' +
             '}';
     }
 
-    protected List<ArchivedMessage> getPage( @Nullable final Long after, @Nullable final Long before, final int maxResults, final boolean isPagingBackwards ) throws DataRetrievalException {
+    @Override
+    protected List<ArchivedMessage> getPage(@Nullable final Long after, @Nullable final Long before, final int maxResults, final boolean isPagingBackwards) throws DataRetrievalException {
         Log.trace( "Getting page of archived messages. After: {}, Before: {}, Max results: {}, Paging backwards: {}", after, before, maxResults, isPagingBackwards );
 
         final List<ArchivedMessage> archivedMessages = new ArrayList<>();
@@ -128,9 +90,9 @@ public class PaginatedMessageDatabaseQuery
             pstmt.setLong( 1, dateToMillis( startDate ) );
             pstmt.setLong( 2, dateToMillis( endDate ) );
 
-            pstmt.setString( 3, owner.toBareJID() );
-            pstmt.setString( 4, owner.toBareJID() );
-            pstmt.setString( 5, owner.toBareJID() );
+            pstmt.setString( 3, archiveOwner.toBareJID() );
+            pstmt.setString( 4, archiveOwner.toBareJID() );
+            pstmt.setString( 5, archiveOwner.toBareJID() );
             int pos = 5;
 
             if ( with != null ) {
@@ -156,19 +118,19 @@ public class PaginatedMessageDatabaseQuery
             Log.trace( "Constructed query: {}", query );
             rs = pstmt.executeQuery();
             while (rs.next()) {
-                final ArchivedMessage archivedMessage = JdbcPersistenceManager.extractMessage(owner, rs);
+                final ArchivedMessage archivedMessage = JdbcPersistenceManager.extractMessage(archiveOwner, rs);
                 archivedMessages.add(archivedMessage);
             }
             if(isPagingBackwards){
                 Collections.reverse(archivedMessages);
             }
         } catch (SQLException e) {
-            Log.error("SQL failure during MAM for owner: {}", this.owner, e);
+            Log.error("SQL failure during MAM for owner: {}", this.archiveOwner, e);
             if (!IQQueryHandler.IGNORE_RETRIEVAL_EXCEPTIONS.getValue()) {
                 throw new DataRetrievalException(e);
             }
         } catch (DocumentException e) {
-            Log.error("Unable to parse 'stanza' value as valid XMPP for owner {}", this.owner, e);
+            Log.error("Unable to parse 'stanza' value as valid XMPP for owner {}", this.archiveOwner, e);
         } finally {
             DbConnectionManager.closeConnection(rs, pstmt, connection);
         }
@@ -180,6 +142,7 @@ public class PaginatedMessageDatabaseQuery
         return date == null ? null : date.getTime();
     }
 
+    @Override
     protected int getTotalCount()
     {
         Connection connection = null;
@@ -192,9 +155,9 @@ public class PaginatedMessageDatabaseQuery
             pstmt = connection.prepareStatement( buildQueryForTotalCount() );
             pstmt.setLong( 1, dateToMillis( startDate ) );
             pstmt.setLong( 2, dateToMillis( endDate ) );
-            pstmt.setString( 3, owner.toBareJID() );
-            pstmt.setString( 4, owner.toBareJID() );
-            pstmt.setString( 5, owner.toBareJID() );
+            pstmt.setString( 3, archiveOwner.toBareJID() );
+            pstmt.setString( 4, archiveOwner.toBareJID() );
+            pstmt.setString( 5, archiveOwner.toBareJID() );
             int pos = 5;
 
             if ( with != null ) {

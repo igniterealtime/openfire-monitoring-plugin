@@ -17,31 +17,30 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.xmpp.packet.JID;
 
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 
-public class PaginatedMucMessageLuceneQuery
+public class PaginatedMucMessageLuceneQuery extends AbstractPaginatedMamMucQuery
 {
     private static final Logger Log = LoggerFactory.getLogger( PaginatedMucMessageLuceneQuery.class );
 
-    private final Date startDate;
-    private final Date endDate;
-    private final MUCRoom owner;
-    private final JID messageOwner;
-    private final JID with;
-    private final String query;
-
-    public PaginatedMucMessageLuceneQuery(final Date startDate, final Date endDate, final MUCRoom owner, final JID messageOwner, final JID with, final String query )
+    /**
+     * Creates a query for messages from a message archive of a multi-user chat room.
+     *
+     * @param startDate Start (inclusive) of period for which to return messages. EPOCH will be used if no value is provided.
+     * @param endDate End (inclusive) of period for which to return messages. 'now' will be used if no value is provided.
+     * @param owner The message archive owner (the chat room).
+     * @param messageOwner The entity for which to return messages (typically the JID of the entity making the request).
+     * @param query A search string to be used for text-based search.
+     */
+    public PaginatedMucMessageLuceneQuery(@Nullable final Date startDate, @Nullable final Date endDate, @Nonnull final MUCRoom owner, final JID messageOwner, @Nullable final JID with, @Nonnull final String query)
     {
-        this.startDate = startDate == null ? new Date( 0L ) : startDate ;
-        this.endDate = endDate == null ? new Date() : endDate;
-        this.owner = owner;
-        this.messageOwner = messageOwner;
-        this.with = with;
-        this.query = query;
+        super(startDate, endDate, owner, messageOwner, with, query);
     }
 
     protected IndexSearcher getSearcher() throws IOException
@@ -52,8 +51,8 @@ public class PaginatedMucMessageLuceneQuery
         return searcher;
     }
 
-
-    public List<ArchivedMessage> getPage( final Long after, final Long before, final int maxResults, final boolean isPagingBackwards ) throws DataRetrievalException {
+    @Override
+    public List<ArchivedMessage> getPage(final Long after, final Long before, final int maxResults, final boolean isPagingBackwards) throws DataRetrievalException {
         Log.debug( "Retrieving archived messages page. After: {}, Before: {}, maxResults: {}, isPagingBackwards: {}", after, before, maxResults, isPagingBackwards);
         final List<ArchivedMessage> result = new ArrayList<>();
         try
@@ -71,7 +70,7 @@ public class PaginatedMucMessageLuceneQuery
                 final Document doc = searcher.doc(scoreDoc.doc);
                 final long messageID = Long.parseLong(doc.get("messageID"));
                 Log.debug("message ID: {}", messageID);
-                final ArchivedMessage archivedMessage = MucMamPersistenceManager.getArchivedMessage(messageID, owner);
+                final ArchivedMessage archivedMessage = MucMamPersistenceManager.getArchivedMessage(messageID, room);
                 if ( archivedMessage != null ) {
                     result.add( archivedMessage );
                 }
@@ -85,7 +84,7 @@ public class PaginatedMucMessageLuceneQuery
             }
         }
         catch ( Exception e ) {
-            Log.warn( "An exception occurred while trying to query the Lucene index to get messages from archive of room {}.", owner.getJID(), e );
+            Log.warn( "An exception occurred while trying to query the Lucene index to get messages from archive of room {}.", room.getJID(), e );
             if (!IQQueryHandler.IGNORE_RETRIEVAL_EXCEPTIONS.getValue()) {
                 throw new DataRetrievalException(e);
             }
@@ -99,6 +98,7 @@ public class PaginatedMucMessageLuceneQuery
      *
      * @return A message count, or -1 if unavailable.
      */
+    @Override
     public int getTotalCount() {
         try
         {
@@ -113,7 +113,7 @@ public class PaginatedMucMessageLuceneQuery
         }
         catch ( Exception e )
         {
-            Log.warn( "An exception occurred while trying to get a count of messages that match a query for message from archive of room {}.", owner.getJID(), e );
+            Log.warn( "An exception occurred while trying to get a count of messages that match a query for message from archive of room {}.", room.getJID(), e );
             return -1;
         }
     }
@@ -132,7 +132,7 @@ public class PaginatedMucMessageLuceneQuery
         // - look up messages from the archive of the MUC that are not private
         // - look up messages from the archive of the MUC that are private, where user making the request is a sender or recipient.
         final BooleanQuery ownerFilter = new BooleanQuery.Builder()
-            .add(new TermQuery(new Term("room", owner.getJID().toBareJID() ) ), BooleanClause.Occur.MUST ) // room
+            .add(new TermQuery(new Term("room", room.getJID().toBareJID() ) ), BooleanClause.Occur.MUST ) // room
 
             .setMinimumNumberShouldMatch(1)
             // Either non-private messages...
@@ -196,7 +196,7 @@ public class PaginatedMucMessageLuceneQuery
         return "PaginatedMessageLuceneQuery{" +
             "startDate=" + startDate +
             ", endDate=" + endDate +
-            ", room=" + owner.getJID() +
+            ", room=" + room.getJID() +
             ", with=" + with +
             ", query='" + query + '\'' +
             '}';
