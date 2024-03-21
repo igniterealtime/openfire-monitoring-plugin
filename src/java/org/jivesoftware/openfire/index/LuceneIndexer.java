@@ -73,7 +73,7 @@ public abstract class LuceneIndexer
     public void start()
     {
         if (!ENABLED.getValue()) {
-            Log.debug("Unable to start: indexing is disable by configuration.");
+            Log.debug("Unable to start: indexing is disabled by configuration.");
             return;
         }
 
@@ -286,7 +286,7 @@ public abstract class LuceneIndexer
     public void updateIndex()
     {
         if (!ENABLED.getValue()) {
-            Log.debug("Unable to update: indexing is disable by configuration.");
+            Log.debug("Unable to update: indexing is disabled by configuration.");
             return;
         }
 
@@ -335,7 +335,7 @@ public abstract class LuceneIndexer
     public synchronized Future<Integer> rebuildIndex()
     {
         if (!ENABLED.getValue()) {
-            Log.debug("Unable to rebuild: indexing is disable by configuration.");
+            Log.debug("Unable to rebuild: indexing is disabled by configuration.");
             return null;
         }
 
@@ -440,7 +440,7 @@ public abstract class LuceneIndexer
     public synchronized IndexSearcher getSearcher() throws IOException
     {
         if (!ENABLED.getValue()) {
-            Log.debug("Unable to get index: indexing is disable by configuration.");
+            Log.debug("Unable to get index: indexing is disabled by configuration.");
             return null;
         }
 
