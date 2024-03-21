@@ -55,6 +55,13 @@ public abstract class LuceneIndexer
        .setPlugin(MonitoringConstants.PLUGIN_NAME)
        .build();
 
+    public static final SystemProperty<Boolean> ENABLED = SystemProperty.Builder.ofType( Boolean.class )
+        .setKey("conversation.search.index-enabled")
+        .setDefaultValue(true)
+        .setDynamic(false)
+        .setPlugin(MonitoringConstants.PLUGIN_NAME)
+        .build();
+
     public LuceneIndexer(TaskEngine taskEngine, File searchDir, String logName, int schemaVersion)
     {
         this.taskEngine = taskEngine;
@@ -65,7 +72,13 @@ public abstract class LuceneIndexer
 
     public void start()
     {
+        if (!ENABLED.getValue()) {
+            Log.debug("Unable to start: indexing is disabled by configuration.");
+            return;
+        }
+
         Log.debug("Starting...");
+
         if ( !searchDir.exists() )
         {
             if ( !searchDir.mkdirs() )
@@ -210,7 +223,10 @@ public abstract class LuceneIndexer
     {
         Log.debug("Stopping...");
         stopped = true;
-        indexUpdater.cancel();
+        if (indexUpdater != null) {
+            indexUpdater.cancel();
+            indexUpdater = null;
+        }
         if ( searcher != null )
         {
             try
@@ -225,13 +241,16 @@ public abstract class LuceneIndexer
         }
         try
         {
-            directory.close();
+            if (directory != null) {
+                directory.close();
+            }
         }
         catch ( Exception e )
         {
             Log.error(e.getMessage(), e);
         }
         directory = null;
+
         indexProperties = null;
         searchDir = null;
         rebuildFuture = null;
@@ -266,6 +285,11 @@ public abstract class LuceneIndexer
      */
     public void updateIndex()
     {
+        if (!ENABLED.getValue()) {
+            Log.debug("Unable to update: indexing is disabled by configuration.");
+            return;
+        }
+
         // Immediately return if the service has been stopped.
         if (stopped) {
             return;
@@ -308,7 +332,13 @@ public abstract class LuceneIndexer
      * @return a Future to indicate the status of rebuilding the index or <tt>null</tt> if
      *      rebuilding the index is not possible.
      */
-    public synchronized Future<Integer> rebuildIndex() {
+    public synchronized Future<Integer> rebuildIndex()
+    {
+        if (!ENABLED.getValue()) {
+            Log.debug("Unable to rebuild: indexing is disabled by configuration.");
+            return null;
+        }
+
         // Immediately return if the service has been stopped.
         if (stopped) {
             return null;
@@ -409,6 +439,11 @@ public abstract class LuceneIndexer
      */
     public synchronized IndexSearcher getSearcher() throws IOException
     {
+        if (!ENABLED.getValue()) {
+            Log.debug("Unable to get index: indexing is disabled by configuration.");
+            return null;
+        }
+
         // If the searcher hasn't been instantiated, create it.
         if ( searcher == null )
         {

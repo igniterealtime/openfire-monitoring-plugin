@@ -9,6 +9,7 @@ import com.reucon.openfire.plugin.archive.xep0059.XmppResultSet;
 import org.dom4j.DocumentException;
 import org.jivesoftware.database.DbConnectionManager;
 import org.jivesoftware.openfire.archive.ConversationManager;
+import org.jivesoftware.openfire.index.LuceneIndexer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.xmpp.packet.JID;
@@ -320,6 +321,9 @@ public class JdbcPersistenceManager implements PersistenceManager {
         List<ArchivedMessage> msgs = Collections.emptyList();
         int totalCount = 0;
         if ( query != null && !query.isEmpty() ) {
+            if (!LuceneIndexer.ENABLED.getValue()) {
+                throw new DataRetrievalException("Unable to process a search request that contains a text-based query, as the full-text index functionality has been disabled by configuration.");
+            }
             final PaginatedMessageLuceneQuery paginatedMessageLuceneQuery = new PaginatedMessageLuceneQuery( startDate, endDate, owner, with, query );
             Log.debug("Request for message archive of user '{}' resulted in the following query data: {}", owner, paginatedMessageLuceneQuery);
             totalCount = paginatedMessageLuceneQuery.getTotalCount();
@@ -377,6 +381,9 @@ public class JdbcPersistenceManager implements PersistenceManager {
             final List<ArchivedMessage> nextPage;
             if ( query != null && !query.isEmpty() )
             {
+                if (!LuceneIndexer.ENABLED.getValue()) {
+                    throw new DataRetrievalException("Unable to process a search request that contains a text-based query, as the full-text index functionality has been disabled by configuration.");
+                }
                 final PaginatedMessageLuceneQuery paginatedMessageLuceneQuery = new PaginatedMessageLuceneQuery(startDate, endDate, owner, with, query);
                 nextPage = paginatedMessageLuceneQuery.getPage(afterForNextPage, beforeForNextPage, 1, isPagingBackwards);
             }

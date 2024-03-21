@@ -11,6 +11,7 @@ import org.dom4j.DocumentHelper;
 import org.jivesoftware.database.DbConnectionManager;
 import org.jivesoftware.openfire.XMPPServer;
 import org.jivesoftware.openfire.archive.MonitoringConstants;
+import org.jivesoftware.openfire.index.LuceneIndexer;
 import org.jivesoftware.openfire.muc.MUCRoom;
 import org.jivesoftware.openfire.muc.MultiUserChatManager;
 import org.jivesoftware.openfire.muc.MultiUserChatService;
@@ -80,6 +81,9 @@ public class MucMamPersistenceManager implements PersistenceManager {
         final List<ArchivedMessage> msgs;
         final int totalCount;
         if ( query != null && !query.isEmpty() ) {
+            if (!LuceneIndexer.ENABLED.getValue()) {
+                throw new DataRetrievalException("Unable to process a search request that contains a text-based query, as the full-text index functionality has been disabled by configuration.");
+            }
             // When there's a 'query' element, the search needs to go through a Lucene index (which takes care of text-search).
             if (USE_OPENFIRE_TABLES.getValue()) {
                 Log.debug("Using Openfire tables");
@@ -165,6 +169,9 @@ public class MucMamPersistenceManager implements PersistenceManager {
             final List<ArchivedMessage> nextPage;
             if ( query != null && !query.isEmpty() )
             {
+                if (!LuceneIndexer.ENABLED.getValue()) {
+                    throw new DataRetrievalException("Unable to process a search request that contains a text-based query, as the full-text index functionality has been disabled by configuration.");
+                }
                 final PaginatedMucMessageFromOpenfireLuceneQuery paginatedMucMessageLuceneQuery = new PaginatedMucMessageFromOpenfireLuceneQuery(startDate, endDate, room, with, query);
                 nextPage = paginatedMucMessageLuceneQuery.getPage(afterForNextPage, beforeForNextPage, 1, isPagingBackwards);
             }
