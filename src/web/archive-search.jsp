@@ -12,6 +12,7 @@
 <%@ page import="org.slf4j.LoggerFactory" %>
 <%@ page import="org.jivesoftware.openfire.archive.*" %>
 <%@ page import="org.jivesoftware.openfire.cluster.ClusterManager" %>
+<%@ page import="org.jivesoftware.openfire.index.LuceneIndexer" %>
 
 <%@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c" %>
 <%@ taglib uri="http://java.sun.com/jsp/jstl/fmt" prefix="fmt" %>
@@ -566,10 +567,9 @@
 
 
 </td>
-<td>
-    <td width="0" height="100%" valign="middle">
-        <div class="verticalrule"></div>
-    </td>
+<% if (LuceneIndexer.ENABLED.getValue()) { %>
+<td width="0" height="100%" valign="middle">
+    <div class="verticalrule"></div>
 </td>
 <td>
     <table>
@@ -593,6 +593,7 @@
         </tr>
     </table>
 </td>
+<% } %>
 </tr>
 </table>
 </div>

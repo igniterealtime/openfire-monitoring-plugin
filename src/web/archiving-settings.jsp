@@ -16,6 +16,7 @@
 <%@ page import="com.reucon.openfire.plugin.archive.impl.MessageIndexer" %>
 <%@ page import="org.jivesoftware.openfire.archive.MonitoringConstants" %>
 <%@ page import="org.jivesoftware.openfire.cluster.ClusterManager" %>
+<%@ page import="org.jivesoftware.openfire.index.LuceneIndexer" %>
 
 <%@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c" %>
 <%@ taglib uri="http://java.sun.com/jsp/jstl/fmt" prefix="fmt" %>
@@ -38,6 +39,7 @@
 <title><fmt:message key="archive.settings.title"/></title>
 <meta name="pageID" content="archiving-settings"/>
 <link rel="stylesheet" type="text/css" href="style/style.css">
+<% if (LuceneIndexer.ENABLED.getValue()) { %>
 <script type="text/javascript">
     // Calls a getBuildProgress
     function getBuildProgress() {
@@ -70,6 +72,7 @@
     
     //# sourceURL=archiving-settings.jsp 
 </script>
+<% } %>
 <style type="text/css">
     .small-label {
         font-size: 11px;
@@ -483,6 +486,7 @@
             </tr>
         </thead>
         <tbody>
+        <% if (LuceneIndexer.ENABLED.getValue()) { %>
            <tr>
                <td colspan="3" width="100%"><p><fmt:message key="archive.settings.index.settings.description"/></p></td>
            </tr>
@@ -507,18 +511,26 @@
                <% } %>
                <td></td>
            </tr>
+        <% } else { %>
+            <tr>
+                <td colspan="3" width="100%"><p><fmt:message key="archive.settings.index.settings.disabled"/></p></td>
+            </tr>
+            <% } %>
         </tbody>
     </table>
 
+    <% if (LuceneIndexer.ENABLED.getValue()) { %>
     <input type="submit" name="rebuild" value="<fmt:message key="archive.settings.rebuild" />"/>
     <span id="rebuildElement" style="display:none;" class="jive-description">Rebuilding is <span id="rebuildProgress"></span>% complete.</span>
-
-    <%} %>
+    <% } %>
+    <% } %>
 </form>
 
+<% if (LuceneIndexer.ENABLED.getValue()) { %>
 <script type="text/javascript">
     getBuildProgress();
 </script>
+<% } %>
 
 </body>
 </html>
