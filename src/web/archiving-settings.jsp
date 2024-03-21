@@ -306,10 +306,13 @@
     }
 %>
 
-<div class="success" id="rebuild" style="display: <%=rebuildIndex?"block":"none"%>">
+
+<% if (rebuildIndex) { %>
+<div class="success" id="rebuild">
     <fmt:message key="archive.settings.rebuild.success"/>
     <br/>
 </div>
+<% } %>
 
 <% if (errors.size() > 0) { %>
 <div class="error">
