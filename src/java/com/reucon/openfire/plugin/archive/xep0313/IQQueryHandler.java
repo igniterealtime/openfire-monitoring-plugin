@@ -15,6 +15,7 @@ import org.jivesoftware.openfire.auth.UnauthorizedException;
 import org.jivesoftware.openfire.container.Plugin;
 import org.jivesoftware.openfire.disco.ServerFeaturesProvider;
 import org.jivesoftware.openfire.forward.Forwarded;
+import org.jivesoftware.openfire.index.LuceneIndexer;
 import org.jivesoftware.openfire.muc.MUCRole;
 import org.jivesoftware.openfire.muc.MUCRoom;
 import org.jivesoftware.openfire.muc.MultiUserChatService;
@@ -602,7 +603,9 @@ abstract public class IQQueryHandler extends AbstractIQHandler implements
         form.addField("with", "Author of message", FormField.Type.jid_single);
         form.addField("start", "Message sent on or after timestamp.", FormField.Type.text_single);
         form.addField("end", "Message sent on or before timestamp.", FormField.Type.text_single);
-        form.addField("{urn:xmpp:fulltext:0}fulltext", "Free text search", FormField.Type.text_single);
+        if (LuceneIndexer.ENABLED.getValue()) {
+            form.addField("{urn:xmpp:fulltext:0}fulltext", "Free text search", FormField.Type.text_single);
+        }
 
         query.add(form.getElement());
 
@@ -617,14 +620,22 @@ abstract public class IQQueryHandler extends AbstractIQHandler implements
      * @return A list of fields. Never null.
      */
     private List<String> getSupportedFieldVariables() {
-        return Arrays.asList( "FORM_TYPE", "with", "start", "end", "{urn:xmpp:fulltext:0}fulltext", "withtext", "search");
+        final List<String> results = Arrays.asList("FORM_TYPE", "with", "start", "end");
+        if (LuceneIndexer.ENABLED.getValue()) {
+            results.add("{urn:xmpp:fulltext:0}fulltext");
+            results.add("withtext");
+            results.add("search");
+        }
+        return results;
     }
 
     @Override
     public Iterator<String> getFeatures() {
         final List<String> result = new ArrayList<>();
         result.add(NAMESPACE);
-        result.add("urn:xmpp:fulltext:0");
+        if (LuceneIndexer.ENABLED.getValue()) {
+            result.add("urn:xmpp:fulltext:0");
+        }
         return result.iterator();
     }
 

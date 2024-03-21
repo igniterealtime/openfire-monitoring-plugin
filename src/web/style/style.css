@@ -5,8 +5,8 @@
     display: block;
     position: relative;
     -moz-border-radius: 3px;
-    padding: 0px 0px 0px 0px;
-    margin: 0px 0px 0px 0px;
+    padding: 0 0 0 0;
+    margin: 0 0 0 0;
     width: 735px;
     height: auto;
     font-size: .85em;
@@ -16,12 +16,12 @@
 .alertbox h3 {
     display: block;
     font-size: 1.1em;
-    margin: 15px 0px 5px 0px;
-    padding: 0px;
+    margin: 15px 0 5px 0;
+    padding: 0;
     }
 .alertbox p {
     font-size: .9em;
-    margin: 3px 0px 10px 0px;
+    margin: 3px 0 10px 0;
     }
 .alertbox a {
     color: #000000;
@@ -52,7 +52,7 @@
     width: 22px;
     height: 22px;
     margin: 12px 12px 20px 12px;
-    padding: 0px 0px 0px 0px;
+    padding: 0 0 0 0;
     }
 
 .licenseIconsmall {
@@ -61,15 +61,15 @@
     float: left;
     width: 16px;
     height: 16px;
-    margin: 0px 5px 4px 0px;
-    padding: 0px 0px 0px 0px;
+    margin: 0 5px 4px 0;
+    padding: 0 0 0 0;
     }
 
 .licenseContent {
     display: block;
     position: relative;
     clear: none;
-    top: 0px;
+    top: 0;
     left: 50px;
     width: 670px;
     }
@@ -81,8 +81,8 @@
     float: right;
     -moz-border-radius-topleft: 3px;
     -moz-border-radius-bottomleft: 3px;
-    padding: 0px 0px 0px 0px;
-    margin: -12px -18px 0px 0px;
+    padding: 0 0 0 0;
+    margin: -12px -18px 0 0;
     width: 100px;
     font-size: .85em;
     color: #000000;
@@ -96,7 +96,7 @@
     font-weight: bold;
     text-decoration: none;
     color: #A85E00;
-    padding: 3px 0px 0px 0px;
+    padding: 3px 0 0 0;
     }
 .alertboxsmall div.licenseContentsmall a:hover {
     text-decoration: underline;
@@ -178,7 +178,7 @@
 }
 #enterLicenseLink a.licenseLink {
     background: url(/images/add-16x16.gif) no-repeat;
-    padding: 0px 0px 0px 20px;
+    padding: 0 0 0 20px;
 }
 
 #enterLicense {
@@ -186,14 +186,14 @@
 }
 #enterLicense a.cancelLink {
     background: url(/images/forbidden-16x16.gif) no-repeat;
-    padding: 0px 0px 0px 20px;
+    padding: 0 0 0 20px;
 }
 
 .licenseBody form {
     display: block;
     width: 680px;
-    margin: 0px 0px 15px 0px;
-    padding: 0px;
+    margin: 0 0 15px 0;
+    padding: 0;
     text-align: right;
     }
 .licenseBody form textarea {
@@ -210,7 +210,7 @@
     text-align:left;
     color: #8C0900;
     font-weight: bold;
-    padding: 10px 0px 10px 0px;
+    padding: 10px 0 10px 0;
 }
 
 strong.erroritem {
@@ -221,9 +221,8 @@ strong.erroritem {
 
 /* general page elements */
 table.settingsTable {
-    display: block;
     border: 1px solid #BBBBBB;
-    margin: 5px 0px 15px 0px;
+    margin: 5px 0 15px 0;
 }
 table.settingsTable thead th {
     border-bottom: 1px solid #BBBBBB;
@@ -235,10 +234,10 @@ table.settingsTable tbody tr td {
     padding: 5px 10px 5px 15px;
 }
 table.settingsTable tbody tr td p {
-    padding: 10px 0px 5px 0px;
+    padding: 10px 0 5px 0;
 }
 table.settingsTable tr {
-    padding: 0px 0px 10px 0px;
+    padding: 0 0 10px 0;
 }
 
 
@@ -252,8 +251,8 @@ fieldset {
     position: relative;
     -moz-border-radius: 3px;
     border: 1px solid #CCCCCC;
-    padding: 2px 0px 0px 0px;
-    margin: 0px 0px 0px 0px;
+    padding: 2px 0 0 0;
+    margin: 0 0 0 0;
     }
 fieldset legend {
     color: #000000;
@@ -263,7 +262,7 @@ fieldset legend {
 .clientscontent {
     display: block;
     position: relative;
-    margin: 0px 15px 0px 15px;
+    margin: 0 15px 0 15px;
   }
 .permitclientbox {
     display: block;
@@ -271,7 +270,7 @@ fieldset legend {
     border: 1px solid #DCDCDC;
     -moz-border-radius: 3px;
     padding: 3px 2px 2px 2px;
-    margin: 10px 0px 10px 0px;
+    margin: 10px 0 10px 0;
     width: 600px;
     height: auto;
     color: #000000;
@@ -306,9 +305,9 @@ fieldset legend {
   .specifyclients {
       display: block;
       position: relative;
-      margin: 0px 15px 18px 15px;
+      margin: 0 15px 18px 15px;
       width: auto;
-      padding: 0px;
+      padding: 0;
   }
 
 
