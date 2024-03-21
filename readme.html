@@ -116,5 +116,12 @@ archiving, you will need to log into the admin console and go to:<br />
 Server --&gt; Archiving --&gt; Archiving Settings
 </p>
 
+<p>
+Since version 2.7.0, it is possibly to <em>disable</em> full-text search functionality by configuration. To do so, a
+system property named <tt>conversation.search.index-enabled</tt> must be defined, and should have the value
+<tt>false</tt>. The default setting is for this functionality to be <em>enabled</em>. Changes to this configuration
+require a restart for the new setting to be applied.
+</p>
+
 </body>
 </html>
