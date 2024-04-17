@@ -18,6 +18,7 @@ import com.reucon.openfire.plugin.archive.model.ArchivedMessage;
 import com.reucon.openfire.plugin.archive.xep0313.IQQueryHandler;
 import org.dom4j.DocumentException;
 import org.jivesoftware.database.DbConnectionManager;
+import org.jivesoftware.openfire.muc.MUCRoom;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.xmpp.packet.JID;
@@ -39,29 +40,14 @@ import java.util.List;
  *
  * @author Guus der Kinderen, guus.der.kinderen@gmail.com
  */
-public class PaginatedMucMessageDatabaseQuery
+public class PaginatedMucMessageDatabaseQuery extends AbstractPaginatedMamMucQuery
 {
-    private static final Logger Log = LoggerFactory.getLogger(PaginatedMucMessageDatabaseQuery.class );
-
-    @Nonnull
-    private final Date startDate;
-
-    @Nonnull
-    private final Date endDate;
-
-    @Nonnull
-    private final JID archiveOwner;
-
-    @Nonnull
-    private final JID messageOwner;
-
-    @Nullable
-    private final JID with;
+    private static final Logger Log = LoggerFactory.getLogger(PaginatedMucMessageDatabaseQuery.class);
 
     /**
-     * Creates a query for messages from a message archive.
+     * Creates a query for messages from a message archive of a multi-user chat room.
      *
-     * Two identifing JIDs are provided to this method: one is the JID of the room that's being queried (the 'archive
+     * Two identifying JIDs are provided to this method: one is the JID of the room that's being queried (the 'archive
      * owner'). To be able to return the private messages for a particular user from the room archive, an additional JID
      * is provided, that identifies the user for which to retrieve the messages.
      *
@@ -69,45 +55,11 @@ public class PaginatedMucMessageDatabaseQuery
      * @param endDate End (inclusive) of period for which to return messages. 'now' will be used if no value is provided.
      * @param archiveOwner The message archive owner (the JID of the chat room).
      * @param messageOwner The entity for which to return messages (typically the JID of the entity making the request).
-     * @param with An optional converstation partner (or message author, in case of MUC).
+     * @param with An optional conversation partner (or message author, in case of MUC).
      */
-    public PaginatedMucMessageDatabaseQuery(@Nullable final Date startDate, @Nullable final Date endDate, @Nonnull final JID archiveOwner, @Nonnull final JID messageOwner, @Nullable final JID with)
+    public PaginatedMucMessageDatabaseQuery(@Nullable final Date startDate, @Nullable final Date endDate, @Nonnull final MUCRoom archiveOwner, @Nonnull final JID messageOwner, @Nullable final JID with)
     {
-        this.startDate = startDate == null ? new Date( 0L ) : startDate ;
-        this.endDate = endDate == null ? new Date() : endDate;
-        this.archiveOwner = archiveOwner;
-        this.messageOwner = messageOwner;
-        this.with = with;
-    }
-
-    @Nonnull
-    public Date getStartDate()
-    {
-        return startDate;
-    }
-
-    @Nonnull
-    public Date getEndDate()
-    {
-        return endDate;
-    }
-
-    @Nonnull
-    public JID getArchiveOwner()
-    {
-        return archiveOwner;
-    }
-
-    @Nonnull
-    public JID getMessageOwner()
-    {
-        return messageOwner;
-    }
-
-    @Nullable
-    public JID getWith()
-    {
-        return with;
+        super(startDate, endDate, archiveOwner, messageOwner, with);
     }
 
     @Override
@@ -122,7 +74,8 @@ public class PaginatedMucMessageDatabaseQuery
             '}';
     }
 
-    protected List<ArchivedMessage> getPage( @Nullable final Long after, @Nullable final Long before, final int maxResults, final boolean isPagingBackwards ) throws DataRetrievalException {
+    @Override
+    protected List<ArchivedMessage> getPage(@Nullable final Long after, @Nullable final Long before, final int maxResults, final boolean isPagingBackwards) throws DataRetrievalException {
         Log.trace( "Getting page of archived messages. After: {}, Before: {}, Max results: {}, Paging backwards: {}", after, before, maxResults, isPagingBackwards );
 
         final List<ArchivedMessage> archivedMessages = new ArrayList<>();
@@ -196,6 +149,7 @@ public class PaginatedMucMessageDatabaseQuery
         return date == null ? null : date.getTime();
     }
 
+    @Override
     protected int getTotalCount()
     {
         Connection connection = null;
