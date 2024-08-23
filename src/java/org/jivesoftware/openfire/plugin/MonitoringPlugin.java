@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008 Jive Software, 2022-2023 Ignite Realtime Foundation. All rights reserved.
+ * Copyright (C) 2008 Jive Software, 2022-2024 Ignite Realtime Foundation. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,6 +18,9 @@ package org.jivesoftware.openfire.plugin;
 
 import java.io.File;
 import java.io.FileFilter;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -170,28 +173,22 @@ public class MonitoringPlugin implements Plugin, PluginListener
         xep0313Support2 = new Xep0313Support2(XMPPServer.getInstance());
         xep0313Support2.start();
 
-        // Check if we Enterprise is installed and stop loading this plugin if
-        // found
-        File pluginDir = new File(JiveGlobals.getHomeDirectory(), "plugins");
-        File[] jars = pluginDir.listFiles(new FileFilter() {
-            public boolean accept(File pathname) {
-                String fileName = pathname.getName().toLowerCase();
-                return (fileName.equalsIgnoreCase("enterprise.jar"));
-            }
-        });
-        if (jars.length > 0) {
+        // Check if we Enterprise is installed and stop loading this plugin if found
+        if (manager.getPluginByName("enterprise").isPresent()) {
             // Do not load this plugin since Enterprise is still installed
-            System.out
-                    .println("Enterprise plugin found. Stopping Monitoring Plugin");
-            throw new IllegalStateException(
-                    "This plugin cannot run next to the Enterprise plugin");
+            System.out.println("Enterprise plugin found. Stopping Monitoring Plugin");
+            throw new IllegalStateException("This plugin cannot run next to the Enterprise plugin");
         }
 
         // Make sure that the monitoring folder exists under the home directory
-        File dir = new File(JiveGlobals.getHomeDirectory() + File.separator
-                + MonitoringConstants.NAME);
-        if (!dir.exists()) {
-            dir.mkdirs();
+        final Path monitoringFolder = JiveGlobals.getHomePath().resolve(MonitoringConstants.NAME);
+        if (!Files.exists(monitoringFolder))
+        {
+            try {
+                Files.createDirectories(monitoringFolder);
+            } catch (IOException e) {
+                Log.warn("Monitoring directory '{}' does not exist, but cannot be created!", monitoringFolder, e);
+            }
         }
 
         loadPublicWeb(pluginDirectory);

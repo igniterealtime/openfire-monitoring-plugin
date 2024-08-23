@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008 Jive Software. All rights reserved.
+ * Copyright (C) 2008 Jive Software, Ignite Realtime Foundation 2024. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,6 +20,8 @@ import org.jivesoftware.util.NamedThreadFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.time.Duration;
+import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.*;
 
@@ -81,18 +83,18 @@ public class TaskEngine {
      * Schedules the specified task for execution after the specified delay.
      *
      * @param task  task to be scheduled.
-     * @param delay delay in milliseconds before task is to be executed.
+     * @param delay delay before task is to be executed.
      * @throws IllegalArgumentException if <tt>delay</tt> is negative, or
      *         <tt>delay + System.currentTimeMillis()</tt> is negative.
      * @throws IllegalStateException if task was already scheduled or
      *         cancelled, or timer was cancelled.
      */
-    public void schedule(TimerTask task, long delay) {
+    public void schedule(TimerTask task, Duration delay) {
         TimerTaskWrapper taskWrapper = new TimerTaskWrapper(task);
         synchronized (wrappedTasks) {
             wrappedTasks.put(task, taskWrapper);
         }
-        timer.schedule(taskWrapper, delay);
+        timer.schedule(taskWrapper, delay.toMillis());
     }
 
     /**
@@ -105,12 +107,12 @@ public class TaskEngine {
      * @throws IllegalStateException if task was already scheduled or
      *         cancelled, timer was cancelled, or timer thread terminated.
      */
-    public void schedule(TimerTask task, Date time) {
+    public void schedule(TimerTask task, Instant time) {
         TimerTaskWrapper taskWrapper = new TimerTaskWrapper(task);
         synchronized (wrappedTasks) {
             wrappedTasks.put(task, taskWrapper);
         }
-        timer.schedule(taskWrapper, time);
+        timer.schedule(taskWrapper, Date.from(time));
     }
 
     /**
@@ -136,19 +138,19 @@ public class TaskEngine {
      * is held down.
      *
      * @param task   task to be scheduled.
-     * @param delay  delay in milliseconds before task is to be executed.
-     * @param period time in milliseconds between successive task executions.
+     * @param delay  delay before task is to be executed.
+     * @param period time between successive task executions.
      * @throws IllegalArgumentException if <tt>delay</tt> is negative, or
      *         <tt>delay + System.currentTimeMillis()</tt> is negative.
      * @throws IllegalStateException if task was already scheduled or
      *         cancelled, timer was cancelled, or timer thread terminated.
      */
-    public void schedule(TimerTask task, long delay, long period) {
+    public void schedule(TimerTask task, Duration delay, Duration period) {
         TimerTaskWrapper taskWrapper = new TimerTaskWrapper(task);
         synchronized (wrappedTasks) {
             wrappedTasks.put(task, taskWrapper);
         }
-        timer.schedule(taskWrapper, delay, period);
+        timer.schedule(taskWrapper, delay.toMillis(), period.toMillis());
     }
 
     /**
@@ -175,17 +177,17 @@ public class TaskEngine {
      *
      * @param task   task to be scheduled.
      * @param firstTime First time at which task is to be executed.
-     * @param period time in milliseconds between successive task executions.
+     * @param period time between successive task executions.
      * @throws IllegalArgumentException if <tt>time.getTime()</tt> is negative.
      * @throws IllegalStateException if task was already scheduled or
      *         cancelled, timer was cancelled, or timer thread terminated.
      */
-    public void schedule(TimerTask task, Date firstTime, long period) {
+    public void schedule(TimerTask task, Instant firstTime, Duration period) {
         TimerTaskWrapper taskWrapper = new TimerTaskWrapper(task);
         synchronized (wrappedTasks) {
             wrappedTasks.put(task, taskWrapper);
         }
-        timer.schedule(taskWrapper, firstTime, period);
+        timer.schedule(taskWrapper, Date.from(firstTime), period.toMillis());
     }
 
     /**
@@ -212,19 +214,19 @@ public class TaskEngine {
      * with respect to one another.
      *
      * @param task   task to be scheduled.
-     * @param delay  delay in milliseconds before task is to be executed.
-     * @param period time in milliseconds between successive task executions.
+     * @param delay delay before task is to be executed.
+     * @param period time between successive task executions.
      * @throws IllegalArgumentException if <tt>delay</tt> is negative, or
      *         <tt>delay + System.currentTimeMillis()</tt> is negative.
      * @throws IllegalStateException if task was already scheduled or
      *         cancelled, timer was cancelled, or timer thread terminated.
      */
-    public void scheduleAtFixedRate(TimerTask task, long delay, long period) {
+    public void scheduleAtFixedRate(TimerTask task, Duration delay, Duration period) {
         TimerTaskWrapper taskWrapper = new TimerTaskWrapper(task);
         synchronized (wrappedTasks) {
             wrappedTasks.put(task, taskWrapper);
         }
-        timer.scheduleAtFixedRate(taskWrapper, delay, period);
+        timer.scheduleAtFixedRate(taskWrapper, delay.toMillis(), period.toMillis());
     }
 
     /**
@@ -252,17 +254,17 @@ public class TaskEngine {
      *
      * @param task   task to be scheduled.
      * @param firstTime First time at which task is to be executed.
-     * @param period time in milliseconds between successive task executions.
+     * @param period time between successive task executions.
      * @throws IllegalArgumentException if <tt>time.getTime()</tt> is negative.
      * @throws IllegalStateException if task was already scheduled or
      *         cancelled, timer was cancelled, or timer thread terminated.
      */
-    public void scheduleAtFixedRate(TimerTask task, Date firstTime, long period) {
+    public void scheduleAtFixedRate(TimerTask task, Instant firstTime, Duration period) {
         TimerTaskWrapper taskWrapper = new TimerTaskWrapper(task);
         synchronized (wrappedTasks) {
             wrappedTasks.put(task, taskWrapper);
         }
-        timer.scheduleAtFixedRate(taskWrapper, firstTime, period);
+        timer.scheduleAtFixedRate(taskWrapper, Date.from(firstTime), period.toMillis());
     }
 
     /**

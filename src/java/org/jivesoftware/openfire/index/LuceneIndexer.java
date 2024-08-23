@@ -1,3 +1,18 @@
+/*
+ * Copyright (C) 2008 Jive Software, 2024 Ignite Realtime Foundation. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package org.jivesoftware.openfire.index;
 
 import org.apache.commons.io.FileUtils;
@@ -39,7 +54,7 @@ public abstract class LuceneIndexer
     private final int schemaVersion;
     protected TaskEngine taskEngine;
     protected RebuildFuture rebuildFuture;
-    private File searchDir;
+    private Path searchDir;
     private XMLProperties indexProperties;
     private Directory directory;
     private IndexSearcher searcher;
@@ -55,7 +70,7 @@ public abstract class LuceneIndexer
        .setPlugin(MonitoringConstants.PLUGIN_NAME)
        .build();
 
-    public LuceneIndexer(TaskEngine taskEngine, File searchDir, String logName, int schemaVersion)
+    public LuceneIndexer(TaskEngine taskEngine, Path searchDir, String logName, int schemaVersion)
     {
         this.taskEngine = taskEngine;
         this.searchDir = searchDir;
@@ -66,11 +81,12 @@ public abstract class LuceneIndexer
     public void start()
     {
         Log.debug("Starting...");
-        if ( !searchDir.exists() )
+        if (!Files.exists(searchDir))
         {
-            if ( !searchDir.mkdirs() )
-            {
-                Log.warn("Lucene index directory '{}' does not exist, but cannot be created!", searchDir);
+            try {
+                Files.createDirectories(searchDir);
+            } catch (IOException e) {
+                Log.warn("Lucene index directory '{}' does not exist, but cannot be created!", searchDir, e);
             }
         }
 
@@ -78,7 +94,7 @@ public abstract class LuceneIndexer
         try
         {
             indexProperties = loadPropertiesFile(searchDir);
-            directory = FSDirectory.open(searchDir.toPath());
+            directory = FSDirectory.open(searchDir);
             if ( !DirectoryReader.indexExists(directory) )
             {
                 Log.info("Unable to find a Lucene index in {}. rebuilding.", directory);
@@ -94,7 +110,7 @@ public abstract class LuceneIndexer
                 {
                     // See if the data on disk is of the schema version that we expect to be able to use.
                     // TODO make this optional through configuration.
-                    final Path schemaVersionFile = searchDir.toPath().resolve("openfire-schema.version");
+                    final Path schemaVersionFile = searchDir.resolve("openfire-schema.version");
                     final Scanner scanner = new Scanner(schemaVersionFile);
                     int detectedSchemaVersion = -1;
                     if (scanner.hasNextInt())
@@ -169,17 +185,22 @@ public abstract class LuceneIndexer
             }
         };
         final Duration updateInterval = UPDATE_INTERVAL.getValue();
-        taskEngine.schedule(indexUpdater, Duration.ofMinutes(1).toMillis(), updateInterval.toMillis());
+        taskEngine.schedule(indexUpdater, Duration.ofMinutes(1), updateInterval);
     }
 
     private void removeAndRebuildSearchDir() throws IOException {
         directory.close();
-        FileUtils.deleteDirectory(searchDir);
-        if ( !searchDir.mkdirs() )
+        FileUtils.deleteDirectory(searchDir.toFile());
+        if (!Files.exists(searchDir))
         {
-            Log.warn("Lucene index directory '{}' cannot be recreated!", searchDir);
+            try {
+                Files.createDirectories(searchDir);
+            } catch (IOException e) {
+                Log.warn("Lucene index directory '{}' cannot be recreated!", searchDir, e);
+            }
         }
-        directory = FSDirectory.open(searchDir.toPath());
+
+        directory = FSDirectory.open(searchDir);
     }
 
     protected synchronized Instant getLastModified()
@@ -244,7 +265,7 @@ public abstract class LuceneIndexer
      */
     public long getIndexSize()
     {
-        File[] files = searchDir.listFiles(( dir, name ) -> {
+        File[] files = searchDir.toFile().listFiles(( dir, name ) -> {
             // Ignore the index properties file since it's not part of the index.
             return !name.equals("indexprops.xml");
         });
@@ -331,11 +352,11 @@ public abstract class LuceneIndexer
 
             Log.debug("Removing old data from directory: {}", searchDir);
             try {
-                FileUtils.cleanDirectory(searchDir);
-                Files.write(searchDir.toPath().resolve("openfire-schema.version"), String.valueOf(this.schemaVersion).getBytes());
+                FileUtils.cleanDirectory(searchDir.toFile());
+                Files.write(searchDir.resolve("openfire-schema.version"), String.valueOf(this.schemaVersion).getBytes());
                 indexProperties = loadPropertiesFile(searchDir);
             } catch ( IOException e ) {
-                Log.warn("An exception occurred while trying to clean directory '{}' as part of a rebuild of the Lucene index that's in it.", searchDir);
+                Log.warn("An exception occurred while trying to clean directory '{}' as part of a rebuild of the Lucene index that's in it.", searchDir, e);
             }
 
             final Analyzer analyzer = new StandardAnalyzer();
@@ -431,9 +452,9 @@ public abstract class LuceneIndexer
      * loaded. If an XML file for the search properties isn't already
      * created, it will attempt to make a file with default values.
      */
-    private XMLProperties loadPropertiesFile( File searchDir ) throws IOException
+    private XMLProperties loadPropertiesFile( Path searchDir ) throws IOException
     {
-        File indexPropertiesFile = new File(searchDir, "indexprops.xml");
+        File indexPropertiesFile = new File(searchDir.toFile(), "indexprops.xml");
 
         // Make sure the file actually exists. If it doesn't, a new file
         // will be created.
