@@ -53,9 +53,9 @@
             <version>${jersey.version}</version>
         </dependency>
         <dependency>
-            <groupId>org.jrobin</groupId>
+            <groupId>com.purej</groupId>
             <artifactId>jrobin</artifactId>
-            <version>1.6.0</version>
+            <version>1.7.1</version>
         </dependency>
         <dependency>
             <groupId>jfree</groupId>
@@ -112,13 +112,6 @@
             <id>igniterealtime</id>
             <name>Ignite Realtime Repository</name>
             <url>https://igniterealtime.org/archiva/repository/maven/</url>
-        </repository>
-
-        <!-- For jrobin -->
-        <repository>
-            <id>opennms-repo</id>
-            <name>OpenNMS Release Repository</name>
-            <url>https://maven.mirrors.opennms.org/maven2/</url>
         </repository>
     </repositories>
 
