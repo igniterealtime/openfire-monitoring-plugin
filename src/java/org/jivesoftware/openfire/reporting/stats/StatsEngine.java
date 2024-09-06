@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008 Jive Software, 2022 Ignite Realtime Foundation. All rights reserved.
+ * Copyright (C) 2008 Jive Software, 2022-2024 Ignite Realtime Foundation. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,6 +17,8 @@ package org.jivesoftware.openfire.reporting.stats;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Path;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Calendar;
@@ -86,7 +88,7 @@ public class StatsEngine {
 
             // After 10 milliseconds begin sampling in 60 second intervals. Note: We need to start
             // asap so that the UI can access this info upon start up
-            taskEngine.scheduleAtFixedRate(samplingTask, 10, STAT_RESOULUTION * 1000L);
+            taskEngine.scheduleAtFixedRate(samplingTask, Duration.ofMillis(10), Duration.ofSeconds(STAT_RESOULUTION));
         }
         catch (RrdException e) {
             Log.error("Error initializing RrdbPool.", e);
@@ -104,10 +106,10 @@ public class StatsEngine {
     }
 
     private void checkDatabase(StatDefinition[] def) throws RrdException, IOException {
-        File directory = new File(getStatsDirectroy());
+        File directory = getStatsDirectory().toFile();
         if (directory.exists()) {
             // check if the rrd exists
-            File rrdFile = new File(getRrdFilePath(def[0].getDbPath()));
+            File rrdFile = getRrdFilePath(def[0].getDbPath()).toFile();
             if (rrdFile.exists() && rrdFile.canRead()) {
                 try {
                     // Import existing RRD file into the DB
@@ -163,8 +165,8 @@ public class StatsEngine {
      * @param datasourceName the name of the data source.
      * @return the path to the RRD file.
      */
-    private String getRrdFilePath(String datasourceName) {
-        return getStatsDirectroy() + datasourceName + ".rrd";
+    private Path getRrdFilePath(String datasourceName) {
+        return getStatsDirectory().resolve(datasourceName + ".rrd");
     }
 
     /**
@@ -172,9 +174,8 @@ public class StatsEngine {
      *
      * @return Returns the directory in which all of the stat databases will be stored.
      */
-    private String getStatsDirectroy() {
-        return JiveGlobals.getHomeDirectory() + File.separator + MonitoringConstants.NAME
-                + File.separator + "stats" + File.separator;
+    private Path getStatsDirectory() {
+        return JiveGlobals.getHomePath().resolve(Path.of(MonitoringConstants.NAME, "stats"));
     }
 
     private StatDefinition createDefintion(String key) {

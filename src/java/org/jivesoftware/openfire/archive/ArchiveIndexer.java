@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008 Jive Software. All rights reserved.
+ * Copyright (C) 2008 Jive Software, Ignite Realtime Foundation 2024. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,6 +27,7 @@ import org.xmpp.packet.JID;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Path;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -67,7 +68,7 @@ public class ArchiveIndexer extends org.jivesoftware.openfire.index.LuceneIndexe
      * @param taskEngine a task engine instance.
      */
     public ArchiveIndexer(ConversationManager conversationManager, TaskEngine taskEngine) {
-        super(taskEngine, new File(JiveGlobals.getHomeDirectory() + File.separator + MonitoringConstants.NAME + File.separator + "search"), "CONVERSATION", SCHEMA_VERSION);
+        super(taskEngine, JiveGlobals.getHomePath().resolve(Path.of(MonitoringConstants.NAME, "search")), "CONVERSATION", SCHEMA_VERSION);
         this.conversationManager = conversationManager;
     }
 

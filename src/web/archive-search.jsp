@@ -10,7 +10,6 @@
 <%@ page import="java.util.*" %>
 <%@ page import="org.slf4j.Logger" %>
 <%@ page import="org.slf4j.LoggerFactory" %>
-<%@ page import="com.reucon.openfire.plugin.archive.xep.AbstractXepSupport" %>
 <%@ page import="org.jivesoftware.openfire.archive.*" %>
 <%@ page import="org.jivesoftware.openfire.cluster.ClusterManager" %>
 
@@ -122,8 +121,13 @@
                 // occurs at 5:33 PM that day, it should be included in the results. In
                 // order to make this possible, we need to make the end date one millisecond
                 // before the next day starts.
-                date = new Date(date.getTime() + JiveConstants.DAY - 1);
-                search.setDateRangeMax(date);
+                final Calendar calendar = Calendar.getInstance();
+                calendar.setTime(date);
+                calendar.set(Calendar.HOUR_OF_DAY, 23);
+                calendar.set(Calendar.MINUTE, 59);
+                calendar.set(Calendar.SECOND, 59);
+                calendar.set(Calendar.MILLISECOND, 999);
+                search.setDateRangeMax(calendar.getTime());
             }
             catch (Exception e) {
                 // TODO: mark as an error in the JSP instead of logging..

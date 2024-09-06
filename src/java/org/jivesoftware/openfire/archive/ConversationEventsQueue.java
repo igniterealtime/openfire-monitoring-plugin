@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008 Jive Software. All rights reserved.
+ * Copyright (C) 2008 Jive Software, Ignite Realtime Foundation 2024. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,6 +16,7 @@
 
 package org.jivesoftware.openfire.archive;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -96,7 +97,7 @@ public class ConversationEventsQueue {
                 }
             }
         };
-        taskEngine.scheduleAtFixedRate(sendTask, JiveConstants.SECOND * 3, JiveConstants.SECOND * 3);
+        taskEngine.scheduleAtFixedRate(sendTask, Duration.ofSeconds(3), Duration.ofSeconds(3));
     }
 
     /**

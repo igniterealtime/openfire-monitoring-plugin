@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008 Jive Software. All rights reserved.
+ * Copyright (C) 2008 Jive Software, Ignite Realtime Foundation 2024. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -255,7 +255,7 @@ public class ConversationManager implements ComponentEventListener{
                 }
             }
         };
-        taskEngine.scheduleAtFixedRate(cleanupTask, JiveConstants.MINUTE * 5, JiveConstants.MINUTE * 5);
+        taskEngine.scheduleAtFixedRate(cleanupTask, Duration.ofMinutes(5), Duration.ofMinutes(5));
 
         // Schedule a task to do conversation purging.
         maxAgeTask = new TimerTask() {
@@ -304,7 +304,7 @@ public class ConversationManager implements ComponentEventListener{
                 }
             }
         };
-        taskEngine.scheduleAtFixedRate(maxAgeTask, JiveConstants.MINUTE, JiveConstants.MINUTE);
+        taskEngine.scheduleAtFixedRate(maxAgeTask, Duration.ofMinutes(1), Duration.ofMinutes(1));
 
         // Register a statistic.
         Statistic conversationStat = new Statistic() {
