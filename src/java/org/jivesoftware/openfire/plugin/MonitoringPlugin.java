@@ -17,7 +17,6 @@
 package org.jivesoftware.openfire.plugin;
 
 import java.io.File;
-import java.io.FileFilter;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -172,13 +171,6 @@ public class MonitoringPlugin implements Plugin, PluginListener
 
         xep0313Support2 = new Xep0313Support2(XMPPServer.getInstance());
         xep0313Support2.start();
-
-        // Check if we Enterprise is installed and stop loading this plugin if found
-        if (manager.getPluginByName("enterprise").isPresent()) {
-            // Do not load this plugin since Enterprise is still installed
-            System.out.println("Enterprise plugin found. Stopping Monitoring Plugin");
-            throw new IllegalStateException("This plugin cannot run next to the Enterprise plugin");
-        }
 
         // Make sure that the monitoring folder exists under the home directory
         final Path monitoringFolder = JiveGlobals.getHomePath().resolve(MonitoringConstants.NAME);
