@@ -8,7 +8,6 @@
     <version>${project.version}</version>
     <date>2024-08-23</date>
     <minServerVersion>4.8.0</minServerVersion>
-    <minJavaVersion>1.8</minJavaVersion>
     <databaseKey>monitoring</databaseKey>
     <databaseVersion>8</databaseVersion>
 
