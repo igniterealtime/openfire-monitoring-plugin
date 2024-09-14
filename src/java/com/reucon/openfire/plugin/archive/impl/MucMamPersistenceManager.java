@@ -116,7 +116,7 @@ public class MucMamPersistenceManager implements PersistenceManager {
                 }
             } else {
                 Log.debug("Using Monitoring plugin tables");
-                final PaginatedMucMessageDatabaseQuery paginatedMessageDatabaseQuery = new PaginatedMucMessageDatabaseQuery(startDate, endDate, room.getJID(), messageOwner, with);
+                final PaginatedMucMessageDatabaseQuery paginatedMessageDatabaseQuery = new PaginatedMucMessageDatabaseQuery(startDate, endDate, room, messageOwner, with);
                 Log.debug("Request for message archive of room '{}' resulted in the following query data: {}", room.getJID(), paginatedMessageDatabaseQuery);
                 totalCount = paginatedMessageDatabaseQuery.getTotalCount();
                 if (totalCount == 0) {
@@ -174,7 +174,7 @@ public class MucMamPersistenceManager implements PersistenceManager {
                     final PaginatedMucMessageFromOpenfireDatabaseQuery paginatedMucMessageFromOpenfireDatabaseQuery = new PaginatedMucMessageFromOpenfireDatabaseQuery(startDate, endDate, room, with);
                     nextPage = paginatedMucMessageFromOpenfireDatabaseQuery.getPage(afterForNextPage, beforeForNextPage, 1, isPagingBackwards);
                 } else {
-                    final PaginatedMucMessageDatabaseQuery paginatedMessageDatabaseQuery = new PaginatedMucMessageDatabaseQuery(startDate, endDate, room.getJID(), messageOwner, with);
+                    final PaginatedMucMessageDatabaseQuery paginatedMessageDatabaseQuery = new PaginatedMucMessageDatabaseQuery(startDate, endDate, room, messageOwner, with);
                     nextPage = paginatedMessageDatabaseQuery.getPage(afterForNextPage, beforeForNextPage, 1, isPagingBackwards);
                 }
             }

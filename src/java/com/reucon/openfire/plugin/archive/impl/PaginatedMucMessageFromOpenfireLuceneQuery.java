@@ -19,26 +19,31 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.xmpp.packet.JID;
 
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import java.io.IOException;
 import java.util.*;
 
-public class PaginatedMucMessageFromOpenfireLuceneQuery
+public class PaginatedMucMessageFromOpenfireLuceneQuery extends AbstractPaginatedMamMucQuery
 {
-    private static final Logger Log = LoggerFactory.getLogger(PaginatedMucMessageFromOpenfireLuceneQuery.class );
+    private static final Logger Log = LoggerFactory.getLogger(PaginatedMucMessageFromOpenfireLuceneQuery.class);
 
-    private final Date startDate;
-    private final Date endDate;
-    private final MUCRoom room;
-    private final JID sender;
-    private final String query;
-
-    public PaginatedMucMessageFromOpenfireLuceneQuery(final Date startDate, final Date endDate, final MUCRoom room, final JID sender, final String query )
+    /**
+     * Creates a query for messages from a message archive of a multi-user chat room.
+     *
+     * Two identifying JIDs are provided to this method: one is the JID of the room that's being queried (the 'archive
+     * owner'). To be able to return the private messages for a particular user from the room archive, an additional JID
+     * is provided, that identifies the user for which to retrieve the messages.
+     *
+     * @param startDate Start (inclusive) of period for which to return messages. EPOCH will be used if no value is provided.
+     * @param endDate End (inclusive) of period for which to return messages. 'now' will be used if no value is provided.
+     * @param room The message archive owner (the chat room).
+     * @param sender The entity for which to return messages (typically the JID of the entity making the request).
+     * @param query A search string to be used for text-based search.
+     */
+    public PaginatedMucMessageFromOpenfireLuceneQuery(@Nullable final Date startDate, @Nullable final Date endDate, @Nonnull final MUCRoom room, @Nullable final JID sender, @Nonnull final String query)
     {
-        this.startDate = startDate == null ? new Date( 0L ) : startDate ;
-        this.endDate = endDate == null ? new Date() : endDate;
-        this.room = room;
-        this.sender = sender;
-        this.query = query;
+        super(startDate, endDate, room, sender, null, query);
     }
 
     protected IndexSearcher getSearcher() throws IOException
@@ -52,7 +57,8 @@ public class PaginatedMucMessageFromOpenfireLuceneQuery
         return searcher;
     }
 
-    public List<ArchivedMessage> getPage( final Long after, final Long before, final int maxResults, final boolean isPagingBackwards ) throws DataRetrievalException {
+    @Override
+    public List<ArchivedMessage> getPage(final Long after, final Long before, final int maxResults, final boolean isPagingBackwards) throws DataRetrievalException {
         Log.debug( "Retrieving archived messages page. After: {}, Before: {}, maxResults: {}, isPagingBackwards: {}", after, before, maxResults, isPagingBackwards);
         final List<ArchivedMessage> result = new ArrayList<>();
         try
@@ -91,6 +97,7 @@ public class PaginatedMucMessageFromOpenfireLuceneQuery
      *
      * @return A message count, or -1 if unavailable.
      */
+    @Override
     public int getTotalCount() {
         try
         {
@@ -128,13 +135,13 @@ public class PaginatedMucMessageFromOpenfireLuceneQuery
         builder.add(dateRangeQuery, BooleanClause.Occur.MUST);
 
         // If defined, limit to specific senders.
-        if ( sender != null ) {
+        if ( messageOwner != null ) {
             // Always limit to the bare JID of the sender.
-            builder.add(new TermQuery(new Term("senderBare", sender.toBareJID() ) ), BooleanClause.Occur.MUST );
+            builder.add(new TermQuery(new Term("senderBare", messageOwner.toBareJID() ) ), BooleanClause.Occur.MUST );
 
             // If the query specified a more specific full JID, include the resource part in the filter too.
-            if ( sender.getResource() != null ) {
-                builder.add(new TermQuery( new Term( "senderResource", sender.getResource() ) ), BooleanClause.Occur.MUST );
+            if ( messageOwner.getResource() != null ) {
+                builder.add(new TermQuery( new Term( "senderResource", messageOwner.getResource() ) ), BooleanClause.Occur.MUST );
             }
         }
 
@@ -173,7 +180,7 @@ public class PaginatedMucMessageFromOpenfireLuceneQuery
             "startDate=" + startDate +
             ", endDate=" + endDate +
             ", room=" + room +
-            ", sender=" + sender +
+            ", sender=" + messageOwner +
             ", query='" + query + '\'' +
             '}';
     }

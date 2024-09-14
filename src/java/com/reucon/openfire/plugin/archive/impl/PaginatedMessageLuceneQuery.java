@@ -16,29 +16,36 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.xmpp.packet.JID;
 
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 
-public class PaginatedMessageLuceneQuery
+/**
+ * Encapsulates responsibility of creating a Lucene query that retrieves a specific subset (page) of archived messages
+ * from a specific end-user entity owner (the archive that's queried is considered to be a 'personal archive').
+ *
+ * @author Guus der Kinderen, guus.der.kinderen@gmail.com
+ */
+public class PaginatedMessageLuceneQuery extends AbstractPaginatedMamQuery
 {
     private static final Logger Log = LoggerFactory.getLogger( PaginatedMessageLuceneQuery.class );
 
-    private final Date startDate;
-    private final Date endDate;
-    private final JID owner;
-    private final JID with;
-    private final String query;
-
-    public PaginatedMessageLuceneQuery( final Date startDate, final Date endDate, final JID owner, final JID with, final String query )
+    /**
+     * Creates a query for messages from a message archive.
+     *
+     * @param startDate Start (inclusive) of period for which to return messages. EPOCH will be used if no value is provided.
+     * @param endDate End (inclusive) of period for which to return messages. 'now' will be used if no value is provided.
+     * @param archiveOwner The message archive owner.
+     * @param with An optional conversation partner
+     * @param query A search string to be used for text-based search.
+     */
+    public PaginatedMessageLuceneQuery(@Nullable final Date startDate, @Nullable final Date endDate, @Nonnull final JID archiveOwner, @Nullable final JID with, @Nonnull final String query)
     {
-        this.startDate = startDate == null ? new Date( 0L ) : startDate ;
-        this.endDate = endDate == null ? new Date() : endDate;
-        this.owner = owner;
-        this.with = with;
-        this.query = query;
+        super(startDate, endDate, archiveOwner, with, query);
     }
 
     protected IndexSearcher getSearcher() throws IOException
@@ -49,8 +56,8 @@ public class PaginatedMessageLuceneQuery
         return searcher;
     }
 
-
-    public List<ArchivedMessage> getPage( final Long after, final Long before, final int maxResults, final boolean isPagingBackwards ) throws DataRetrievalException {
+    @Override
+    public List<ArchivedMessage> getPage(final Long after, final Long before, final int maxResults, final boolean isPagingBackwards) throws DataRetrievalException {
         Log.debug( "Retrieving archived messages page. After: {}, Before: {}, maxResults: {}, isPagingBackwards: {}", after, before, maxResults, isPagingBackwards);
         final List<ArchivedMessage> result = new ArrayList<>();
         try
@@ -63,7 +70,7 @@ public class PaginatedMessageLuceneQuery
             {
                 final Document doc = searcher.doc(scoreDoc.doc);
                 final long messageID = Long.parseLong(doc.get("messageID"));
-                final ArchivedMessage archivedMessage = JdbcPersistenceManager.getArchivedMessage(messageID, owner);
+                final ArchivedMessage archivedMessage = JdbcPersistenceManager.getArchivedMessage(messageID, archiveOwner);
                 if ( archivedMessage != null ) {
                     result.add( archivedMessage );
                 }
@@ -75,7 +82,7 @@ public class PaginatedMessageLuceneQuery
             }
         }
         catch ( Exception e ) {
-            Log.warn( "An exception occurred while trying to query the Lucene index to get messages from archive of owner {}.", owner, e );
+            Log.warn( "An exception occurred while trying to query the Lucene index to get messages from archive of owner {}.", archiveOwner, e );
             if (!IQQueryHandler.IGNORE_RETRIEVAL_EXCEPTIONS.getValue()) {
                 throw new DataRetrievalException(e);
             }
@@ -89,6 +96,7 @@ public class PaginatedMessageLuceneQuery
      *
      * @return A message count, or -1 if unavailable.
      */
+    @Override
     public int getTotalCount() {
         try
         {
@@ -103,7 +111,7 @@ public class PaginatedMessageLuceneQuery
         }
         catch ( Exception e )
         {
-            Log.warn( "An exception occurred while trying to get a count of messages that match a query for message from archive of owner {}.", owner, e );
+            Log.warn( "An exception occurred while trying to get a count of messages that match a query for message from archive of owner {}.", archiveOwner, e );
             return -1;
         }
     }
@@ -119,7 +127,7 @@ public class PaginatedMessageLuceneQuery
         builder.add(textQuery, BooleanClause.Occur.MUST );
 
         // Limit to the owner of the archive.
-        builder.add(new TermQuery(new Term("owner", owner.toBareJID() ) ), BooleanClause.Occur.MUST );
+        builder.add(new TermQuery(new Term("owner", archiveOwner.toBareJID() ) ), BooleanClause.Occur.MUST );
 
         // Limit potential results to the requested time range. Note that these values are always non-null in this method (might be 'EPOCH' though).
         final Query dateRangeQuery = NumericDocValuesField.newSlowRangeQuery("sentDate", startDate.getTime(), endDate.getTime());
@@ -170,7 +178,7 @@ public class PaginatedMessageLuceneQuery
         return "PaginatedMessageLuceneQuery{" +
             "startDate=" + startDate +
             ", endDate=" + endDate +
-            ", owner=" + owner +
+            ", owner=" + archiveOwner +
             ", with=" + with +
             ", query='" + query + '\'' +
             '}';
