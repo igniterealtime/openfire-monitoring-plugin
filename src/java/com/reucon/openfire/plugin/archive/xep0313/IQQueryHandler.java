@@ -15,9 +15,7 @@ import org.jivesoftware.openfire.auth.UnauthorizedException;
 import org.jivesoftware.openfire.container.Plugin;
 import org.jivesoftware.openfire.disco.ServerFeaturesProvider;
 import org.jivesoftware.openfire.forward.Forwarded;
-import org.jivesoftware.openfire.muc.MUCRole;
-import org.jivesoftware.openfire.muc.MUCRoom;
-import org.jivesoftware.openfire.muc.MultiUserChatService;
+import org.jivesoftware.openfire.muc.*;
 import org.jivesoftware.openfire.plugin.MonitoringPlugin;
 import org.jivesoftware.util.NamedThreadFactory;
 import org.jivesoftware.util.NotFoundException;
@@ -178,12 +176,12 @@ abstract public class IQQueryHandler extends AbstractIQHandler implements
             if (service.isSysadmin(requestor)) {
                 pass = true;
             }
-            MUCRole.Affiliation aff = room.getAffiliation(requestor);
-            if (aff != MUCRole.Affiliation.outcast) {
-                if (aff == MUCRole.Affiliation.owner || aff == MUCRole.Affiliation.admin) {
+            final Affiliation aff = room.getAffiliation(requestor);
+            if (aff != Affiliation.outcast) {
+                if (aff == Affiliation.owner || aff == Affiliation.admin) {
                     pass = true;
                 } else if (room.isMembersOnly()) {
-                    if (aff == MUCRole.Affiliation.member) {
+                    if (aff == Affiliation.member) {
                         pass = true;
                     }
                 } else {
@@ -197,7 +195,7 @@ abstract public class IQQueryHandler extends AbstractIQHandler implements
 
             // Filtering by JID should only be available to entities that would already have been allowed to know the publisher
             // of the events (e.g. this could not be used by a visitor to a semi-anonymous MUC).
-            final MUCRole occupant = room.getOccupantByFullJID(packet.getFrom());
+            final MUCOccupant occupant = room.getOccupantByFullJID(packet.getFrom());
             if ( !room.canAnyoneDiscoverJID() ) {
                 final FormField withValue = queryRequest.getDataForm().getField("with");
                 if ( withValue != null && withValue.getFirstValue() != null && !withValue.getFirstValue().isEmpty() ) {
@@ -208,8 +206,8 @@ abstract public class IQQueryHandler extends AbstractIQHandler implements
                         return buildErrorResponse(packet, PacketError.Condition.bad_request, "The value of the 'with' field must be a valid JID (but is not).");
                     }
 
-                    // Unless the requestor is a moderator, or is filtering by it's own JID, disallow the request.
-                    final boolean isModerator = occupant != null && occupant.getRole() == MUCRole.Role.moderator;
+                    // Unless the requestor is a moderator, or is filtering by its own JID, disallow the request.
+                    final boolean isModerator = occupant != null && occupant.getRole() == Role.moderator;
                     final boolean isFilteringByOwnJid = with.asBareJID().equals( packet.getFrom().asBareJID() );
                     if ( !isModerator && !isFilteringByOwnJid ) {
                         Log.debug("Unable to process query as requestor '{}' is not a moderator of the MUC room '{}', and is filtering by JID '{}' which is not its own.", requestor, archiveJid, with);
