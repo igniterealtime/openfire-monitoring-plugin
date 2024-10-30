@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2021 Ignite Realtime Foundation. All rights reserved.
+ * Copyright (C) 2021-2024 Ignite Realtime Foundation. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,7 +18,7 @@ package org.jivesoftware.openfire.archive;
 import org.jivesoftware.database.DbConnectionManager;
 import org.jivesoftware.database.SequenceManager;
 import org.jivesoftware.openfire.XMPPServer;
-import org.jivesoftware.openfire.muc.MUCRole;
+import org.jivesoftware.openfire.muc.MUCOccupant;
 import org.jivesoftware.openfire.muc.MUCRoom;
 import org.jivesoftware.openfire.user.UserNameManager;
 import org.jivesoftware.openfire.user.UserNotFoundException;
@@ -110,10 +110,10 @@ public class ConversationDAO {
         // Add list of existing room occupants as participants of this conversation
         MUCRoom mucRoom = XMPPServer.getInstance().getMultiUserChatManager().getMultiUserChatService(room).getChatRoom(room.getNode());
         if (mucRoom != null) {
-            for (MUCRole role : mucRoom.getOccupants()) {
+            for (final MUCOccupant occupant : mucRoom.getOccupants()) {
                 UserParticipations userParticipations = new UserParticipations(true);
-                userParticipations.addParticipation(new ConversationParticipation(startDate, role.getNickname()));
-                participants.put(role.getUserAddress().toString(), userParticipations);
+                userParticipations.addParticipation(new ConversationParticipation(startDate, occupant.getNickname()));
+                participants.put(occupant.getUserAddress().toString(), userParticipations);
             }
         }
 

@@ -7,8 +7,7 @@
     <author>Ignite Realtime</author>
     <version>${project.version}</version>
     <date>2024-10-30</date>
-    <minServerVersion>4.8.0</minServerVersion>
-    <priorToServerVersion>4.10.0</priorToServerVersion>
+    <minServerVersion>4.10.0</minServerVersion>
     <databaseKey>monitoring</databaseKey>
     <databaseVersion>8</databaseVersion>
 
