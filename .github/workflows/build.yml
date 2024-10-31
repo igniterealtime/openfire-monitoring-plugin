@@ -54,6 +54,57 @@ jobs:
       - name: Build with Maven
         run:  mvn -B package
 
+      - name: Stash the built artifacts
+        uses: actions/upload-artifact@v4
+        if: ${{ matrix.java == 11}}
+        with:
+          name: ${{ steps.get-id.outputs.id }}
+          path: target/${{ steps.get-id.outputs.id }}-openfire-plugin-assembly.jar
+          retention-days: 3
+
+  test:
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Download the built plugin
+        uses: actions/download-artifact@v4
+        with:
+            name: monitoring
+            path: .
+
+      - name: Rename plugin
+        run: |
+            mv monitoring-openfire-plugin-assembly.jar monitoring.jar
+
+      - name: Run Openfire
+        uses: igniterealtime/launch-openfire-action@v1.1.2
+        with:
+            version: 4.9.0
+            plugin: ./monitoring.jar
+
+      - name: Run XMPP interop tests
+        uses: XMPP-Interop-Testing/xmpp-interop-tests-action@main
+        with:
+          domain: 'example.org'
+          adminAccountUsername: 'admin'
+          adminAccountPassword: 'admin'
+          enabledSpecifications: 'XEP-0136, XEP-0313'
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - name: Download the built plugin
+        uses: actions/download-artifact@v4
+        with:
+          name: monitoring
+          path: .
+
+      - name: Igniterealtime CI Tooling
+        run: |
+          git clone --depth 1 https://github.com/igniterealtime/ci-tooling.git target/ci-tooling
+          cp target/ci-tooling/maven-settings-for-openfire-plugins.xml $HOME/.m2/settings.xml
+
       - name: Conditionally Deploy to Igniterealtime Archiva
         id: deploy
         if: ${{ contains(github.repository, 'igniterealtime/') && ( ( github.event_name == 'push' && github.ref == 'refs/heads/main' ) || contains(github.ref, 'refs/tags/') ) && matrix.java == '17' }}
