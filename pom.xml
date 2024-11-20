@@ -14,7 +14,7 @@
 
     <properties>
         <jackson.version>2.12.1</jackson.version>
-        <jersey.version>2.35</jersey.version>
+        <jersey.version>2.45</jersey.version>
     </properties>
 
     <build>
