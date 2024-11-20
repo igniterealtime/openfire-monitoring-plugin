@@ -20,17 +20,11 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.List;
 
 import com.reucon.openfire.plugin.archive.impl.*;
 import com.reucon.openfire.plugin.archive.xep0313.Xep0313Support1;
 import com.reucon.openfire.plugin.archive.xep0313.Xep0313Support2;
-import org.apache.tomcat.InstanceManager;
-import org.apache.tomcat.SimpleInstanceManager;
-import org.eclipse.jetty.apache.jsp.JettyJasperInitializer;
-import org.eclipse.jetty.plus.annotation.ContainerInitializer;
-import org.eclipse.jetty.webapp.WebAppContext;
+import org.eclipse.jetty.ee8.webapp.WebAppContext;
 import org.jivesoftware.openfire.XMPPServer;
 import org.jivesoftware.openfire.archive.ArchiveIndexer;
 import org.jivesoftware.openfire.archive.ArchiveInterceptor;
@@ -279,11 +273,6 @@ public class MonitoringPlugin implements Plugin, PluginListener
         context = new WebAppContext( null, pluginDirectory.getPath() + File.separator + "classes/", "/" + CONTEXT_ROOT );
         context.setClassLoader( this.getClass().getClassLoader() );
 
-        Log.debug( "Ensure the JSP engine is initialized correctly (in order to be able to cope with Tomcat/Jasper precompiled JSPs)." );
-        final List<ContainerInitializer> initializers = new ArrayList<>();
-        initializers.add( new ContainerInitializer(new JettyJasperInitializer(), null ) );
-        context.setAttribute( "org.eclipse.jetty.containerInitializers", initializers );
-        context.setAttribute(InstanceManager.class.getName(), new SimpleInstanceManager() );
         Log.debug( "Registering public web context with the embedded webserver." );
         HttpBindManager.getInstance().addJettyHandler( context );
     }
