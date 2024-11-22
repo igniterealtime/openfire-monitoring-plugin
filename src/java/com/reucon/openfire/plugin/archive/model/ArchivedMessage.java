@@ -75,8 +75,13 @@ public class ArchivedMessage {
     @Nonnull
     private final JID with;
 
+    // Issue #373: Lazily populated with the value of #rawStanza
     @Nullable
-    private final Message stanza;
+    private Message stanza;
+
+    @Nullable
+    // Issue #373: Lazily populates #stanza
+    private String rawStanza;
 
     public ArchivedMessage(@Nullable final Long id, @Nonnull final Date time, @Nonnull final Direction direction, @Nonnull final JID with, @Nullable final String body, @Nullable final String stanza) throws DocumentException {
         this.id = id;
@@ -85,27 +90,9 @@ public class ArchivedMessage {
         this.with = with;
         this.body = body;
 
-        if ( stanza != null && stanza.length() > 0 ) {
-            Message stanzaResult;
-            try {
-                final Document doc = DocumentHelper.parseText( stanza );
-                stanzaResult = new Message( doc.getRootElement() );
-            } catch (DocumentException de) {
-                Log.debug("Unable to parse (non-empty) stanza (id: {})", id, de);
-                stanzaResult = null;
-            }
-            this.stanza = stanzaResult;
-        } else {
-            this.stanza = null;
-        }
-
-        if ( this.stanza != null && !OF1804_DISABLE.getValue() )
-        {
-            // Prior to OF-1804 (Openfire 4.4.0), the stanza was logged with a formatter applied.
-            // This causes message formatting to be modified (notably, new lines could be altered).
-            // This workaround restores the original body text, that was stored in a different column.
-            this.stanza.setBody( body );
-        }
+        // Issue #373: Do not parse the stanza now, as this incurs quite a bit of resource usage. This constructor is
+        // often called when a database resource is held. It is desirable to release that database resource as soon as possible.
+        this.rawStanza = stanza;
     }
 
     /**
@@ -159,7 +146,41 @@ public class ArchivedMessage {
      */
     @Nullable
     public Message getStanza() {
-        return stanza;
+        if (this.stanza != null) {
+            // Return lazily-loaded stanza
+            return this.stanza;
+        }
+
+        if (rawStanza == null || rawStanza.isEmpty()) {
+            // There is no data to lazily load.
+            return null;
+        }
+
+        synchronized (this) {
+            // Issue #373: Lazily load stanza from rawStanza. This can be resource intensive. Guarded with mutex to prevent duplicate execution.
+            Message stanzaResult;
+            try {
+                final Document doc = DocumentHelper.parseText(rawStanza);
+                stanzaResult = new Message(doc.getRootElement());
+            } catch (DocumentException de) {
+                Log.debug("Unable to parse (non-empty) stanza (id: {})", id, de);
+                stanzaResult = null;
+            }
+            this.stanza = stanzaResult;
+
+            if (this.stanza != null && !OF1804_DISABLE.getValue())
+            {
+                // Prior to OF-1804 (Openfire 4.4.0), the stanza was logged with a formatter applied.
+                // This causes message formatting to be modified (notably, new lines could be altered).
+                // This workaround restores the original body text, that was stored in a different column.
+                this.stanza.setBody( body );
+            }
+
+            // Prevent data duplication: Remove the now-processed raw data.
+            this.rawStanza = null;
+        }
+
+        return this.stanza;
     }
 
     /**
@@ -185,12 +206,13 @@ public class ArchivedMessage {
     @Nullable
     public String getStableId(final JID owner)
     {
-        if (this.stanza == null) {
+        final Message stanza = getStanza();
+        if (stanza == null) {
             return null;
         }
 
         try {
-            return StanzaIDUtil.findFirstUniqueAndStableStanzaID(this.stanza, owner.toBareJID());
+            return StanzaIDUtil.findFirstUniqueAndStableStanzaID(stanza, owner.toBareJID());
         } catch (Exception e) {
             Log.warn("An exception occurred while parsing message with ID {}", id, e);
             return null;
