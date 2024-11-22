@@ -13,7 +13,6 @@
     <description>Monitors conversations and statistics of the server.</description>
 
     <properties>
-        <jackson.version>2.12.1</jackson.version>
         <jersey.version>2.45</jersey.version>
     </properties>
 
