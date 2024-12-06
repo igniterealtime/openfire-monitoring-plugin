@@ -73,12 +73,25 @@ public class GroupConversationInterceptor implements MUCEventListener {
     public void roomDestroyed(JID roomJID) {
         // Process this event in the senior cluster member or local JVM when not in a cluster
         if (ClusterManager.isSeniorClusterMember()) {
-            conversationManager.roomConversationEnded(roomJID, new Date());
+            conversationManager.roomDestroyed(roomJID, new Date());
         }
         else {
             ConversationEventsQueue eventsQueue = conversationManager.getConversationEventsQueue();
             eventsQueue.addGroupChatEvent(conversationManager.getRoomConversationKey(roomJID),
                     ConversationEvent.roomDestroyed(roomJID, new Date()));
+        }
+    }
+
+    @Override
+    public void roomClearChatHistory(JID roomJID) {
+        // Process this event in the senior cluster member or local JVM when not in a cluster
+        if (ClusterManager.isSeniorClusterMember()) {
+            conversationManager.clearChatHistory(roomJID);
+        }
+        else {
+            ConversationEventsQueue eventsQueue = conversationManager.getConversationEventsQueue();
+            eventsQueue.addGroupChatEvent(conversationManager.getRoomConversationKey(roomJID),
+                ConversationEvent.roomClearChatHistory(roomJID));
         }
     }
 
