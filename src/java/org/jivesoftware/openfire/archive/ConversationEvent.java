@@ -72,7 +72,10 @@ public class ConversationEvent {
             conversationManager.processMessage(sender, receiver, body, stanza, date);
         }
         else if (Type.roomDestroyed == type) {
-            conversationManager.roomConversationEnded(roomJID, date);
+            conversationManager.roomDestroyed(roomJID, date);
+        }
+        else if (Type.roomClearChatHistory == type) {
+            conversationManager.clearChatHistory(roomJID);
         }
         else if (Type.occupantJoined == type) {
             conversationManager.joinedGroupConversation(roomJID, user, nickname, date);
@@ -110,6 +113,13 @@ public class ConversationEvent {
         event.type = Type.roomDestroyed;
         event.roomJID = roomJID;
         event.date = date;
+        return event;
+    }
+
+    public static ConversationEvent roomClearChatHistory(JID roomJID) {
+        ConversationEvent event = new ConversationEvent();
+        event.type = Type.roomClearChatHistory;
+        event.roomJID = roomJID;
         return event;
     }
 
@@ -161,6 +171,10 @@ public class ConversationEvent {
          * Event triggered when a room was destroyed.
          */
         roomDestroyed,
+        /**
+         * Event triggered when a room was destroyed.
+         */
+        roomClearChatHistory,
         /**
          * Event triggered when a new occupant joins a room.
          */
