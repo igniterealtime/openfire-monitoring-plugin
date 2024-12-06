@@ -48,7 +48,7 @@ public class XmlSerializerTest {
         userParticipations.addParticipation(participation);
         participations.put("g@d", userParticipations);
         participations.put("a@s/f", userParticipations);
-        final Conversation input = new Conversation(new JID("a@b.c"), true, new Date(1), new Date(2), 8, participations);
+        final Conversation input = new Conversation(0, new JID("a@b.c"), true, new Date(1), new Date(2), 8, participations);
 
         // Execute system under test.
         final String xml = XmlSerializer.getInstance().marshall(input);
