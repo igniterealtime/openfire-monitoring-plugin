@@ -55,6 +55,7 @@ public class ArchivedMessage {
     /**
      * Creates a new archived message.
      *
+     * @param roomID the ID of the room where the group conversation is taking place.
      * @param conversationID the ID of the conversation that the message is associated with.
      * @param fromJID the JID of the user that sent the message.
      * @param toJID the JID of the user that the message was sent to.
