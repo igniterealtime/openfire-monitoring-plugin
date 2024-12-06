@@ -1,7 +1,15 @@
 
-INSERT INTO ofVersion (name, version) VALUES ('monitoring', 8);
+INSERT INTO ofVersion (name, version) VALUES ('monitoring', 9);
+
+CREATE TABLE ofMucRoomStatus (
+  roomID                INTEGER        NOT NULL,
+  roomJID               VARCHAR2(1024) NOT NULL,
+  roomDestroyed         NUMBER(2)      NOT NULL,
+  CONSTRAINT ofMucRoomStatus_pk PRIMARY KEY (roomID)
+);
 
 CREATE TABLE ofConversation (
+  roomID                INTEGER        NOT NULL,
   conversationID        INTEGER        NOT NULL,
   room                  VARCHAR2(1024) NULL,
   isExternal            NUMBER(2)      NOT NULL,
@@ -10,11 +18,13 @@ CREATE TABLE ofConversation (
   messageCount          INT            NOT NULL,
   CONSTRAINT ofConversation_pk PRIMARY KEY (conversationID)
 );
+CREATE INDEX ofConversation_room_idx  ON ofConversation (roomID);
 CREATE INDEX ofConversation_ext_idx   ON ofConversation (isExternal);
 CREATE INDEX ofConversation_start_idx ON ofConversation (startDate);
 CREATE INDEX ofConversation_last_idx  ON ofConversation (lastActivity);
 
 CREATE TABLE ofConParticipant (
+  roomID               INTEGER        NOT NULL,
   conversationID       INTEGER        NOT NULL,
   joinedDate           INTEGER        NOT NULL,
   leftDate             INTEGER        NULL,
@@ -22,10 +32,11 @@ CREATE TABLE ofConParticipant (
   jidResource          VARCHAR2(255)  NOT NULL,
   nickname             VARCHAR2(255)  NULL
 );
-CREATE INDEX ofConParticipant_conv_idx ON ofConParticipant (conversationID, bareJID, jidResource, joinedDate);
+CREATE INDEX ofConParticipant_conv_idx ON ofConParticipant (roomID, conversationID, bareJID, jidResource, joinedDate);
 CREATE INDEX ofConParticipant_jid_idx ON ofConParticipant (bareJID);
 
 CREATE TABLE ofMessageArchive (
+   roomID            INTEGER          NOT NULL,
    messageID		 INTEGER		  NULL,
    conversationID    INTEGER          NOT NULL,
    fromJID           VARCHAR2(1024)   NOT NULL,
@@ -37,6 +48,7 @@ CREATE TABLE ofMessageArchive (
    body              CLOB             NULL,
    isPMforJID        VARCHAR2(1024)   NULL
 );
+CREATE INDEX ofMessageArchive_room_idx ON ofMessageArchive (roomID);
 CREATE INDEX ofMessageArchive_con_idx ON ofMessageArchive (conversationID);
 CREATE INDEX ofMessageArchive_fromjid_idx ON ofMessageArchive (fromJID);
 CREATE INDEX ofMessageArchive_tojid_idx ON ofMessageArchive (toJID);
