@@ -41,6 +41,7 @@ public class ArchivedMessage {
         new SequenceManager(604, 50);
     }
 
+    private long roomID = ConversationManager.NO_ROOM_ID;
     private final long conversationID;
     private final JID fromJID;
     private final JID toJID;
@@ -62,11 +63,12 @@ public class ArchivedMessage {
      * @param roomEvent true if the message belongs to a room event. Eg. User joined room.
      * @param isPMforJID the JID of the user that is the recipient of the message, if the message was a PM sent in a MUC.
      */
-    public ArchivedMessage(long conversationID, JID fromJID, JID toJID, Date sentDate, String body, boolean roomEvent, JID isPMforJID) {
-        this(conversationID, fromJID, toJID, sentDate, body, null, roomEvent, isPMforJID);
+    public ArchivedMessage(long roomID, long conversationID, JID fromJID, JID toJID, Date sentDate, String body, boolean roomEvent, JID isPMforJID) {
+        this(roomID, conversationID, fromJID, toJID, sentDate, body, null, roomEvent, isPMforJID);
     }
 
-    public ArchivedMessage(long conversationID, JID fromJID, JID toJID, Date sentDate, String body, String stanza, boolean roomEvent, JID isPMforJID) {
+    public ArchivedMessage(long roomID, long conversationID, JID fromJID, JID toJID, Date sentDate, String body, String stanza, boolean roomEvent, JID isPMforJID) {
+        this.roomID = roomID;
         // OF-2157: It is important to assign a message ID, which is used for ordering messages in a conversation, soon
         // after the message arrived, as opposed to just before the message gets written to the database. In the latter
         // scenario, the message ID values might no longer reflect the order of the messages in a conversation, as
@@ -83,6 +85,15 @@ public class ArchivedMessage {
         this.roomEvent = roomEvent;
         this.stanza = stanza;
         this.isPMforJID = isPMforJID;
+    }
+
+    /**
+     * Returns the ID of the room where the group conversation is taking place.
+     *
+     * @return the room ID, or -1 if this is a one-to-one chat.
+     */
+    public long getRoomID() {
+        return roomID;
     }
 
     /**
