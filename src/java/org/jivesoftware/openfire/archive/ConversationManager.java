@@ -22,6 +22,7 @@ import org.dom4j.DocumentException;
 import org.dom4j.DocumentHelper;
 import org.dom4j.Element;
 import org.jivesoftware.database.DbConnectionManager;
+import org.jivesoftware.database.SequenceManager;
 import org.jivesoftware.openfire.XMPPServer;
 import org.jivesoftware.openfire.XMPPServerInfo;
 import org.jivesoftware.openfire.archive.cluster.GetConversationCountTask;
@@ -72,15 +73,25 @@ public class ConversationManager implements ComponentEventListener{
 
     private static final Logger Log = LoggerFactory.getLogger(ConversationManager.class);
 
+    /**
+     * Constant representing the absence of a room ID.
+     */
+    public static final long NO_ROOM_ID = -1;
+
     private static final String UPDATE_CONVERSATION = "UPDATE ofConversation SET lastActivity=?, messageCount=? WHERE conversationID=?";
     private static final String UPDATE_PARTICIPANT = "UPDATE ofConParticipant SET leftDate=? WHERE conversationID=? AND bareJID=? AND jidResource=? AND joinedDate=?";
-    private static final String INSERT_MESSAGE = "INSERT INTO ofMessageArchive(messageID, conversationID, fromJID, fromJIDResource, toJID, toJIDResource, sentDate, body, stanza, isPMforJID) "
-            + "VALUES (?,?,?,?,?,?,?,?,?,?)";
+    private static final String UPDATE_ROOM_DESTROYED_STATUS = "UPDATE ofMucRoomStatus SET roomDestroyed=1 WHERE roomID=?";
+    private static final String INSERT_MESSAGE = "INSERT INTO ofMessageArchive(roomID, messageID, conversationID, fromJID, fromJIDResource, toJID, toJIDResource, sentDate, body, stanza, isPMforJID) "
+            + "VALUES (?,?,?,?,?,?,?,?,?,?,?)";
     private static final String CONVERSATION_COUNT = "SELECT COUNT(*) FROM ofConversation";
     private static final String MESSAGE_COUNT = "SELECT COUNT(*) FROM ofMessageArchive";
     private static final String DELETE_CONVERSATION_1 = "DELETE FROM ofMessageArchive WHERE conversationID=?";
     private static final String DELETE_CONVERSATION_2 = "DELETE FROM ofConParticipant WHERE conversationID=?";
     private static final String DELETE_CONVERSATION_3 = "DELETE FROM ofConversation WHERE conversationID=?";
+    private static final String DELETE_ARCHIVE_ROOM_CHAT_HISTORY = "DELETE FROM ofMessageArchive WHERE roomID=?";
+    private static final String DELETE_ALL_ROOM_PARTICIPANTS = "DELETE FROM ofConParticipant WHERE roomID=?";
+    private static final String DELETE_ALL_ROOM_CONVERSATIONS = "DELETE FROM ofConversation WHERE roomID=?";
+    private static final String LOAD_ROOM_INFO = "SELECT roomID, roomJID FROM ofMucRoomStatus WHERE roomDestroyed=0";
 
     private static final Duration DEFAULT_IDLE_TIME = Duration.ofMinutes(10);
     private static final Duration DEFAULT_MAX_TIME = Duration.ofMinutes(60);
@@ -95,7 +106,29 @@ public class ConversationManager implements ComponentEventListener{
     private TaskEngine taskEngine;
 
     private Map<String, Conversation> conversations = new ConcurrentHashMap<>();
+
+    /**
+     * Stores the mapping between room JIDs and unique room IDs.
+     * A room JIDs can be reuse if a room is destroyed and then recreated.
+     * The unique room IDs however are kept unique using a SequenceManager instance.
+     */
+    private static final Map<JID, Long> roomJIDToIDMap = new ConcurrentHashMap<>();
+
+    static {
+        populateRoomJIDToIDMap();
+    }
+
+    /**
+     * Stores the mapping between active conversation IDs and room IDs.
+     */
+    private static final Map<Long, Long> conversationIDToRoomIDMap = new ConcurrentHashMap<>();
+    /**
+     * A SequenceManager instance used to generate unique room IDs for the Monitoring Plugin.
+     */
+    private static final SequenceManager roomIDSequenceManager = SequenceManager.getSequenceManagerByUniqueName("Monitoring Plugin - RoomID");
+
     private boolean metadataArchivingEnabled;
+
     /**
      * Flag that indicates if messages of one-to-one chats should be archived.
      */
@@ -202,6 +235,54 @@ public class ConversationManager implements ComponentEventListener{
         this.gateways = new CopyOnWriteArrayList<>();
         this.serverInfo = XMPPServer.getInstance().getServerInfo();
         this.conversationEventsQueue = new ConversationEventsQueue(this, taskEngine);
+
+    }
+
+    /**
+     * Populates the `roomJIDToIDMap` with room IDs and their corresponding JIDs from the database.
+     */
+    private static void populateRoomJIDToIDMap() {
+        Connection con = null;
+        PreparedStatement pstmt = null;
+        ResultSet rs = null;
+        try {
+            con = DbConnectionManager.getConnection();
+            pstmt = con.prepareStatement(LOAD_ROOM_INFO);
+            rs = pstmt.executeQuery();
+            while (rs.next()) {
+                long roomID = rs.getLong("roomID");
+                JID roomJID = new JID(rs.getString("roomJID"));
+                roomJIDToIDMap.put(roomJID, roomID);
+            }
+        } catch (SQLException e) {
+            Log.error("Error populating roomJIDToIDMap", e);
+        } finally {
+            DbConnectionManager.closeConnection(rs, pstmt, con);
+        }
+    }
+
+    /**
+     * Checks if the `roomJIDToIDMap` contains the specified room JID.
+     *
+     * @param roomJID the JID of the room to check.
+     * @return true if the map contains the room JID, false otherwise.
+     */
+    public static boolean hasRoomJIDToIDMap(JID roomJID) {
+        return roomJIDToIDMap.containsKey(roomJID);
+    }
+
+    /**
+     * Returns the unique room ID for the given room JID. If no mapping exists, a new one is created.
+     *
+     * @param roomJID the JID of the room.
+     * @return the unique room ID.
+     */
+    public static long getRoomIDFromRoomJID(JID roomJID) {
+        return roomJIDToIDMap.computeIfAbsent(roomJID, jid -> roomIDSequenceManager.nextUniqueID());
+    }
+
+    public static long getRoomIDFromConversationID(long conversationID) {
+        return conversationIDToRoomIDMap.getOrDefault(conversationID, NO_ROOM_ID);
     }
 
     public void start() {
@@ -358,6 +439,42 @@ public class ConversationManager implements ComponentEventListener{
         XMPPServer.getInstance().getArchiveManager().remove( conversationArchiver );
         XMPPServer.getInstance().getArchiveManager().remove( messageArchiver );
         XMPPServer.getInstance().getArchiveManager().remove( participantArchiver );
+    }
+
+    public void clearChatHistory(JID roomJID) {
+        long roomID = getRoomIDFromRoomJID(roomJID);
+
+        if(roomID == NO_ROOM_ID) return;
+
+        // Delete all conversations in given room
+        Connection con = null;
+        PreparedStatement pstmtDeleteChatHistory = null;
+        PreparedStatement pstmtDeleteParticipants = null;
+        PreparedStatement pstmtDeleteConversations = null;
+        try {
+            con = DbConnectionManager.getConnection();
+            pstmtDeleteChatHistory = con.prepareStatement(DELETE_ARCHIVE_ROOM_CHAT_HISTORY);
+            pstmtDeleteParticipants = con.prepareStatement(DELETE_ALL_ROOM_PARTICIPANTS);
+            pstmtDeleteConversations = con.prepareStatement(DELETE_ALL_ROOM_CONVERSATIONS);
+            for (Conversation conversation : conversations.values()) {
+                if (conversation.getRoomID() == roomID) {
+                    Log.debug("Deleting: " + conversation.getConversationID() + " to clear chat history for room: " + roomJID);
+                    removeConversation(roomJID.toString(), conversation, new Date());
+                }
+            }
+            pstmtDeleteChatHistory.setLong(1, roomID);
+            pstmtDeleteChatHistory.execute();
+            pstmtDeleteParticipants.setLong(1, roomID);
+            pstmtDeleteParticipants.execute();
+            pstmtDeleteConversations.setLong(1, roomID);
+            pstmtDeleteConversations.execute();
+        } catch (Exception e) {
+            Log.error(e.getMessage(), e);
+        } finally {
+            DbConnectionManager.closeConnection(pstmtDeleteChatHistory, con);
+            DbConnectionManager.closeConnection(pstmtDeleteParticipants, con);
+            DbConnectionManager.closeConnection(pstmtDeleteConversations, con);
+        }
     }
 
     /**
@@ -786,7 +903,7 @@ public class ConversationManager implements ComponentEventListener{
             if (messageArchivingEnabled) {
                 if (body != null) {
                     /* OF-677 - Workaround to prevent null messages being archived */
-                    messageArchiver.archive(new ArchivedMessage(conversation.getConversationID(), sender, receiver, date, body, stanza, false, null) );
+                    messageArchiver.archive(new ArchivedMessage(conversation.getRoomID(), conversation.getConversationID(), sender, receiver, date, body, stanza, false, null) );
                 }
             }
             // Notify listeners of the conversation update.
@@ -824,6 +941,7 @@ public class ConversationManager implements ComponentEventListener{
                 Date start = new Date(date.getTime() - 1);
                 conversation = ConversationDAO.createConversation(this, roomJID, false, start);
                 conversations.put(conversationKey, conversation);
+                conversationIDToRoomIDMap.put(conversation.getConversationID(), getRoomIDFromRoomJID(roomJID));
                 // Notify listeners of the newly created conversation.
                 for (ConversationListener listener : conversationListeners) {
                     listener.conversationCreated(conversation);
@@ -838,6 +956,7 @@ public class ConversationManager implements ComponentEventListener{
                 Date start = new Date(date.getTime() - 1);
                 conversation = ConversationDAO.createConversation(this, roomJID, false, start);
                 conversations.put(conversationKey, conversation);
+                conversationIDToRoomIDMap.put(conversation.getConversationID(), getRoomIDFromRoomJID(roomJID));
                 // Notify listeners of the newly created conversation.
                 for (ConversationListener listener : conversationListeners) {
                     listener.conversationCreated(conversation);
@@ -852,7 +971,7 @@ public class ConversationManager implements ComponentEventListener{
                 JID jid = new JID(roomJID + "/" + nickname);
                 if (body != null) {
                     /* OF-677 - Workaround to prevent null messages being archived */
-                    messageArchiver.archive( new ArchivedMessage(conversation.getConversationID(), sender, jid, date, body, roomArchivingStanzasEnabled ? stanza : "", false, receiverIfPM));
+                    messageArchiver.archive( new ArchivedMessage(conversation.getRoomID(), conversation.getConversationID(), sender, jid, date, body, roomArchivingStanzasEnabled ? stanza : "", false, receiverIfPM));
                 }
             }
             // Notify listeners of the conversation update.
@@ -906,6 +1025,28 @@ public class ConversationManager implements ComponentEventListener{
         }
     }
 
+    void roomDestroyed(JID room, Date date) {
+        // Update the room status to destroyed in the database
+        Connection con = null;
+        PreparedStatement pstmt = null;
+        try {
+            con = DbConnectionManager.getConnection();
+            pstmt = con.prepareStatement(UPDATE_ROOM_DESTROYED_STATUS);
+            pstmt.setLong(1, getRoomIDFromRoomJID(room));
+            pstmt.executeUpdate();
+        } catch (SQLException e) {
+            Log.error("Error updating room destroyed status for room: " + room, e);
+        } finally {
+            DbConnectionManager.closeConnection(pstmt, con);
+        }
+
+        // Remove the room from the roomID map
+        roomJIDToIDMap.remove(room);
+
+        // End existing conversation
+        roomConversationEnded(room, date);
+    }
+
     void roomConversationEnded(JID room, Date date) {
         Conversation conversation = getRoomConversation(room);
         if (conversation != null) {
@@ -915,6 +1056,7 @@ public class ConversationManager implements ComponentEventListener{
 
     private void removeConversation(String key, Conversation conversation, Date date) {
         conversations.remove(key);
+        conversationIDToRoomIDMap.remove(conversation.getConversationID());
         // Notify conversation that it has ended
         conversation.conversationEnded(this, date);
         // Notify listeners of the conversation ending.
@@ -1309,16 +1451,17 @@ public class ConversationManager implements ComponentEventListener{
 
                 for ( final ArchivedMessage work : workQueue )
                 {
-                    pstmt.setLong(1, work.getID());
-                    pstmt.setLong(2, work.getConversationID());
-                    pstmt.setString(3, work.getFromJID().toBareJID());
-                    pstmt.setString(4, work.getFromJID().getResource());
-                    pstmt.setString(5, work.getToJID().toBareJID());
-                    pstmt.setString(6, work.getToJID().getResource());
-                    pstmt.setLong(7, work.getSentDate().getTime());
-                    DbConnectionManager.setLargeTextField(pstmt, 8, work.getBody());
-                    DbConnectionManager.setLargeTextField(pstmt, 9, work.getStanza());
-                    pstmt.setString(10, work.getIsPMforJID() == null ? null : work.getIsPMforJID().toBareJID());
+                    pstmt.setLong(1, work.getRoomID());
+                    pstmt.setLong(2, work.getID());
+                    pstmt.setLong(3, work.getConversationID());
+                    pstmt.setString(4, work.getFromJID().toBareJID());
+                    pstmt.setString(5, work.getFromJID().getResource());
+                    pstmt.setString(6, work.getToJID().toBareJID());
+                    pstmt.setString(7, work.getToJID().getResource());
+                    pstmt.setLong(8, work.getSentDate().getTime());
+                    DbConnectionManager.setLargeTextField(pstmt, 9, work.getBody());
+                    DbConnectionManager.setLargeTextField(pstmt, 10, work.getStanza());
+                    pstmt.setString(11, work.getIsPMforJID() == null ? null : work.getIsPMforJID().toBareJID());
 
                     if ( DbConnectionManager.isBatchUpdatesSupported() )
                     {
