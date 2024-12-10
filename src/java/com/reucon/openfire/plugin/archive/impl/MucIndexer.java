@@ -116,16 +116,21 @@ public class MucIndexer extends LuceneIndexer
             // The entire process took under 8 seconds.
             // Preventing the driver to collect all results at once depends on auto-commit from being disabled, at
             // least for postgres. Getting a 'transaction' connection will ensure this (if supported).
+            // MSSQL differentiates between client-cursored and server-cursored result sets. For server-cursored result
+            // sets, the fetch buffer and scroll window are the same size (as opposed to fetch buffer containing all
+            // the rows). To hint that a server-cursored result set is desired, it should be configured to be 'forward
+            // only' as well as 'read only'.
             con = DbConnectionManager.getTransactionConnection();
 
             if ( since.equals( Instant.EPOCH ) ) {
-                pstmt = con.prepareStatement(ALL_MUC_MESSAGES);
+                pstmt = con.prepareStatement(ALL_MUC_MESSAGES, ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY);
             } else {
-                pstmt = con.prepareStatement(NEW_MUC_MESSAGES);
+                pstmt = con.prepareStatement(NEW_MUC_MESSAGES, ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY);
                 pstmt.setString(1, StringUtils.dateToMillis(Date.from(since))); // This mimics org.jivesoftware.openfire.muc.spi.MUCPersistenceManager.saveConversationLogBatch
             }
 
             pstmt.setFetchSize(250);
+            pstmt.setFetchDirection(ResultSet.FETCH_FORWARD);
             rs = pstmt.executeQuery();
 
             long progress = 0;
