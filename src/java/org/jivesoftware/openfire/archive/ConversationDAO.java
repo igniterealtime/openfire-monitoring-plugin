@@ -43,7 +43,6 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public class ConversationDAO {
 
-    private static final String INSERT_NEW_ROOM = "INSERT INTO ofMucRoomStatus (roomID, roomJID, roomDestroyed) VALUES (?, ?, 0)";
     private static final String INSERT_CONVERSATION = "INSERT INTO ofConversation(roomID, conversationID, room, isExternal, startDate, "
         + "lastActivity, messageCount) VALUES (?,?,?,?,?,?,0)";
     private static final String INSERT_PARTICIPANT = "INSERT INTO ofConParticipant(roomID, conversationID, joinedDate, bareJID, jidResource, nickname) "
@@ -118,16 +117,6 @@ public class ConversationDAO {
             }
         }
 
-        // Add the room to the ofMucRoomStatus table if it doesn't already exist
-        if (!ConversationManager.hasRoomJIDToIDMap(roomJID)) {
-            long roomID = conversationManager.getRoomIDFromRoomJID(roomJID);
-
-            try {
-                insertNewRoomIntoStatusTable(roomID, roomJID.toString());
-            } catch (Exception e) {
-                Log.error("Unable to insert a new room into the ofMucRoomStatus table: roomID={}, roomJID={}", roomID, roomJID, e);
-            }
-        }
         long roomID = conversationManager.getRoomIDFromRoomJID(roomJID);
         final Conversation conversation = new Conversation(roomID, roomJID, participants, external, startDate);
 
@@ -300,27 +289,6 @@ public class ConversationDAO {
             return null;
         } finally {
             DbConnectionManager.closeConnection(rs, pstmt, con);
-        }
-    }
-
-    /**
-     * Inserts a new row into the ofMucRoomStatus table.
-     *
-     * @param roomID the ID of the room.
-     * @param roomJID the JID of the room.
-     * @throws SQLException if an error occurs inserting the row.
-     */
-    public static void insertNewRoomIntoStatusTable(long roomID, String roomJID) throws SQLException {
-        Connection con = null;
-        PreparedStatement pstmt = null;
-        try {
-            con = DbConnectionManager.getConnection();
-            pstmt = con.prepareStatement(INSERT_NEW_ROOM);
-            pstmt.setLong(1, roomID);
-            pstmt.setString(2, roomJID);
-            pstmt.executeUpdate();
-        } finally {
-            DbConnectionManager.closeConnection(pstmt, con);
         }
     }
 

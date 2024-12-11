@@ -71,6 +71,9 @@ public class ConversationEvent {
         if (Type.chatMessageReceived == type) {
             conversationManager.processMessage(sender, receiver, body, stanza, date);
         }
+        else if (Type.roomCreated == type) {
+            conversationManager.roomCreated(roomJID);
+        }
         else if (Type.roomDestroyed == type) {
             conversationManager.roomDestroyed(roomJID, date);
         }
@@ -105,6 +108,13 @@ public class ConversationEvent {
         event.body = body;
         event.stanza = stanza;
         event.date = date;
+        return event;
+    }
+
+    public static ConversationEvent roomCreated(JID roomJID) {
+        ConversationEvent event = new ConversationEvent();
+        event.type = Type.roomCreated;
+        event.roomJID = roomJID;
         return event;
     }
 
@@ -167,6 +177,10 @@ public class ConversationEvent {
     }
 
     private enum Type {
+        /**
+         * Event triggered when a new room was created.
+         */
+        roomCreated,
         /**
          * Event triggered when a room was destroyed.
          */

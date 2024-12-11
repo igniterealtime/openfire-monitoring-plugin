@@ -22,6 +22,7 @@ import org.dom4j.DocumentException;
 import org.dom4j.DocumentHelper;
 import org.dom4j.Element;
 import org.jivesoftware.database.DbConnectionManager;
+import org.jivesoftware.database.JiveID;
 import org.jivesoftware.database.SequenceManager;
 import org.jivesoftware.openfire.XMPPServer;
 import org.jivesoftware.openfire.XMPPServerInfo;
@@ -80,7 +81,6 @@ public class ConversationManager implements ComponentEventListener{
 
     private static final String UPDATE_CONVERSATION = "UPDATE ofConversation SET lastActivity=?, messageCount=? WHERE conversationID=?";
     private static final String UPDATE_PARTICIPANT = "UPDATE ofConParticipant SET leftDate=? WHERE conversationID=? AND bareJID=? AND jidResource=? AND joinedDate=?";
-    private static final String UPDATE_ROOM_DESTROYED_STATUS = "UPDATE ofMucRoomStatus SET roomDestroyed=1 WHERE roomID=?";
     private static final String INSERT_MESSAGE = "INSERT INTO ofMessageArchive(roomID, messageID, conversationID, fromJID, fromJIDResource, toJID, toJIDResource, sentDate, body, stanza, isPMforJID) "
             + "VALUES (?,?,?,?,?,?,?,?,?,?,?)";
     private static final String CONVERSATION_COUNT = "SELECT COUNT(*) FROM ofConversation";
@@ -91,7 +91,6 @@ public class ConversationManager implements ComponentEventListener{
     private static final String DELETE_ARCHIVE_ROOM_CHAT_HISTORY = "DELETE FROM ofMessageArchive WHERE roomID=?";
     private static final String DELETE_ALL_ROOM_PARTICIPANTS = "DELETE FROM ofConParticipant WHERE roomID=?";
     private static final String DELETE_ALL_ROOM_CONVERSATIONS = "DELETE FROM ofConversation WHERE roomID=?";
-    private static final String LOAD_ROOM_INFO = "SELECT roomID, roomJID FROM ofMucRoomStatus WHERE roomDestroyed=0";
 
     private static final Duration DEFAULT_IDLE_TIME = Duration.ofMinutes(10);
     private static final Duration DEFAULT_MAX_TIME = Duration.ofMinutes(60);
@@ -112,11 +111,7 @@ public class ConversationManager implements ComponentEventListener{
      * A room JIDs can be reuse if a room is destroyed and then recreated.
      * The unique room IDs however are kept unique using a SequenceManager instance.
      */
-    private static final Map<JID, Long> roomJIDToIDMap = new ConcurrentHashMap<>();
-
-    static {
-        populateRoomJIDToIDMap();
-    }
+    private static Map<JID, Long> roomJIDToIDMap = MUCRoomStatusDAO.loadRoomJIDToIDMap();
 
     /**
      * Stores the mapping between active conversation IDs and room IDs.
@@ -125,7 +120,7 @@ public class ConversationManager implements ComponentEventListener{
     /**
      * A SequenceManager instance used to generate unique room IDs for the Monitoring Plugin.
      */
-    private static final SequenceManager roomIDSequenceManager = SequenceManager.getSequenceManagerByUniqueName("Monitoring Plugin - RoomID");
+    private static final SequenceManager roomIDSequenceManager = new SequenceManager(655, 50);
 
     private boolean metadataArchivingEnabled;
 
@@ -239,29 +234,6 @@ public class ConversationManager implements ComponentEventListener{
     }
 
     /**
-     * Populates the `roomJIDToIDMap` with room IDs and their corresponding JIDs from the database.
-     */
-    private static void populateRoomJIDToIDMap() {
-        Connection con = null;
-        PreparedStatement pstmt = null;
-        ResultSet rs = null;
-        try {
-            con = DbConnectionManager.getConnection();
-            pstmt = con.prepareStatement(LOAD_ROOM_INFO);
-            rs = pstmt.executeQuery();
-            while (rs.next()) {
-                long roomID = rs.getLong("roomID");
-                JID roomJID = new JID(rs.getString("roomJID"));
-                roomJIDToIDMap.put(roomJID, roomID);
-            }
-        } catch (SQLException e) {
-            Log.error("Error populating roomJIDToIDMap", e);
-        } finally {
-            DbConnectionManager.closeConnection(rs, pstmt, con);
-        }
-    }
-
-    /**
      * Checks if the `roomJIDToIDMap` contains the specified room JID.
      *
      * @param roomJID the JID of the room to check.
@@ -278,7 +250,13 @@ public class ConversationManager implements ComponentEventListener{
      * @return the unique room ID.
      */
     public static long getRoomIDFromRoomJID(JID roomJID) {
-        return roomJIDToIDMap.computeIfAbsent(roomJID, jid -> roomIDSequenceManager.nextUniqueID());
+        try {
+            return roomJIDToIDMap.get(roomJID);
+        } catch (Exception e) {
+            Log.error("Error getting roomID from roomJID", e);
+        }
+
+        return NO_ROOM_ID;
     }
 
     public static long getRoomIDFromConversationID(long conversationID) {
@@ -475,6 +453,11 @@ public class ConversationManager implements ComponentEventListener{
             DbConnectionManager.closeConnection(pstmtDeleteParticipants, con);
             DbConnectionManager.closeConnection(pstmtDeleteConversations, con);
         }
+
+        // Rebuild the archive and muc lucene index
+        MonitoringPlugin plugin = MonitoringPlugin.getInstance();
+        plugin.getArchiveIndexer().rebuildIndex();
+        plugin.getMucIndexer().rebuildIndex();
     }
 
     /**
@@ -1025,26 +1008,21 @@ public class ConversationManager implements ComponentEventListener{
         }
     }
 
-    void roomDestroyed(JID room, Date date) {
-        // Update the room status to destroyed in the database
-        Connection con = null;
-        PreparedStatement pstmt = null;
-        try {
-            con = DbConnectionManager.getConnection();
-            pstmt = con.prepareStatement(UPDATE_ROOM_DESTROYED_STATUS);
-            pstmt.setLong(1, getRoomIDFromRoomJID(room));
-            pstmt.executeUpdate();
-        } catch (SQLException e) {
-            Log.error("Error updating room destroyed status for room: " + room, e);
-        } finally {
-            DbConnectionManager.closeConnection(pstmt, con);
+    void roomCreated(JID roomJID) {
+        long roomID = roomIDSequenceManager.nextUniqueID();
+        if (MUCRoomStatusDAO.hasInsertedRoomInfo(roomID, roomJID)) {
+            roomJIDToIDMap.put(roomJID, roomID);
+        }
+    }
+
+    void roomDestroyed(JID roomJID, Date date) {
+        if(MUCRoomStatusDAO.hasUpdatedRoomDestroyedStatus(getRoomIDFromRoomJID(roomJID))) {
+            // Remove the room from the roomID map
+            roomJIDToIDMap.remove(roomJID);
         }
 
-        // Remove the room from the roomID map
-        roomJIDToIDMap.remove(room);
-
         // End existing conversation
-        roomConversationEnded(room, date);
+        roomConversationEnded(roomJID, date);
     }
 
     void roomConversationEnded(JID room, Date date) {
