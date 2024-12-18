@@ -1,7 +1,16 @@
 
-INSERT INTO ofVersion (name, version) VALUES ('monitoring', 8);
+INSERT INTO ofVersion (name, version) VALUES ('monitoring', 9);
+
+CREATE TABLE ofMucRoomStatus
+(
+  roomID        BIGINT          PRIMARY KEY,
+  roomJID       VARCHAR(1024)   NOT NULL,
+  roomDestroyed SMALLINT        DEFAULT 0
+);
+
 
 CREATE TABLE ofConversation (
+  roomID                BIGINT        NOT NULL,
   conversationID        BIGINT        NOT NULL,
   room                  VARCHAR(1024) NULL,
   isExternal            INT           NOT NULL,
@@ -10,6 +19,7 @@ CREATE TABLE ofConversation (
   messageCount          INT           NOT NULL,
   CONSTRAINT ofConversation_pk PRIMARY KEY (conversationID)
 );
+CREATE INDEX ofConversation_room_idx  ON ofConversation (roomID);
 CREATE INDEX ofConversation_ext_idx   ON ofConversation (isExternal);
 CREATE INDEX ofConversation_start_idx ON ofConversation (startDate);
 CREATE INDEX ofConversation_last_idx  ON ofConversation (lastActivity);

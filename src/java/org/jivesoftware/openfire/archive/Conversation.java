@@ -53,6 +53,8 @@ public class Conversation {
     private static final Logger Log = LoggerFactory.getLogger(Conversation.class);
 
     @XmlElement
+    private long roomID = -1;
+    @XmlElement
     private long conversationID = -1;
     @XmlElementWrapper
     private Map<String, UserParticipations> participants;
@@ -84,7 +86,8 @@ public class Conversation {
         this.lastActivity = startDate;
     }
 
-    public Conversation(JID room, Map<String, UserParticipations> participants, boolean external, Date startDate) {
+    public Conversation(long roomID, JID room, Map<String, UserParticipations> participants, boolean external, Date startDate) {
+        this.roomID = roomID;
         this.room = room;
         this.participants = participants;
         this.external = external;
@@ -92,13 +95,24 @@ public class Conversation {
         this.lastActivity = startDate;
     }
 
-    public Conversation(JID room, boolean external, Date startDate, Date lastActivity, int messageCount, Map<String, UserParticipations> participants) {
+    public Conversation(long roomID, JID room, boolean external, Date startDate, Date lastActivity, int messageCount, Map<String, UserParticipations> participants) {
+        this.roomID = roomID;
         this.room = room;
         this.external = external;
         this.startDate = startDate;
         this.lastActivity = lastActivity;
         this.messageCount = messageCount;
         this.participants = participants;
+    }
+
+    /**
+     * Returns the ID of the room where the group conversation is taking place.
+     * For one-to-one chats, this method will return -1 as there is no room.
+     *
+     * @return the room ID, or -1 if this is a one-to-one chat.
+     */
+    public long getRoomID() {
+        return roomID;
     }
 
     /**
@@ -268,7 +282,7 @@ public class Conversation {
                     ConversationDAO.insertIntoDb(this);
                 } else {
                     // Store new participation information
-                    ConversationDAO.insertIntoDb(conversationID, user, nickname, timestamp);
+                    ConversationDAO.insertIntoDb(conversationManager.getRoomIDFromConversationID(conversationID), conversationID, user, nickname, timestamp);
                 }
             } catch (Exception e) {
                 Log.error(e.getMessage(), e);

@@ -43,11 +43,11 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public class ConversationDAO {
 
-    private static final String INSERT_CONVERSATION = "INSERT INTO ofConversation(conversationID, room, isExternal, startDate, "
-        + "lastActivity, messageCount) VALUES (?,?,?,?,?,0)";
+    private static final String INSERT_CONVERSATION = "INSERT INTO ofConversation(roomID, conversationID, room, isExternal, startDate, "
+        + "lastActivity, messageCount) VALUES (?,?,?,?,?,?,0)";
     private static final String INSERT_PARTICIPANT = "INSERT INTO ofConParticipant(conversationID, joinedDate, bareJID, jidResource, nickname) "
         + "VALUES (?,?,?,?,?)";
-    private static final String LOAD_CONVERSATION = "SELECT room, isExternal, startDate, lastActivity, messageCount "
+    private static final String LOAD_CONVERSATION = "SELECT roomID, room, isExternal, startDate, lastActivity, messageCount "
         + "FROM ofConversation WHERE conversationID=?";
     private static final String LOAD_PARTICIPANTS = "SELECT bareJID, jidResource, nickname, joinedDate, leftDate FROM ofConParticipant "
         + "WHERE conversationID=? ORDER BY joinedDate";
@@ -98,17 +98,17 @@ public class ConversationDAO {
      *
      * @param conversationManager
      *            the ConversationManager.
-     * @param room
+     * @param roomJID
      *            the JID of the room where the conversation is taking place.
      * @param external
      *            true if the conversation includes a user on another server.
      * @param startDate
      *            the starting date of the conversation.
      */
-    public static Conversation createConversation(ConversationManager conversationManager, JID room, boolean external, Date startDate) {
+    public static Conversation createConversation(ConversationManager conversationManager, JID roomJID, boolean external, Date startDate) {
         final Map<String, UserParticipations> participants = new ConcurrentHashMap<>();
         // Add list of existing room occupants as participants of this conversation
-        MUCRoom mucRoom = XMPPServer.getInstance().getMultiUserChatManager().getMultiUserChatService(room).getChatRoom(room.getNode());
+        MUCRoom mucRoom = XMPPServer.getInstance().getMultiUserChatManager().getMultiUserChatService(roomJID).getChatRoom(roomJID.getNode());
         if (mucRoom != null) {
             for (final MUCOccupant occupant : mucRoom.getOccupants()) {
                 UserParticipations userParticipations = new UserParticipations(true);
@@ -117,7 +117,8 @@ public class ConversationDAO {
             }
         }
 
-        final Conversation conversation = new Conversation(room, participants, external, startDate);
+        long roomID = conversationManager.getRoomIDFromRoomJID(roomJID);
+        final Conversation conversation = new Conversation(roomID, roomJID, participants, external, startDate);
 
         // If archiving is enabled, insert the conversation into the database.
         if (conversationManager.isMetadataArchivingEnabled()) {
@@ -247,11 +248,12 @@ public class ConversationDAO {
             if (!rs.next()) {
                 throw new NotFoundException("Conversation not found: " + conversationID);
             }
-            final JID room = rs.getString(1) == null ? null : new JID(rs.getString(1));
-            final boolean external = rs.getInt(2) == 1;
-            final Date startDate = new Date(rs.getLong(3));
-            final Date lastActivity = new Date(rs.getLong(4));
-            final int messageCount = rs.getInt(5);
+            final int roomID = rs.getInt(1);
+            final JID room = rs.getString(2) == null ? null : new JID(rs.getString(2));
+            final boolean external = rs.getInt(3) == 1;
+            final Date startDate = new Date(rs.getLong(4));
+            final Date lastActivity = new Date(rs.getLong(5));
+            final int messageCount = rs.getInt(6);
             rs.close();
             pstmt.close();
 
@@ -278,7 +280,7 @@ public class ConversationDAO {
                 userParticipations.addParticipation(participation);
             }
 
-            final Conversation result = new Conversation(room, external, startDate, lastActivity, messageCount, participants);
+            final Conversation result = new Conversation(roomID, room, external, startDate, lastActivity, messageCount, participants);
             result.setConversationID(conversationID);
             return result;
         } catch (SQLException sqle) {
@@ -302,11 +304,12 @@ public class ConversationDAO {
         try {
             con = DbConnectionManager.getTransactionConnection();
             PreparedStatement pstmt = con.prepareStatement(INSERT_CONVERSATION);
-            pstmt.setLong(1, conversation.getConversationID());
-            pstmt.setString(2, conversation.getRoom() == null ? null : conversation.getRoom().toString());
-            pstmt.setInt(3, (conversation.isExternal() ? 1 : 0));
-            pstmt.setLong(4, conversation.getStartDate().getTime());
-            pstmt.setLong(5, conversation.getLastActivity().getTime());
+            pstmt.setLong(1, conversation.getRoomID());
+            pstmt.setLong(2, conversation.getConversationID());
+            pstmt.setString(3, conversation.getRoom() == null ? null : conversation.getRoom().toString());
+            pstmt.setInt(4, (conversation.isExternal() ? 1 : 0));
+            pstmt.setLong(5, conversation.getStartDate().getTime());
+            pstmt.setLong(6, conversation.getLastActivity().getTime());
             pstmt.executeUpdate();
             pstmt.close();
 
@@ -342,16 +345,17 @@ public class ConversationDAO {
      * @throws SQLException
      *             if an error occurs inserting the conversation.
      */
-    static void insertIntoDb(long conversationID, JID participant, String nickname, long joined) throws SQLException {
+    static void insertIntoDb(long roomID, long conversationID, JID participant, String nickname, long joined) throws SQLException {
         Connection con = null;
         try {
             con = DbConnectionManager.getConnection();
             PreparedStatement pstmt = con.prepareStatement(INSERT_PARTICIPANT);
-            pstmt.setLong(1, conversationID);
-            pstmt.setLong(2, joined);
-            pstmt.setString(3, participant.toBareJID());
-            pstmt.setString(4, participant.getResource() == null ? "" : participant.getResource());
-            pstmt.setString(5, nickname);
+            pstmt.setLong(1, roomID);
+            pstmt.setLong(2, conversationID);
+            pstmt.setLong(3, joined);
+            pstmt.setString(4, participant.toBareJID());
+            pstmt.setString(5, participant.getResource() == null ? "" : participant.getResource());
+            pstmt.setString(6, nickname);
             pstmt.executeUpdate();
             pstmt.close();
         } finally {

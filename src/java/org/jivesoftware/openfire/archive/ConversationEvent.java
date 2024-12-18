@@ -71,8 +71,14 @@ public class ConversationEvent {
         if (Type.chatMessageReceived == type) {
             conversationManager.processMessage(sender, receiver, body, stanza, date);
         }
+        else if (Type.roomCreated == type) {
+            conversationManager.roomCreated(roomJID);
+        }
         else if (Type.roomDestroyed == type) {
-            conversationManager.roomConversationEnded(roomJID, date);
+            conversationManager.roomDestroyed(roomJID, date);
+        }
+        else if (Type.roomClearChatHistory == type) {
+            conversationManager.clearChatHistory(roomJID);
         }
         else if (Type.occupantJoined == type) {
             conversationManager.joinedGroupConversation(roomJID, user, nickname, date);
@@ -105,11 +111,25 @@ public class ConversationEvent {
         return event;
     }
 
+    public static ConversationEvent roomCreated(JID roomJID) {
+        ConversationEvent event = new ConversationEvent();
+        event.type = Type.roomCreated;
+        event.roomJID = roomJID;
+        return event;
+    }
+
     public static ConversationEvent roomDestroyed(JID roomJID, Date date) {
         ConversationEvent event = new ConversationEvent();
         event.type = Type.roomDestroyed;
         event.roomJID = roomJID;
         event.date = date;
+        return event;
+    }
+
+    public static ConversationEvent roomClearChatHistory(JID roomJID) {
+        ConversationEvent event = new ConversationEvent();
+        event.type = Type.roomClearChatHistory;
+        event.roomJID = roomJID;
         return event;
     }
 
@@ -158,9 +178,17 @@ public class ConversationEvent {
 
     private enum Type {
         /**
+         * Event triggered when a new room was created.
+         */
+        roomCreated,
+        /**
          * Event triggered when a room was destroyed.
          */
         roomDestroyed,
+        /**
+         * Event triggered when a room was destroyed.
+         */
+        roomClearChatHistory,
         /**
          * Event triggered when a new occupant joins a room.
          */

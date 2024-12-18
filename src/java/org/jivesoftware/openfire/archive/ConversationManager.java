@@ -22,6 +22,7 @@ import org.dom4j.DocumentException;
 import org.dom4j.DocumentHelper;
 import org.dom4j.Element;
 import org.jivesoftware.database.DbConnectionManager;
+import org.jivesoftware.database.SequenceManager;
 import org.jivesoftware.openfire.XMPPServer;
 import org.jivesoftware.openfire.XMPPServerInfo;
 import org.jivesoftware.openfire.archive.cluster.GetConversationCountTask;
@@ -72,6 +73,11 @@ public class ConversationManager implements ComponentEventListener{
 
     private static final Logger Log = LoggerFactory.getLogger(ConversationManager.class);
 
+    /**
+     * Constant representing the absence of a room ID.
+     */
+    public static final long NO_ROOM_ID = -1;
+
     private static final String UPDATE_CONVERSATION = "UPDATE ofConversation SET lastActivity=?, messageCount=? WHERE conversationID=?";
     private static final String UPDATE_PARTICIPANT = "UPDATE ofConParticipant SET leftDate=? WHERE conversationID=? AND bareJID=? AND jidResource=? AND joinedDate=?";
     private static final String INSERT_MESSAGE = "INSERT INTO ofMessageArchive(messageID, conversationID, fromJID, fromJIDResource, toJID, toJIDResource, sentDate, body, stanza, isPMforJID) "
@@ -81,6 +87,23 @@ public class ConversationManager implements ComponentEventListener{
     private static final String DELETE_CONVERSATION_1 = "DELETE FROM ofMessageArchive WHERE conversationID=?";
     private static final String DELETE_CONVERSATION_2 = "DELETE FROM ofConParticipant WHERE conversationID=?";
     private static final String DELETE_CONVERSATION_3 = "DELETE FROM ofConversation WHERE conversationID=?";
+    private static final String DELETE_ARCHIVE_ROOM_CHAT_HISTORY =
+        """
+            DELETE FROM ofMessageArchive
+            WHERE conversationID IN (
+                SELECT conversationID
+                FROM ofConversation
+                WHERE roomID=?
+            )""";
+    private static final String DELETE_ALL_ROOM_PARTICIPANTS =
+        """
+            DELETE FROM ofConParticipant
+            WHERE conversationID IN (
+                SELECT conversationID
+                FROM ofConversation
+                WHERE roomID=?
+            )""";
+    private static final String DELETE_ALL_ROOM_CONVERSATIONS = "DELETE FROM ofConversation WHERE roomID=?";
 
     private static final Duration DEFAULT_IDLE_TIME = Duration.ofMinutes(10);
     private static final Duration DEFAULT_MAX_TIME = Duration.ofMinutes(60);
@@ -95,7 +118,25 @@ public class ConversationManager implements ComponentEventListener{
     private TaskEngine taskEngine;
 
     private Map<String, Conversation> conversations = new ConcurrentHashMap<>();
+
+    /**
+     * Stores the mapping between room JIDs and unique room IDs.
+     * A room JIDs can be reuse if a room is destroyed and then recreated.
+     * The unique room IDs however are kept unique using a SequenceManager instance.
+     */
+    private static Map<JID, Long> roomJIDToIDMap = MUCRoomStatusDAO.loadRoomJIDToIDMap();
+
+    /**
+     * Stores the mapping between active conversation IDs and room IDs.
+     */
+    private static final Map<Long, Long> conversationIDToRoomIDMap = new ConcurrentHashMap<>();
+    /**
+     * A SequenceManager instance used to generate unique room IDs for the Monitoring Plugin.
+     */
+    private static final SequenceManager roomIDSequenceManager = new SequenceManager(655, 50);
+
     private boolean metadataArchivingEnabled;
+
     /**
      * Flag that indicates if messages of one-to-one chats should be archived.
      */
@@ -202,6 +243,37 @@ public class ConversationManager implements ComponentEventListener{
         this.gateways = new CopyOnWriteArrayList<>();
         this.serverInfo = XMPPServer.getInstance().getServerInfo();
         this.conversationEventsQueue = new ConversationEventsQueue(this, taskEngine);
+
+    }
+
+    /**
+     * Checks if the `roomJIDToIDMap` contains the specified room JID.
+     *
+     * @param roomJID the JID of the room to check.
+     * @return true if the map contains the room JID, false otherwise.
+     */
+    public static boolean hasRoomJIDToIDMap(JID roomJID) {
+        return roomJIDToIDMap.containsKey(roomJID);
+    }
+
+    /**
+     * Returns the unique room ID for the given room JID. If no mapping exists, a new one is created.
+     *
+     * @param roomJID the JID of the room.
+     * @return the unique room ID.
+     */
+    public static long getRoomIDFromRoomJID(JID roomJID) {
+        try {
+            return roomJIDToIDMap.get(roomJID);
+        } catch (Exception e) {
+            Log.error("Error getting roomID from roomJID={}", roomJID, e);
+        }
+
+        return NO_ROOM_ID;
+    }
+
+    public static long getRoomIDFromConversationID(long conversationID) {
+        return conversationIDToRoomIDMap.getOrDefault(conversationID, NO_ROOM_ID);
     }
 
     public void start() {
@@ -358,6 +430,47 @@ public class ConversationManager implements ComponentEventListener{
         XMPPServer.getInstance().getArchiveManager().remove( conversationArchiver );
         XMPPServer.getInstance().getArchiveManager().remove( messageArchiver );
         XMPPServer.getInstance().getArchiveManager().remove( participantArchiver );
+    }
+
+    public void clearChatHistory(JID roomJID) {
+        long roomID = getRoomIDFromRoomJID(roomJID);
+
+        if(roomID == NO_ROOM_ID) return;
+
+        // Delete all conversations in given room
+        Connection con = null;
+        PreparedStatement pstmtDeleteChatHistory = null;
+        PreparedStatement pstmtDeleteParticipants = null;
+        PreparedStatement pstmtDeleteConversations = null;
+        try {
+            con = DbConnectionManager.getConnection();
+            pstmtDeleteChatHistory = con.prepareStatement(DELETE_ARCHIVE_ROOM_CHAT_HISTORY);
+            pstmtDeleteParticipants = con.prepareStatement(DELETE_ALL_ROOM_PARTICIPANTS);
+            pstmtDeleteConversations = con.prepareStatement(DELETE_ALL_ROOM_CONVERSATIONS);
+            for (Conversation conversation : conversations.values()) {
+                if (conversation.getRoomID() == roomID) {
+                    Log.debug("Deleting: " + conversation.getConversationID() + " to clear chat history for room: " + roomJID);
+                    removeConversation(roomJID.toString(), conversation, new Date());
+                }
+            }
+            pstmtDeleteChatHistory.setLong(1, roomID);
+            pstmtDeleteChatHistory.execute();
+            pstmtDeleteParticipants.setLong(1, roomID);
+            pstmtDeleteParticipants.execute();
+            pstmtDeleteConversations.setLong(1, roomID);
+            pstmtDeleteConversations.execute();
+        } catch (Exception e) {
+            Log.error(e.getMessage(), e);
+        } finally {
+            DbConnectionManager.closeConnection(pstmtDeleteChatHistory, con);
+            DbConnectionManager.closeConnection(pstmtDeleteParticipants, con);
+            DbConnectionManager.closeConnection(pstmtDeleteConversations, con);
+        }
+
+        // Rebuild the archive and muc lucene index
+        MonitoringPlugin plugin = MonitoringPlugin.getInstance();
+        plugin.getArchiveIndexer().rebuildIndex();
+        plugin.getMucIndexer().rebuildIndex();
     }
 
     /**
@@ -824,6 +937,7 @@ public class ConversationManager implements ComponentEventListener{
                 Date start = new Date(date.getTime() - 1);
                 conversation = ConversationDAO.createConversation(this, roomJID, false, start);
                 conversations.put(conversationKey, conversation);
+                conversationIDToRoomIDMap.put(conversation.getConversationID(), getRoomIDFromRoomJID(roomJID));
                 // Notify listeners of the newly created conversation.
                 for (ConversationListener listener : conversationListeners) {
                     listener.conversationCreated(conversation);
@@ -838,6 +952,7 @@ public class ConversationManager implements ComponentEventListener{
                 Date start = new Date(date.getTime() - 1);
                 conversation = ConversationDAO.createConversation(this, roomJID, false, start);
                 conversations.put(conversationKey, conversation);
+                conversationIDToRoomIDMap.put(conversation.getConversationID(), getRoomIDFromRoomJID(roomJID));
                 // Notify listeners of the newly created conversation.
                 for (ConversationListener listener : conversationListeners) {
                     listener.conversationCreated(conversation);
@@ -906,6 +1021,23 @@ public class ConversationManager implements ComponentEventListener{
         }
     }
 
+    void roomCreated(JID roomJID) {
+        long roomID = roomIDSequenceManager.nextUniqueID();
+        if (MUCRoomStatusDAO.hasInsertedRoomInfo(roomID, roomJID)) {
+            roomJIDToIDMap.put(roomJID, roomID);
+        }
+    }
+
+    void roomDestroyed(JID roomJID, Date date) {
+        if(MUCRoomStatusDAO.hasUpdatedRoomDestroyedStatus(getRoomIDFromRoomJID(roomJID))) {
+            // Remove the room from the roomID map
+            roomJIDToIDMap.remove(roomJID);
+        }
+
+        // End existing conversation
+        roomConversationEnded(roomJID, date);
+    }
+
     void roomConversationEnded(JID room, Date date) {
         Conversation conversation = getRoomConversation(room);
         if (conversation != null) {
@@ -915,6 +1047,7 @@ public class ConversationManager implements ComponentEventListener{
 
     private void removeConversation(String key, Conversation conversation, Date date) {
         conversations.remove(key);
+        conversationIDToRoomIDMap.remove(conversation.getConversationID());
         // Notify conversation that it has ended
         conversation.conversationEnded(this, date);
         // Notify listeners of the conversation ending.
