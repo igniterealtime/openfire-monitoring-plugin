@@ -11,11 +11,11 @@ FROM ofConversation;
 UPDATE ofTmpStatus
 SET roomDestroyed = 1
 WHERE roomJID NOT IN
-      (SELECT ofMucRoom.name || '@' || ofMucService.subdomain || '.' || ofProperty.propValue
-       FROM ofMucRoom
-                JOIN ofMucService ON ofMucRoom.serviceID = ofMucService.serviceID
-                CROSS JOIN ofProperty
-       WHERE ofProperty.name = 'xmpp.domain');
+      (SELECT CONCAT(CONCAT(CONCAT(ofMucRoom.name, '@'), ofMucService.subdomain), CONCAT('.', ofProperty.propValue))
+      FROM ofMucRoom
+      JOIN ofMucService ON ofMucRoom.serviceID = ofMucService.serviceID
+      CROSS JOIN ofProperty
+      WHERE ofProperty.name = 'xmpp.domain');
 
 CREATE TABLE ofMucRoomStatus
 (
@@ -28,7 +28,7 @@ INSERT INTO ofMucRoomStatus (SELECT * FROM ofTmpStatus);
 INSERT INTO ofID (idType, id)
 SELECT 655, MAX(roomID) + 1
 FROM ofMucRoomStatus;
-DROP TABLE ofTmpStatus;
+DROP TABLE SESSION.ofTmpStatus;
 
 ALTER TABLE ofConversation ADD COLUMN roomID BIGINT DEFAULT -1 NOT NULL;
 CREATE INDEX ofConversation_room_idx ON ofConversation (roomID);
