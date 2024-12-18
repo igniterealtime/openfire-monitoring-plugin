@@ -22,7 +22,6 @@ import org.dom4j.DocumentException;
 import org.dom4j.DocumentHelper;
 import org.dom4j.Element;
 import org.jivesoftware.database.DbConnectionManager;
-import org.jivesoftware.database.JiveID;
 import org.jivesoftware.database.SequenceManager;
 import org.jivesoftware.openfire.XMPPServer;
 import org.jivesoftware.openfire.XMPPServerInfo;
@@ -81,15 +80,29 @@ public class ConversationManager implements ComponentEventListener{
 
     private static final String UPDATE_CONVERSATION = "UPDATE ofConversation SET lastActivity=?, messageCount=? WHERE conversationID=?";
     private static final String UPDATE_PARTICIPANT = "UPDATE ofConParticipant SET leftDate=? WHERE conversationID=? AND bareJID=? AND jidResource=? AND joinedDate=?";
-    private static final String INSERT_MESSAGE = "INSERT INTO ofMessageArchive(roomID, messageID, conversationID, fromJID, fromJIDResource, toJID, toJIDResource, sentDate, body, stanza, isPMforJID) "
-            + "VALUES (?,?,?,?,?,?,?,?,?,?,?)";
+    private static final String INSERT_MESSAGE = "INSERT INTO ofMessageArchive(messageID, conversationID, fromJID, fromJIDResource, toJID, toJIDResource, sentDate, body, stanza, isPMforJID) "
+            + "VALUES (?,?,?,?,?,?,?,?,?,?)";
     private static final String CONVERSATION_COUNT = "SELECT COUNT(*) FROM ofConversation";
     private static final String MESSAGE_COUNT = "SELECT COUNT(*) FROM ofMessageArchive";
     private static final String DELETE_CONVERSATION_1 = "DELETE FROM ofMessageArchive WHERE conversationID=?";
     private static final String DELETE_CONVERSATION_2 = "DELETE FROM ofConParticipant WHERE conversationID=?";
     private static final String DELETE_CONVERSATION_3 = "DELETE FROM ofConversation WHERE conversationID=?";
-    private static final String DELETE_ARCHIVE_ROOM_CHAT_HISTORY = "DELETE FROM ofMessageArchive WHERE roomID=?";
-    private static final String DELETE_ALL_ROOM_PARTICIPANTS = "DELETE FROM ofConParticipant WHERE roomID=?";
+    private static final String DELETE_ARCHIVE_ROOM_CHAT_HISTORY =
+        """
+            DELETE FROM ofMessageArchive
+            WHERE conversationID IN (
+                SELECT conversationID
+                FROM ofConversation
+                WHERE roomID=?
+            )""";
+    private static final String DELETE_ALL_ROOM_PARTICIPANTS =
+        """
+            DELETE FROM ofConParticipant
+            WHERE conversationID IN (
+                SELECT conversationID
+                FROM ofConversation
+                WHERE roomID=?
+            )""";
     private static final String DELETE_ALL_ROOM_CONVERSATIONS = "DELETE FROM ofConversation WHERE roomID=?";
 
     private static final Duration DEFAULT_IDLE_TIME = Duration.ofMinutes(10);
@@ -253,7 +266,7 @@ public class ConversationManager implements ComponentEventListener{
         try {
             return roomJIDToIDMap.get(roomJID);
         } catch (Exception e) {
-            Log.error("Error getting roomID from roomJID", e);
+            Log.error("Error getting roomID from roomJID={}", roomJID, e);
         }
 
         return NO_ROOM_ID;
@@ -886,7 +899,7 @@ public class ConversationManager implements ComponentEventListener{
             if (messageArchivingEnabled) {
                 if (body != null) {
                     /* OF-677 - Workaround to prevent null messages being archived */
-                    messageArchiver.archive(new ArchivedMessage(conversation.getRoomID(), conversation.getConversationID(), sender, receiver, date, body, stanza, false, null) );
+                    messageArchiver.archive(new ArchivedMessage(conversation.getConversationID(), sender, receiver, date, body, stanza, false, null) );
                 }
             }
             // Notify listeners of the conversation update.
@@ -954,7 +967,7 @@ public class ConversationManager implements ComponentEventListener{
                 JID jid = new JID(roomJID + "/" + nickname);
                 if (body != null) {
                     /* OF-677 - Workaround to prevent null messages being archived */
-                    messageArchiver.archive( new ArchivedMessage(conversation.getRoomID(), conversation.getConversationID(), sender, jid, date, body, roomArchivingStanzasEnabled ? stanza : "", false, receiverIfPM));
+                    messageArchiver.archive( new ArchivedMessage(conversation.getConversationID(), sender, jid, date, body, roomArchivingStanzasEnabled ? stanza : "", false, receiverIfPM));
                 }
             }
             // Notify listeners of the conversation update.
@@ -1429,17 +1442,16 @@ public class ConversationManager implements ComponentEventListener{
 
                 for ( final ArchivedMessage work : workQueue )
                 {
-                    pstmt.setLong(1, work.getRoomID());
-                    pstmt.setLong(2, work.getID());
-                    pstmt.setLong(3, work.getConversationID());
-                    pstmt.setString(4, work.getFromJID().toBareJID());
-                    pstmt.setString(5, work.getFromJID().getResource());
-                    pstmt.setString(6, work.getToJID().toBareJID());
-                    pstmt.setString(7, work.getToJID().getResource());
-                    pstmt.setLong(8, work.getSentDate().getTime());
-                    DbConnectionManager.setLargeTextField(pstmt, 9, work.getBody());
-                    DbConnectionManager.setLargeTextField(pstmt, 10, work.getStanza());
-                    pstmt.setString(11, work.getIsPMforJID() == null ? null : work.getIsPMforJID().toBareJID());
+                    pstmt.setLong(1, work.getID());
+                    pstmt.setLong(2, work.getConversationID());
+                    pstmt.setString(3, work.getFromJID().toBareJID());
+                    pstmt.setString(4, work.getFromJID().getResource());
+                    pstmt.setString(5, work.getToJID().toBareJID());
+                    pstmt.setString(6, work.getToJID().getResource());
+                    pstmt.setLong(7, work.getSentDate().getTime());
+                    DbConnectionManager.setLargeTextField(pstmt, 8, work.getBody());
+                    DbConnectionManager.setLargeTextField(pstmt, 9, work.getStanza());
+                    pstmt.setString(10, work.getIsPMforJID() == null ? null : work.getIsPMforJID().toBareJID());
 
                     if ( DbConnectionManager.isBatchUpdatesSupported() )
                     {
