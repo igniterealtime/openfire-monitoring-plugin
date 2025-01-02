@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008 Jive Software. All rights reserved.
+ * Copyright (C) 2008 Jive Software, 2025 Ignite Realtime Foundation. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -76,12 +76,15 @@ public class ConversationEvent {
         else if (Type.roomDestroyed == type) {
             conversationManager.roomConversationEnded(roomJID, date);
         }
+        else if (Type.roomClearChatHistory == type) {
+            conversationManager.clearChatHistory(roomID);
+        }
         else if (Type.occupantJoined == type) {
             conversationManager.joinedGroupConversation(roomJID, user, nickname, date);
         }
         else if (Type.occupantLeft == type) {
             conversationManager.leftGroupConversation(roomJID, user, date);
-            // If there are no more occupants then consider the group conversation over
+            // If there are no more occupants than consider the group conversation over
             MUCRoom mucRoom = XMPPServer.getInstance().getMultiUserChatManager().getMultiUserChatService(roomJID).getChatRoom(roomJID.getNode());
             if (mucRoom != null &&  mucRoom.getOccupantsCount() == 0) {
                 conversationManager.roomConversationEnded(roomJID, date);
@@ -113,6 +116,14 @@ public class ConversationEvent {
         event.roomID = roomID;
         event.roomJID = roomJID;
         event.date = date;
+        return event;
+    }
+
+    public static ConversationEvent roomClearChatHistory(long roomID, JID roomJID) {
+        ConversationEvent event = new ConversationEvent();
+        event.type = Type.roomClearChatHistory;
+        event.roomID = roomID;
+        event.roomJID = roomJID;
         return event;
     }
 
@@ -164,6 +175,10 @@ public class ConversationEvent {
          * Event triggered when a room was destroyed.
          */
         roomDestroyed,
+        /**
+         * Event triggered when historic data for a room is removed.
+         */
+        roomClearChatHistory,
         /**
          * Event triggered when a new occupant joins a room.
          */

@@ -924,6 +924,26 @@ public class ConversationManager implements ComponentEventListener{
     }
 
     /**
+     * Removes all recorded data for a particular chat room, including messages, participants and conversations from the
+     * database, and associated data from the Lucene indices.
+     *
+     * @param roomID the numeric ID for the room
+     */
+    public void clearChatHistory(final long roomID) {
+        ConversationDAO.deleteRoomMessages(roomID);
+        ConversationDAO.deleteRoomParticipants(roomID);
+        final Set<Long> deletedConversations = ConversationDAO.deleteRoomConversations(roomID);
+
+        final MonitoringPlugin plugin = MonitoringPlugin.getInstance();
+        if (!deletedConversations.isEmpty()) {
+            plugin.getArchiveIndexer().scheduleForDeletion(deletedConversations);
+            plugin.getArchiveIndexer().updateIndex();
+        }
+
+        plugin.getMucIndexer().scheduleForDeletion(roomID);
+    }
+
+    /**
      * Returns the group conversation taking place in the specified room or <tt>null</tt> if none.
      *
      * @param room

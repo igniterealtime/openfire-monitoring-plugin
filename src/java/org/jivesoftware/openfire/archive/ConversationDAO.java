@@ -56,6 +56,12 @@ public class ConversationDAO {
     private static final String LOAD_MESSAGES = "SELECT fromJID, fromJIDResource, toJID, toJIDResource, sentDate, body, stanza, isPMforJID FROM ofMessageArchive WHERE conversationID=? "
         + "ORDER BY sentDate";
 
+    private static final String DELETE_ROOM_MESSAGES = "DELETE FROM ofMessageArchive WHERE conversationID IN (SELECT conversationID FROM ofConversation WHERE roomID=?)";
+    private static final String DELETE_ROOM_PARTICIPANTS = "DELETE FROM ofConParticipant WHERE conversationID IN (SELECT conversationID FROM ofConversation WHERE roomID=?)";
+    private static final String DELETE_ROOM_CONVERSATIONS = "DELETE FROM ofConversation WHERE roomID=?";
+
+    private static final String CONVERSATIONS_FOR_ROOM = "SELECT DISTINCT conversationID FROM ofConversation WHERE roomID=?";
+
     private static final Logger Log = LoggerFactory.getLogger(ConversationDAO.class);
 
     /**
@@ -237,6 +243,103 @@ public class ConversationDAO {
             messages.sort(Comparator.comparing(ArchivedMessage::getSentDate));
         }
         return messages;
+    }
+
+    /**
+     * Removes all recorded chat history (messages) that is stored in the database.
+     *
+     * @param roomID the numeric ID for the room
+     */
+    public static void deleteRoomMessages(final long roomID)
+    {
+        Log.debug("Removing messages for room {}", roomID);
+        Connection con = null;
+        PreparedStatement pstmt = null;
+        try {
+            con = DbConnectionManager.getConnection();
+            pstmt = con.prepareStatement(DELETE_ROOM_MESSAGES);
+            pstmt.setLong(1, roomID);
+            pstmt.executeUpdate();
+        } catch (SQLException e) {
+            Log.error("A database error occurred while removing messages for room {}", roomID, e);
+        } finally {
+            DbConnectionManager.closeConnection(pstmt, con);
+        }
+    }
+
+    /**
+     * Removes all recorded participants (users) that are stored in the database.
+     *
+     * @param roomID the numeric ID for the room
+     */
+    public static void deleteRoomParticipants(final long roomID)
+    {
+        Log.debug("Removing participants for room {}", roomID);
+        Connection con = null;
+        PreparedStatement pstmt = null;
+        try {
+            con = DbConnectionManager.getConnection();
+            pstmt = con.prepareStatement(DELETE_ROOM_PARTICIPANTS);
+            pstmt.setLong(1, roomID);
+            pstmt.executeUpdate();
+        } catch (SQLException e) {
+            Log.error("A database error occurred while removing participants for room {}", roomID, e);
+        } finally {
+            DbConnectionManager.closeConnection(pstmt, con);
+        }
+    }
+
+    /**
+     * Removes all recorded conversations that are stored in the database.
+     *
+     * @param roomID the numeric ID for the room
+     * @return IDs of the removed conversations.
+     */
+    public static Set<Long> deleteRoomConversations(final long roomID)
+    {
+        Log.debug("Removing conversations for room {}", roomID);
+
+        // JDBC does not support returning data from deleted rows. Instead, this first queries for the data, then deletes it.
+        final Set<Long> result = getConversationIDsForRoom(roomID);
+
+        Connection con = null;
+        PreparedStatement pstmt = null;
+        try {
+            con = DbConnectionManager.getConnection();
+            pstmt = con.prepareStatement(DELETE_ROOM_CONVERSATIONS);
+            pstmt.setLong(1, roomID);
+            pstmt.executeUpdate();
+        } catch (SQLException e) {
+            Log.error("A database error occurred while removing conversations for room {}", roomID, e);
+        } finally {
+            DbConnectionManager.closeConnection(pstmt, con);
+        }
+        return result;
+    }
+
+    public static Set<Long> getConversationIDsForRoom(final long roomID)
+    {
+        Log.debug("Getting conversation IDs for room {}", roomID);
+
+        final Set<Long> result = new HashSet<>();
+
+        Connection con = null;
+        PreparedStatement pstmt = null;
+        ResultSet rs = null;
+        try {
+            con = DbConnectionManager.getConnection();
+            pstmt = con.prepareStatement(CONVERSATIONS_FOR_ROOM);
+            pstmt.setLong(1, roomID);
+            rs = pstmt.executeQuery();
+            while (rs.next()) {
+                result.add(rs.getLong(1));
+            }
+        } catch (SQLException e) {
+            Log.error("A database error occurred while loading conversation IDs for room {}", roomID, e);
+        } finally {
+            DbConnectionManager.closeConnection(rs, pstmt, con);
+        }
+        return result;
     }
 
     private static Conversation loadFromDb(final long conversationID) throws NotFoundException {
