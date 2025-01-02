@@ -1,8 +1,9 @@
 
-INSERT INTO ofVersion (name, version) VALUES ('monitoring', 8);
+INSERT INTO ofVersion (name, version) VALUES ('monitoring', 9);
 
 CREATE TABLE ofConversation (
   conversationID        BIGINT        NOT NULL,
+  roomID                BIGINT        NULL,
   room                  VARCHAR(255)  NULL,
   isExternal            TINYINT       NOT NULL,
   startDate             BIGINT        NOT NULL,
@@ -11,7 +12,8 @@ CREATE TABLE ofConversation (
   PRIMARY KEY (conversationID),
   INDEX ofConversation_ext_idx (isExternal),
   INDEX ofConversation_start_idx (startDate),
-  INDEX ofConversation_last_idx (lastActivity)
+  INDEX ofConversation_last_idx (lastActivity),
+  INDEX ofConversation_room_idx (roomID)
 );
 
 CREATE TABLE ofConParticipant (

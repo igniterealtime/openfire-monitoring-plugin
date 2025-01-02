@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2021 Ignite Realtime Foundation. All rights reserved.
+ * Copyright (C) 2021-2025 Ignite Realtime Foundation. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -48,7 +48,7 @@ public class XmlSerializerTest {
         userParticipations.addParticipation(participation);
         participations.put("g@d", userParticipations);
         participations.put("a@s/f", userParticipations);
-        final Conversation input = new Conversation(new JID("a@b.c"), true, new Date(1), new Date(2), 8, participations);
+        final Conversation input = new Conversation(-1L, new JID("a@b.c"), true, new Date(1), new Date(2), 8, participations);
 
         // Execute system under test.
         final String xml = XmlSerializer.getInstance().marshall(input);

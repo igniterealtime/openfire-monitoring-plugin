@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008 Jive Software, Ignite Realtime Foundation 2024. All rights reserved.
+ * Copyright (C) 2008 Jive Software, Ignite Realtime Foundation 2024-2025. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -798,7 +798,7 @@ public class ConversationManager implements ComponentEventListener{
     }
 
     /**
-     * Processes an incoming message sent to a room. The message will mapped to a conversation and then queued for storage if archiving is turned on.
+     * Processes an incoming message sent to a room. The message will be mapped to a conversation and then queued for storage if archiving is turned on.
      *
      * @param roomJID
      *            the JID of the room where the group conversation is taking place.

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2021-2024 Ignite Realtime Foundation. All rights reserved.
+ * Copyright (C) 2021-2025 Ignite Realtime Foundation. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -30,10 +30,12 @@ import org.xmpp.packet.JID;
 
 import javax.annotation.Nonnull;
 import java.sql.Connection;
+import java.sql.JDBCType;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.*;
+import java.util.Date;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -43,11 +45,11 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public class ConversationDAO {
 
-    private static final String INSERT_CONVERSATION = "INSERT INTO ofConversation(conversationID, room, isExternal, startDate, "
-        + "lastActivity, messageCount) VALUES (?,?,?,?,?,0)";
+    private static final String INSERT_CONVERSATION = "INSERT INTO ofConversation(conversationID, roomID, room, isExternal, startDate, "
+        + "lastActivity, messageCount) VALUES (?,?,?,?,?,?,0)";
     private static final String INSERT_PARTICIPANT = "INSERT INTO ofConParticipant(conversationID, joinedDate, bareJID, jidResource, nickname) "
         + "VALUES (?,?,?,?,?)";
-    private static final String LOAD_CONVERSATION = "SELECT room, isExternal, startDate, lastActivity, messageCount "
+    private static final String LOAD_CONVERSATION = "SELECT roomID, room, isExternal, startDate, lastActivity, messageCount "
         + "FROM ofConversation WHERE conversationID=?";
     private static final String LOAD_PARTICIPANTS = "SELECT bareJID, jidResource, nickname, joinedDate, leftDate FROM ofConParticipant "
         + "WHERE conversationID=? ORDER BY joinedDate";
@@ -109,15 +111,17 @@ public class ConversationDAO {
         final Map<String, UserParticipations> participants = new ConcurrentHashMap<>();
         // Add list of existing room occupants as participants of this conversation
         MUCRoom mucRoom = XMPPServer.getInstance().getMultiUserChatManager().getMultiUserChatService(room).getChatRoom(room.getNode());
-        if (mucRoom != null) {
-            for (final MUCOccupant occupant : mucRoom.getOccupants()) {
-                UserParticipations userParticipations = new UserParticipations(true);
-                userParticipations.addParticipation(new ConversationParticipation(startDate, occupant.getNickname()));
-                participants.put(occupant.getUserAddress().toString(), userParticipations);
-            }
+        if (mucRoom == null) {
+            throw new IllegalArgumentException("Cannot find room: " + room);
         }
 
-        final Conversation conversation = new Conversation(room, participants, external, startDate);
+        for (final MUCOccupant occupant : mucRoom.getOccupants()) {
+            UserParticipations userParticipations = new UserParticipations(true);
+            userParticipations.addParticipation(new ConversationParticipation(startDate, occupant.getNickname()));
+            participants.put(occupant.getUserAddress().toString(), userParticipations);
+        }
+
+        final Conversation conversation = new Conversation(mucRoom.getID(), room, participants, external, startDate);
 
         // If archiving is enabled, insert the conversation into the database.
         if (conversationManager.isMetadataArchivingEnabled()) {
@@ -152,9 +156,9 @@ public class ConversationDAO {
      * @return the archived messages in the conversation.
      */
     public static List<ArchivedMessage> getMessages(@Nonnull final Conversation conversation, @Nonnull ConversationManager conversationManager) {
-        if (conversation.getRoom() == null && !conversationManager.isMessageArchivingEnabled()) {
+        if (conversation.getRoomID() == null && !conversationManager.isMessageArchivingEnabled()) {
             return Collections.emptyList();
-        } else if (conversation.getRoom() != null && !conversationManager.isRoomArchivingEnabled()) {
+        } else if (conversation.getRoomID() != null && !conversationManager.isRoomArchivingEnabled()) {
             return Collections.emptyList();
         }
 
@@ -194,7 +198,7 @@ public class ConversationDAO {
             DbConnectionManager.closeConnection(rs, pstmt, con);
         }
         // Add messages of users joining or leaving the group chat conversation
-        if (conversation.getRoom() != null) {
+        if (conversation.getRoomID() != null) {
             for (JID user : conversation.getParticipants()) {
                 boolean anonymous = false;
                 String name;
@@ -247,11 +251,15 @@ public class ConversationDAO {
             if (!rs.next()) {
                 throw new NotFoundException("Conversation not found: " + conversationID);
             }
-            final JID room = rs.getString(1) == null ? null : new JID(rs.getString(1));
-            final boolean external = rs.getInt(2) == 1;
-            final Date startDate = new Date(rs.getLong(3));
-            final Date lastActivity = new Date(rs.getLong(4));
-            final int messageCount = rs.getInt(5);
+            Long roomID = rs.getLong(1);
+            if (rs.wasNull()) {
+                roomID = null;
+            }
+            final JID room = rs.getString(2) == null ? null : new JID(rs.getString(1));
+            final boolean external = rs.getInt(3) == 1;
+            final Date startDate = new Date(rs.getLong(4));
+            final Date lastActivity = new Date(rs.getLong(5));
+            final int messageCount = rs.getInt(6);
             rs.close();
             pstmt.close();
 
@@ -272,13 +280,13 @@ public class ConversationDAO {
                 // Store participation data
                 UserParticipations userParticipations = participants.get(fullJID.toString());
                 if (userParticipations == null) {
-                    userParticipations = new UserParticipations(room != null);
+                    userParticipations = new UserParticipations(roomID != null);
                     participants.put(fullJID.toString(), userParticipations);
                 }
                 userParticipations.addParticipation(participation);
             }
 
-            final Conversation result = new Conversation(room, external, startDate, lastActivity, messageCount, participants);
+            final Conversation result = new Conversation(roomID, room, external, startDate, lastActivity, messageCount, participants);
             result.setConversationID(conversationID);
             return result;
         } catch (SQLException sqle) {
@@ -303,10 +311,15 @@ public class ConversationDAO {
             con = DbConnectionManager.getTransactionConnection();
             PreparedStatement pstmt = con.prepareStatement(INSERT_CONVERSATION);
             pstmt.setLong(1, conversation.getConversationID());
-            pstmt.setString(2, conversation.getRoom() == null ? null : conversation.getRoom().toString());
-            pstmt.setInt(3, (conversation.isExternal() ? 1 : 0));
-            pstmt.setLong(4, conversation.getStartDate().getTime());
-            pstmt.setLong(5, conversation.getLastActivity().getTime());
+            if (conversation.getRoomID() == null) {
+                pstmt.setNull(2, JDBCType.BIGINT.getVendorTypeNumber());
+            } else {
+                pstmt.setLong(2, conversation.getRoomID());
+            }
+            pstmt.setString(3, conversation.getRoom() == null ? null : conversation.getRoom().toString());
+            pstmt.setInt(4, (conversation.isExternal() ? 1 : 0));
+            pstmt.setLong(5, conversation.getStartDate().getTime());
+            pstmt.setLong(6, conversation.getLastActivity().getTime());
             pstmt.executeUpdate();
             pstmt.close();
 
