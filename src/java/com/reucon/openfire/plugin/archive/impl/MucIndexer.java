@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008 Jive Software, 2024 Ignite Realtime Foundation. All rights reserved.
+ * Copyright (C) 2008 Jive Software, 2024-2025 Ignite Realtime Foundation. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,6 +17,7 @@ package com.reucon.openfire.plugin.archive.impl;
 
 import org.apache.lucene.document.*;
 import org.apache.lucene.index.IndexWriter;
+import org.apache.lucene.index.Term;
 import org.jivesoftware.database.DbConnectionManager;
 import org.jivesoftware.openfire.archive.ConversationManager;
 import org.jivesoftware.openfire.archive.MonitoringConstants;
@@ -36,6 +37,8 @@ import java.sql.SQLException;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Date;
+import java.util.HashSet;
+import java.util.Set;
 
 /**
  * Creates and maintains a Lucene index for messages exchanged in multi-user chat.
@@ -55,10 +58,25 @@ public class MucIndexer extends LuceneIndexer
 
     private ConversationManager conversationManager;
 
+    /**
+     * A collection of rooms that are to be removed from the index during the next update or rebuild operation.
+     */
+    private final Set<Long> roomsPendingDeletion = new HashSet<>();
+
     public MucIndexer( final TaskEngine taskEngine, final ConversationManager conversationManager )
     {
         super(taskEngine, JiveGlobals.getHomePath().resolve(Path.of(MonitoringConstants.NAME, "mucsearch")), "MUCSEARCH", SCHEMA_VERSION);
         this.conversationManager = conversationManager;
+    }
+
+    /**
+     * Schedules documents that relate to the provided room for deletion during the next update cycle.
+     *
+     * @param roomID Room for which documents are to be removed from the index.
+     */
+    public void scheduleForDeletion(final Long roomID)
+    {
+        roomsPendingDeletion.add(roomID);
     }
 
     @Override
@@ -148,6 +166,11 @@ public class MucIndexer extends LuceneIndexer
                     continue;
                 }
 
+                // Skip rooms that are going to be deleted anyway.
+                if (roomsPendingDeletion.contains(roomID)) {
+                    continue;
+                }
+
                 // Index message.
                 final Document document = createDocument(roomID, messageID, sender, logTime, body );
                 writer.addDocument(document);
@@ -164,6 +187,15 @@ public class MucIndexer extends LuceneIndexer
                 }
             }
             Log.debug( "... finished the entire result set. Processed {} messages in total.", progress );
+
+            if (!since.equals( Instant.EPOCH ) && !roomsPendingDeletion.isEmpty()) {
+                // In case this is an update instead of a rebuild, older documents may still refer to rooms that are deleted. Remove those.
+                Log.debug( "... removing documents for {} rooms that are pending deletion.", roomsPendingDeletion.size());
+                for (long roomID : roomsPendingDeletion) {
+                    writer.deleteDocuments(new Term("roomID", Long.toString(roomID)));
+                }
+            }
+            roomsPendingDeletion.clear();
         }
         catch (SQLException sqle) {
             Log.error("An exception occurred while trying to fetch all MUC messages from the database to rebuild the Lucene index.", sqle);
@@ -179,7 +211,7 @@ public class MucIndexer extends LuceneIndexer
     }
 
     /**
-     * Creates a index document for one particular chat message.
+     * Creates an index document for one particular chat message.
      *
      * @param roomID ID of the MUC room in which the message was exchanged.
      * @param messageID ID of the message that was exchanged.

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008 Jive Software, Ignite Realtime Foundation 2024. All rights reserved.
+ * Copyright (C) 2008 Jive Software, Ignite Realtime Foundation 2024-2025. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -62,6 +62,11 @@ public class ArchiveIndexer extends org.jivesoftware.openfire.index.LuceneIndexe
     public static final int SCHEMA_VERSION = 1;
 
     /**
+     * A collection of conversations that are to be removed from the index during the next update or rebuild operation.
+     */
+    private final Set<Long> conversationsPendingDeletion = new HashSet<>();
+
+    /**
      * Constructs a new archive indexer.
      *
      * @param conversationManager a ConversationManager instance.
@@ -77,6 +82,16 @@ public class ArchiveIndexer extends org.jivesoftware.openfire.index.LuceneIndexe
     {
         super.stop();
         conversationManager = null;
+    }
+
+    /**
+     * Schedules documents that relate to the provided conversations for deletion during the next update cycle.
+     *
+     * @param conversations Conversations for which documents are to be removed from the index.
+     */
+    public void scheduleForDeletion(final Set<Long> conversations)
+    {
+        conversationsPendingDeletion.addAll(conversations);
     }
 
     /**
@@ -103,6 +118,10 @@ public class ArchiveIndexer extends org.jivesoftware.openfire.index.LuceneIndexe
 
         // Load meta-data for each conversation that needs updating.
         final SortedMap<Long, Boolean> externalMetaData = extractMetaData(conversationIDs);
+
+        // Add those conversations that are scheduled to be deleted.
+        conversationIDs.addAll(conversationsPendingDeletion);
+        conversationsPendingDeletion.clear();
 
         // Delete any conversations found -- they may have already been indexed, but updated since then.
         Log.debug("... deleting all to-be-updated conversations from the index.");
@@ -137,6 +156,11 @@ public class ArchiveIndexer extends org.jivesoftware.openfire.index.LuceneIndexe
         }
 
         final SortedMap<Long, Boolean> conversationMetadata = findAllConversations();
+
+        // Correct for conversations that are scheduled to be removed.
+        conversationsPendingDeletion.forEach(conversationMetadata::remove);
+        conversationsPendingDeletion.clear();
+
         Log.debug("... identified {} conversations.", conversationMetadata.size());
         if (conversationMetadata.isEmpty()) {
             return Instant.EPOCH;
@@ -183,7 +207,7 @@ public class ArchiveIndexer extends org.jivesoftware.openfire.index.LuceneIndexe
     }
 
     /**
-     * Finds converstations that are modified after the specified date.
+     * Finds conversations that are modified after the specified date.
      *
      * @param lastModified The date that marks the beginning of the period for which to return conversations. Cannot be null.
      * @return A list of conversation identifiers (never null, possibly empty).
