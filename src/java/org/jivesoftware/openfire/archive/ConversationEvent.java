@@ -52,6 +52,8 @@ public class ConversationEvent {
     @XmlJavaTypeAdapter(XmlSerializer.JidAdapter.class)
     private JID receiver;
 
+    private Long roomID;
+
     @XmlJavaTypeAdapter(XmlSerializer.JidAdapter.class)
     private JID roomJID;
 
@@ -105,9 +107,10 @@ public class ConversationEvent {
         return event;
     }
 
-    public static ConversationEvent roomDestroyed(JID roomJID, Date date) {
+    public static ConversationEvent roomDestroyed(long roomID, JID roomJID, Date date) {
         ConversationEvent event = new ConversationEvent();
         event.type = Type.roomDestroyed;
+        event.roomID = roomID;
         event.roomJID = roomJID;
         event.date = date;
         return event;
@@ -188,11 +191,11 @@ public class ConversationEvent {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         ConversationEvent that = (ConversationEvent) o;
-        return type == that.type && Objects.equals(date, that.date) && Objects.equals(body, that.body) && Objects.equals(stanza, that.stanza) && Objects.equals(sender, that.sender) && Objects.equals(receiver, that.receiver) && Objects.equals(roomJID, that.roomJID) && Objects.equals(user, that.user) && Objects.equals(nickname, that.nickname);
+        return type == that.type && Objects.equals(date, that.date) && Objects.equals(body, that.body) && Objects.equals(stanza, that.stanza) && Objects.equals(sender, that.sender) && Objects.equals(receiver, that.receiver) && Objects.equals(roomID, that.roomID) && Objects.equals(roomJID, that.roomJID) && Objects.equals(user, that.user) && Objects.equals(nickname, that.nickname);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(type, date, body, stanza, sender, receiver, roomJID, user, nickname);
+        return Objects.hash(type, date, body, stanza, sender, receiver, roomID, roomJID, user, nickname);
     }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008 Jive Software. All rights reserved.
+ * Copyright (C) 2008 Jive Software, 2025 Ignite Realtime Foundation. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,6 +27,7 @@ import org.slf4j.LoggerFactory;
 import org.xmpp.packet.JID;
 import org.xmpp.packet.Message;
 
+import javax.annotation.Nonnull;
 import java.util.Date;
 
 /**
@@ -60,7 +61,7 @@ public class GroupConversationInterceptor implements MUCEventListener {
     }
 
     @Override
-    public void roomCreated(JID roomJID) {
+    public void roomCreated(final long roomID, @Nonnull final JID roomJID) {
         //Do nothing
     }
 
@@ -70,7 +71,7 @@ public class GroupConversationInterceptor implements MUCEventListener {
     }
 
     @Override
-    public void roomDestroyed(JID roomJID) {
+    public void roomDestroyed(final long roomID, @Nonnull final JID roomJID) {
         // Process this event in the senior cluster member or local JVM when not in a cluster
         if (ClusterManager.isSeniorClusterMember()) {
             conversationManager.roomConversationEnded(roomJID, new Date());
@@ -78,7 +79,7 @@ public class GroupConversationInterceptor implements MUCEventListener {
         else {
             ConversationEventsQueue eventsQueue = conversationManager.getConversationEventsQueue();
             eventsQueue.addGroupChatEvent(conversationManager.getRoomConversationKey(roomJID),
-                    ConversationEvent.roomDestroyed(roomJID, new Date()));
+                    ConversationEvent.roomDestroyed(roomID, roomJID, new Date()));
         }
     }
 

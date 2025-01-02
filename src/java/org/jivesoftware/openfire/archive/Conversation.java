@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008 Jive Software. All rights reserved.
+ * Copyright (C) 2008 Jive Software, 2025 Ignite Realtime Foundation. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,6 +23,8 @@ import org.slf4j.LoggerFactory;
 import org.xmpp.packet.JID;
 
 import javax.annotation.Nonnull;
+import javax.xml.bind.annotation.XmlAccessType;
+import javax.xml.bind.annotation.XmlAccessorType;
 import javax.xml.bind.annotation.XmlElement;
 import javax.xml.bind.annotation.XmlElementWrapper;
 import javax.xml.bind.annotation.XmlRootElement;
@@ -47,6 +49,7 @@ import java.util.*;
  * @author Matt Tucker
  */
 @XmlRootElement
+@XmlAccessorType(XmlAccessType.FIELD)
 @JiveID(50)
 public class Conversation {
 
@@ -64,8 +67,22 @@ public class Conversation {
     private Date lastActivity;
     @XmlElement
     private int messageCount;
+
+    /**
+     * Unique identifier of the room where the group conversion is taking place. For one-to-one chats there is no room
+     * so this variable will be null.
+     *
+     * This identifier differs from the JID provided in {@link #room}. When a room gets destroyed, and is recreated, it
+     * <em>can</em> be recreated using the same JID. The numeric identifier however, will be unique.
+     */
+    @XmlElement
+    private Long roomID = null;
+
     /**
      * Room where the group conversion is taking place. For one-to-one chats there is no room so this variable will be null.
+     *
+     * This identifier differs from the ID provided in {@link #roomID}. When a room gets destroyed, and is recreated, it
+     * <em>can</em> be recreated using the same JID. The numeric identifier however, will be unique.
      */
     @XmlElement
     @XmlJavaTypeAdapter(XmlSerializer.JidAdapter.class)
@@ -84,7 +101,8 @@ public class Conversation {
         this.lastActivity = startDate;
     }
 
-    public Conversation(JID room, Map<String, UserParticipations> participants, boolean external, Date startDate) {
+    public Conversation(Long roomID, JID room, Map<String, UserParticipations> participants, boolean external, Date startDate) {
+        this.roomID = roomID;
         this.room = room;
         this.participants = participants;
         this.external = external;
@@ -92,13 +110,40 @@ public class Conversation {
         this.lastActivity = startDate;
     }
 
-    public Conversation(JID room, boolean external, Date startDate, Date lastActivity, int messageCount, Map<String, UserParticipations> participants) {
+    public Conversation(Long roomID, JID room, boolean external, Date startDate, Date lastActivity, int messageCount, Map<String, UserParticipations> participants) {
+        this.roomID = roomID;
         this.room = room;
         this.external = external;
         this.startDate = startDate;
         this.lastActivity = lastActivity;
         this.messageCount = messageCount;
         this.participants = participants;
+    }
+
+    /**
+     * Sets the ID of the room where the group conversation is taking place. One-to-one chats should not have a room ID
+     * (or have a value that is <tt>null</tt>).
+     *
+     * This identifier differs from the JID provided in {@link #room}. When a room gets destroyed, and is recreated, it
+     * <em>can</em> be recreated using the same JID. The numeric identifier however, will be unique.
+     *
+     * @param roomID the room ID, or -1 if this is a one-to-one chat.
+     */
+    public void setRoomID(Long roomID) {
+        this.roomID = roomID;
+    }
+
+    /**
+     * Returns the ID of the room where the group conversation is taking place. For one-to-one chats, this method will
+     * return null, as there is no room.
+     *
+     * This identifier differs from the JID provided in {@link #room}. When a room gets destroyed, and is recreated, it
+     * <em>can</em> be recreated using the same JID. The numeric identifier however, will be unique.
+     *
+     * @return the room ID, null if this is a one-to-one chat.
+     */
+    public Long getRoomID() {
+        return roomID;
     }
 
     /**
@@ -125,7 +170,10 @@ public class Conversation {
     /**
      * Returns the JID of the room where the group conversation took place. If the conversation was a one-to-one chat then a <tt>null</tt> value is
      * returned.
-     * 
+     *
+     * This identifier differs from the ID provided in {@link #roomID}. When a room gets destroyed, and is recreated, it
+     * <em>can</em> be recreated using the same JID. The numeric identifier however, will be unique.
+     *
      * @return the JID of room or null if this was a one-to-one chat.
      */
     public JID getRoom() {
@@ -316,12 +364,12 @@ public class Conversation {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         Conversation that = (Conversation) o;
-        return conversationID == that.conversationID && external == that.external && messageCount == that.messageCount && Objects.equals(participants, that.participants) && Objects.equals(startDate, that.startDate) && Objects.equals(lastActivity, that.lastActivity) && Objects.equals(room, that.room);
+        return conversationID == that.conversationID && external == that.external && messageCount == that.messageCount && Objects.equals(participants, that.participants) && Objects.equals(startDate, that.startDate) && Objects.equals(lastActivity, that.lastActivity) && Objects.equals(roomID, that.roomID) && Objects.equals(room, that.room);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(conversationID, participants, external, startDate, lastActivity, messageCount, room);
+        return Objects.hash(conversationID, participants, external, startDate, lastActivity, messageCount, roomID, room);
     }
 
     /**
