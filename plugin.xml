@@ -6,10 +6,10 @@
     <description>Monitors conversations and statistics of the server.</description>
     <author>Ignite Realtime</author>
     <version>${project.version}</version>
-    <date>2024-11-22</date>
+    <date>2025-01-03</date>
     <minServerVersion>5.0.0</minServerVersion>
     <databaseKey>monitoring</databaseKey>
-    <databaseVersion>8</databaseVersion>
+    <databaseVersion>9</databaseVersion>
 
     <adminconsole>
         <tab id="tab-server">
@@ -33,7 +33,7 @@
                       url="conversations.jsp"
                       description="${admin.item.active-conversations.description}"/>
             </sidebar>
-
         </tab>
+
     </adminconsole>
 </plugin>
