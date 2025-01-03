@@ -7,7 +7,7 @@ UPDATE ofConversation SET roomID = (
     JOIN ofMucService ON ofMucRoom.serviceID = ofMucService.serviceID
     CROSS JOIN ofProperty
     WHERE ofProperty.name = 'xmpp.domain'
-    AND ofMucRoom.name || '@' || ofMucService.subdomain || ofProperty.propValue = ofConversation.room
+    AND ofMucRoom.name || '@' || ofMucService.subdomain || '.' || ofProperty.propValue = ofConversation.room
 )
 WHERE room IS NOT NULL AND room <> '';
 
