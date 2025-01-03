@@ -928,8 +928,13 @@ public class ConversationManager implements ComponentEventListener{
      * database, and associated data from the Lucene indices.
      *
      * @param roomID the numeric ID for the room
+     * @param roomJID the JID of the room
      */
-    public void clearChatHistory(final long roomID) {
+    public void clearChatHistory(final long roomID, final JID roomJid)
+    {
+        // Ensure that ongoing conversations are marked as 'ended'. New messages should go in a new conversation.
+        roomConversationEnded(roomJid, new Date());
+
         ConversationDAO.deleteRoomMessages(roomID);
         ConversationDAO.deleteRoomParticipants(roomID);
         final Set<Long> deletedConversations = ConversationDAO.deleteRoomConversations(roomID);
