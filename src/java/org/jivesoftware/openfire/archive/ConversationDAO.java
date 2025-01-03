@@ -358,7 +358,7 @@ public class ConversationDAO {
             if (rs.wasNull()) {
                 roomID = null;
             }
-            final JID room = rs.getString(2) == null ? null : new JID(rs.getString(1));
+            final JID room = rs.getString(2) == null ? null : new JID(rs.getString(2));
             final boolean external = rs.getInt(3) == 1;
             final Date startDate = new Date(rs.getLong(4));
             final Date lastActivity = new Date(rs.getLong(5));
