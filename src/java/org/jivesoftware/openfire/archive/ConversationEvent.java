@@ -77,7 +77,7 @@ public class ConversationEvent {
             conversationManager.roomConversationEnded(roomJID, date);
         }
         else if (Type.roomClearChatHistory == type) {
-            conversationManager.clearChatHistory(roomID);
+            conversationManager.clearChatHistory(roomID, roomJID);
         }
         else if (Type.occupantJoined == type) {
             conversationManager.joinedGroupConversation(roomJID, user, nickname, date);

@@ -88,7 +88,7 @@ public class GroupConversationInterceptor implements MUCEventListener {
     {
         // Process this event in the senior cluster member or local JVM when not in a cluster
         if (ClusterManager.isSeniorClusterMember()) {
-            conversationManager.clearChatHistory(roomID);
+            conversationManager.clearChatHistory(roomID, roomJID);
         }
         else {
             ConversationEventsQueue eventsQueue = conversationManager.getConversationEventsQueue();
