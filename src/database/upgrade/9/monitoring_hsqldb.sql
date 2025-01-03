@@ -11,7 +11,7 @@ UPDATE ofConversation SET roomID = (
 )
 WHERE room IS NOT NULL AND room <> '';
 
-ALTER TABLE ofConversation ADD INDEX ofConversation_room_idx (roomID);
+CREATE INDEX ofConversation_room_idx ON ofConversation (roomID);
 
 -- Update database version
 UPDATE ofVersion SET version = 9 WHERE name = 'monitoring';
