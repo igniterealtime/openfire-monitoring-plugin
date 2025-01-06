@@ -393,7 +393,7 @@ public class ConversationDAO {
             result.setConversationID(conversationID);
             return result;
         } catch (SQLException sqle) {
-            Log.error("An exception occurred while trying to load conversation {} form database.", conversationID, sqle);
+            Log.error("An exception occurred while trying to load conversation {} from database.", conversationID, sqle);
             return null;
         } finally {
             DbConnectionManager.closeConnection(rs, pstmt, con);
