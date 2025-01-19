@@ -1,10 +1,10 @@
 package com.reucon.openfire.plugin.archive.model;
 
-import com.reucon.openfire.plugin.archive.util.StanzaIDUtil;
 import org.dom4j.*;
 import org.jivesoftware.database.JiveID;
 import org.jivesoftware.openfire.XMPPServer;
 import org.jivesoftware.openfire.archive.MonitoringConstants;
+import org.jivesoftware.openfire.stanzaid.StanzaIDUtil;
 import org.jivesoftware.util.SystemProperty;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
