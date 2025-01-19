@@ -16,7 +16,6 @@
 
 package org.jivesoftware.openfire.archive;
 
-import com.reucon.openfire.plugin.archive.util.StanzaIDUtil;
 import org.dom4j.Document;
 import org.dom4j.DocumentException;
 import org.dom4j.DocumentHelper;
@@ -34,6 +33,7 @@ import org.jivesoftware.openfire.component.InternalComponentManager;
 import org.jivesoftware.openfire.muc.MultiUserChatService;
 import org.jivesoftware.openfire.plugin.MonitoringPlugin;
 import org.jivesoftware.openfire.reporting.util.TaskEngine;
+import org.jivesoftware.openfire.stanzaid.StanzaIDUtil;
 import org.jivesoftware.openfire.stats.Statistic;
 import org.jivesoftware.openfire.stats.StatisticsManager;
 import org.jivesoftware.util.*;
@@ -928,7 +928,7 @@ public class ConversationManager implements ComponentEventListener{
      * database, and associated data from the Lucene indices.
      *
      * @param roomID the numeric ID for the room
-     * @param roomJID the JID of the room
+     * @param roomJid the JID of the room
      */
     public void clearChatHistory(final long roomID, final JID roomJid)
     {
