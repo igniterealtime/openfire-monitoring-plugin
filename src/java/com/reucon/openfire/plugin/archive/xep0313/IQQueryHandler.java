@@ -618,8 +618,9 @@ abstract public class IQQueryHandler extends AbstractIQHandler implements
      * @return A list of fields. Never null.
      */
     private List<String> getSupportedFieldVariables() {
-        final List<String> results = Arrays.asList("FORM_TYPE", "with", "start", "end");
+        List<String> results = Arrays.asList("FORM_TYPE", "with", "start", "end");
         if (LuceneIndexer.ENABLED.getValue()) {
+            results = new ArrayList<String>(results);
             results.add("{urn:xmpp:fulltext:0}fulltext");
             results.add("withtext");
             results.add("search");
