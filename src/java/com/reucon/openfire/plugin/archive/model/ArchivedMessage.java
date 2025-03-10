@@ -254,8 +254,8 @@ public class ArchivedMessage {
         }
 
         // Try creating a fake one from the body.
-        final JID to;
-        final JID from;
+        JID to;
+        JID from;
         if (archivedMessage.getDirection() == ArchivedMessage.Direction.to) {
             // message sent by the archive owner;
             to = archivedMessage.getWith();
@@ -266,13 +266,20 @@ public class ArchivedMessage {
             from = archivedMessage.getWith();
         }
 
-        final boolean isMuc = XMPPServer.getInstance().getMultiUserChatManager().getMultiUserChatService( to ) != null
-            || XMPPServer.getInstance().getMultiUserChatManager().getMultiUserChatService( from ) != null;
+        // MUC messages only have a 'from'.
+        final boolean isToMuc = XMPPServer.getInstance().getMultiUserChatManager().getMultiUserChatService( to ) != null;
+        final boolean isFromMuc = XMPPServer.getInstance().getMultiUserChatManager().getMultiUserChatService( from ) != null;
+        if (isToMuc) {
+            from = to;
+            to = null; // XEP-0313 specifies in section 5.1.2 MUC Archives: When sending out the archives to a requesting client, the forwarded stanza MUST NOT have a 'to' attribute.
+        } else if (isFromMuc) {
+            to = null;
+        }
 
         final Message result = new Message();
         result.setFrom(from);
         result.setTo(to);
-        result.setType( isMuc ? Message.Type.groupchat : Message.Type.chat );
+        result.setType( (isToMuc || isFromMuc) ? Message.Type.groupchat : Message.Type.chat );
         result.setBody(archivedMessage.getBody());
 
         Log.trace( "Reconstructed stanza for archived message with ID {} (only a body was stored): {}", archivedMessage.getId(), result );
