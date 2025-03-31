@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2020-2024 Ignite Realtime Foundation. All rights reserved.
+ * Copyright (C) 2020-2025 Ignite Realtime Foundation. All rights reserved.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -99,11 +99,13 @@ public class PaginatedMessageDatabaseQuery extends AbstractPaginatedMamQuery
                 if (with.getResource() == null) {
                     pstmt.setString( ++pos, with.toString() );
                     pstmt.setString( ++pos, with.toString() );
+                    pstmt.setString( ++pos, with.toString() );
                 } else {
                     pstmt.setString( ++pos, with.toBareJID() );
                     pstmt.setString( ++pos, with.getResource() );
                     pstmt.setString( ++pos, with.toBareJID() );
                     pstmt.setString( ++pos, with.getResource() );
+                    pstmt.setString( ++pos, with.toString() );
                 }
             }
 
@@ -164,11 +166,13 @@ public class PaginatedMessageDatabaseQuery extends AbstractPaginatedMamQuery
                 if (with.getResource() == null) {
                     pstmt.setString( ++pos, with.toString() );
                     pstmt.setString( ++pos, with.toString() );
+                    pstmt.setString( ++pos, with.toString() );
                 } else {
                     pstmt.setString( ++pos, with.toBareJID() );
                     pstmt.setString( ++pos, with.getResource() );
                     pstmt.setString( ++pos, with.toBareJID() );
                     pstmt.setString( ++pos, with.getResource() );
+                    pstmt.setString( ++pos, with.toString() );
                 }
             }
 
@@ -231,9 +235,9 @@ public class PaginatedMessageDatabaseQuery extends AbstractPaginatedMamQuery
        if ( with != null) {
           // XEP-0313 specifies: If (and only if) the supplied JID is a bare JID (i.e. no resource is present), then the server SHOULD return messages if their bare to/from address for a user archive, or from address otherwise, would match it.
           if ( with.getResource() == null) {
-             sql += " AND ( toJID = ? OR fromJID = ? )";
+             sql += " AND ( toJID = ? OR fromJID = ? OR isPMforJID = ? )";
           } else {
-             sql += " AND ( ( toJID = ? AND toJIDResource = ? ) OR ( fromJID = ? AND fromJIDResource = ? ) )";
+             sql += " AND ( ( toJID = ? AND toJIDResource = ? ) OR ( fromJID = ? AND fromJIDResource = ? ) OR isPMforJID = ? )";
           }
        }
 
@@ -268,9 +272,9 @@ public class PaginatedMessageDatabaseQuery extends AbstractPaginatedMamQuery
         if (with != null) {
             // XEP-0313 specifies: If (and only if) the supplied JID is a bare JID (i.e. no resource is present), then the server SHOULD return messages if their bare to/from address for a user archive, or from address otherwise, would match it.
             if (with.getResource() == null) {
-                sql += " AND ( toJID = ? OR fromJID = ? )";
+                sql += " AND ( toJID = ? OR fromJID = ? OR isPMforJID = ? )";
             } else {
-                sql += " AND ( (toJID = ? AND toJIDResource = ? ) OR (fromJID = ? AND fromJIDResource = ? ) )";
+                sql += " AND ( (toJID = ? AND toJIDResource = ? ) OR (fromJID = ? AND fromJIDResource = ? ) OR isPMforJID = ? )";
             }
         }
 
