@@ -197,7 +197,7 @@ abstract public class IQQueryHandler extends AbstractIQHandler implements
             // Filtering by JID should only be available to entities that would already have been allowed to know the publisher
             // of the events (e.g. this could not be used by a visitor to a semi-anonymous MUC).
             final MUCOccupant occupant = room.getOccupantByFullJID(packet.getFrom());
-            if ( !room.canAnyoneDiscoverJID() ) {
+            if ( !room.canAnyoneDiscoverJID() && queryRequest.getDataForm() != null) {
                 final FormField withValue = queryRequest.getDataForm().getField("with");
                 if ( withValue != null && withValue.getFirstValue() != null && !withValue.getFirstValue().isEmpty() ) {
                     final JID with;
