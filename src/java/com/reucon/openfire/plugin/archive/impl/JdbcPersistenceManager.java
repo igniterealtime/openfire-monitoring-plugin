@@ -10,6 +10,7 @@ import org.dom4j.DocumentException;
 import org.jivesoftware.database.DbConnectionManager;
 import org.jivesoftware.openfire.archive.ConversationManager;
 import org.jivesoftware.openfire.index.LuceneIndexer;
+import org.jivesoftware.util.NotFoundException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.xmpp.packet.JID;
@@ -272,7 +273,8 @@ public class JdbcPersistenceManager implements PersistenceManager {
     }
 
     @Override
-    public Collection<ArchivedMessage> findMessages(Date startDate, Date endDate, JID owner, JID messageOwner, JID with, String query, XmppResultSet xmppResultSet, boolean useStableID) throws DataRetrievalException {
+    public Collection<ArchivedMessage> findMessages(Date startDate, Date endDate, JID owner, JID messageOwner, JID with, String query, XmppResultSet xmppResultSet, boolean useStableID) throws DataRetrievalException, NotFoundException
+    {
         if ( !owner.equals(messageOwner)) {
             throw new IllegalArgumentException("A personal archive can't be queried for messages of a different owner than the archive. Supplied archive owner: " + owner + ", supplied message owner: " + messageOwner);
         }
@@ -298,7 +300,12 @@ public class JdbcPersistenceManager implements PersistenceManager {
         } */
         if (xmppResultSet.getAfter() != null) {
             if ( useStableID ) {
-                after = ConversationManager.getMessageIdForStableId( owner, xmppResultSet.getAfter() );
+                try {
+                    after = ConversationManager.getMessageIdForStableId( owner, xmppResultSet.getAfter() );
+                } catch ( IllegalArgumentException e ) {
+                    // When a 'before' or 'after' element is present, but is not present in the archive, XEP-0313 specifies that an item-not-found error must be returned.
+                    throw new NotFoundException("The reference '"+xmppResultSet.getAfter()+"' used in the 'after' RSM element is not recognized.");
+                }
             } else {
                 after = Long.parseLong( xmppResultSet.getAfter() );
             }
@@ -307,7 +314,12 @@ public class JdbcPersistenceManager implements PersistenceManager {
         }
         if (xmppResultSet.getBefore() != null) {
             if ( useStableID ) {
-                before = ConversationManager.getMessageIdForStableId( owner, xmppResultSet.getBefore() );
+                try {
+                    before = ConversationManager.getMessageIdForStableId(owner, xmppResultSet.getBefore());
+                } catch ( IllegalArgumentException e ) {
+                    // When a 'before' or 'after' element is present, but is not present in the archive, XEP-0313 specifies that an item-not-found error must be returned.
+                    throw new NotFoundException("The reference '"+xmppResultSet.getBefore()+"' used in the 'before' RSM element is not recognized.");
+                }
             } else {
                 before = Long.parseLong( xmppResultSet.getBefore() );
             }
