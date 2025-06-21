@@ -218,10 +218,10 @@ public class MucMamPersistenceManager implements PersistenceManager {
         try {
             result = parseIdentifier(value, room, useStableID);
         } catch ( IllegalArgumentException e ) {
-            // When a 'before' or 'after' element is present, but is not present in the archive, XEP-0313 specifies that a item-not-found error must be returned.
+            // When a 'before' or 'after' element is present, but is not present in the archive, XEP-0313 specifies that an item-not-found error must be returned.
             throw new NotFoundException( "The reference '"+value+"' used in the '"+fieldName+"' RSM element is not recognized.");
         }
-        // When a 'before' or 'after' element is present, but is not present in the archive, XEP-0313 specifies that a item-not-found error must be returned.
+        // When a 'before' or 'after' element is present, but is not present in the archive, XEP-0313 specifies that an item-not-found error must be returned.
         if ( result == null || getArchivedMessage( result, room ) == null ) {
             throw new NotFoundException( "The reference '"+value+"' used in the '"+fieldName+"' RSM element is not recognized.");
         }
