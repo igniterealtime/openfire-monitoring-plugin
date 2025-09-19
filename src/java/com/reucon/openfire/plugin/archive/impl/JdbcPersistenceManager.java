@@ -1,10 +1,7 @@
 package com.reucon.openfire.plugin.archive.impl;
 
 import com.reucon.openfire.plugin.archive.PersistenceManager;
-import com.reucon.openfire.plugin.archive.model.ArchivedMessage;
-import com.reucon.openfire.plugin.archive.model.ArchivedMessage.Direction;
-import com.reucon.openfire.plugin.archive.model.Conversation;
-import com.reucon.openfire.plugin.archive.model.Participant;
+import com.reucon.openfire.plugin.archive.model.*;
 import com.reucon.openfire.plugin.archive.xep0059.XmppResultSet;
 import org.dom4j.DocumentException;
 import org.jivesoftware.database.DbConnectionManager;
@@ -622,12 +619,45 @@ public class JdbcPersistenceManager implements PersistenceManager {
         }
     }
 
+    @Override
+    public MamArchiveMetadata getArchiveMetadata(JID archiveJid) {
+        Connection conn = null;
+        PreparedStatement pstmt = null;
+        ResultSet rs = null;
+        try {
+            conn = DbConnectionManager.getConnection();
+            // Query to get first and last message
+            pstmt = conn.prepareStatement(
+                "SELECT MIN(sentDate) as firstDate, MAX(sentDate) as lastDate, " +
+                    "MIN(messageID) as firstId, MAX(messageID) as lastId " +
+                    "FROM ofMessageArchive WHERE owner = ?");
+            pstmt.setString(1, archiveJid.toBareJID());
+            rs = pstmt.executeQuery();
+
+            if (rs.next() && rs.getTimestamp("firstDate") != null) {
+                return new MamArchiveMetadata(
+                    rs.getLong("firstId"),
+                    rs.getTimestamp("firstDate"),
+                    rs.getLong("lastId"),
+                    rs.getTimestamp("lastDate")
+                );
+            }
+            return new MamArchiveMetadata(); // empty archive
+        } catch (SQLException e) {
+            Log.error("Error retrieving archive metadata", e);
+            throw new RuntimeException("Failed to retrieve archive metadata", e);
+        } finally {
+            DbConnectionManager.closeConnection(rs, pstmt, conn);
+        }
+    }
+
+
     static protected ArchivedMessage asArchivedMessage(JID owner, String fromJID, String fromJIDResource, String toJID, String toJIDResource, Date sentDate, String body, String stanza, Long id) throws DocumentException {
         final JID from = new JID(fromJID + ( fromJIDResource == null || fromJIDResource.isEmpty() ? "" : "/" + fromJIDResource ));
         final JID to = new JID(toJID + ( toJIDResource == null || toJIDResource.isEmpty() ? "" : "/" + toJIDResource ));
 
         final ArchivedMessage.Direction direction = ArchivedMessage.Direction.getDirection(owner, to);
-        final JID with = direction == Direction.from ? from : to;
+        final JID with = direction == ArchivedMessage.Direction.from ? from : to;
         return new ArchivedMessage(id, sentDate, direction, with, body, stanza);
     }
 
