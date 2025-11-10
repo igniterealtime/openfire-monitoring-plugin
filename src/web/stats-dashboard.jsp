@@ -467,12 +467,12 @@ function createCookie(name,value,days) {
             <tr>
                 <%
                    long[] startAndEnd = GraphEngine.parseTimePeriod(timePeriod);
-                   String[] sessionsHighLow = StatsAction.getLowAndHigh("sessions", startAndEnd);
-                   String[] conversationsHighLow = StatsAction.getLowAndHigh("conversations", startAndEnd);
-                   String[] messageHighLow = StatsAction.getLowAndHigh("packet_count", startAndEnd);
-                   String[] serversHighLow = StatsAction.getLowAndHigh("server_sessions", startAndEnd);
-                   String[] mucHighLow = StatsAction.getLowAndHigh("muc_rooms", startAndEnd);
-                   String[] fileTransferHighLow = StatsAction.getLowAndHigh("proxyTransferRate", startAndEnd);
+                   String[] sessionsHighLow = StatsAction.getLowAndHigh(StatisticsModule.SESSIONS_KEY, startAndEnd);
+                   String[] conversationsHighLow = StatsAction.getLowAndHigh(ConversationManager.CONVERSATIONS_KEY, startAndEnd);
+                   String[] messageHighLow = StatsAction.getLowAndHigh(StatisticsModule.TRAFFIC_KEY, startAndEnd);
+                   String[] serversHighLow = StatsAction.getLowAndHigh(StatisticsModule.SERVER_2_SERVER_SESSIONS_KEY, startAndEnd);
+                   String[] mucHighLow = StatsAction.getLowAndHigh("muc_rooms_amt", startAndEnd);
+                   String[] fileTransferHighLow = StatsAction.getLowAndHigh("proxy_transfer_amt", startAndEnd);
                    String[] serverBytesHighLow = StatsAction.getLowAndHigh("server_bytes", startAndEnd);
                 %>
                 <td align="left">
@@ -627,27 +627,27 @@ function createCookie(name,value,days) {
                         </thead>
                         <tbody>
                             <tr>
-                                <td><b><%= viewer.getStatistic("server_sessions")[0].getName() %></b></td>
+                                <td><b><%= viewer.getStatistic(StatisticsModule.SERVER_2_SERVER_SESSIONS_KEY)[0].getName() %></b></td>
                                 <td width="1%"><img id="sparklines-server_sessions"
-                                         src="graph?stat=server_sessions&sparkline=true&color=dark&format=png"
+                                         src="graph?stat=<%=StatisticsModule.SERVER_2_SERVER_SESSIONS_KEY%>&sparkline=true&color=dark&format=png"
                                          style="border: 1px solid #b4b4b4;" width="180" height="50" /></td>
                                 <td id="server_sessions.low" align="center"><%= serversHighLow[0] %></td>
                                 <td><img src="images/blank.gif" border="0" width="7" height="1" alt="" /></td>
                                 <td id="server_sessions.high" align="center"><%= serversHighLow[1] %></td>
                             </tr>
                             <tr>
-                                <td><b><%= viewer.getStatistic("muc_rooms")[0].getName() %></b></td>
+                                <td><b><%= viewer.getStatistic("muc_rooms_amt")[0].getName() %></b></td>
                                 <td><img id="sparklines-muc_rooms"
-                                         src="graph?stat=muc_rooms&sparkline=true&color=dark&format=png"
+                                         src="graph?stat=muc_rooms_amt&sparkline=true&color=dark&format=png"
                                          style="border: 1px solid #b4b4b4;" width="180" height="50" /></td>
                                 <td id="muc_rooms.low" align="center"><%= mucHighLow[0] %></td>
                                 <td><img src="images/blank.gif" border="0" width="7" height="1" alt="" /></td>
                                 <td id="muc_rooms.high" align="center"><%= mucHighLow[1] %></td>
                             </tr>
                             <tr>
-                                <td><b><%= viewer.getStatistic("proxyTransferRate")[0].getName() %></b></td>
+                                <td><b><%= viewer.getStatistic("proxy_transfer_amt")[0].getName() %></b></td>
                                 <td width="1%"><img id="sparklines-proxyTransferRate"
-                                         src="graph?stat=proxyTransferRate&sparkline=true&color=dark&format=png"
+                                         src="graph?stat=proxy_transfer_amt&sparkline=true&color=dark&format=png"
                                          style="border: 1px solid #b4b4b4;" width="180" height="50" /></td>
                                 <td id="proxyTransferRate.low" align="center"><%= fileTransferHighLow[0] %></td>
                                 <td><img src="images/blank.gif" border="0" width="7" height="1" alt="" /></td>

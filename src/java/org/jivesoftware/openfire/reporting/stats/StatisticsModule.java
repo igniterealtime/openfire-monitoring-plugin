@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008 Jive Software. All rights reserved.
+ * Copyright (C) 2008 Jive Software, Ignite Realtime Foundation 2025. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,6 +16,7 @@
 
 package org.jivesoftware.openfire.reporting.stats;
 
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.jivesoftware.openfire.SessionManager;
@@ -43,6 +44,22 @@ public class StatisticsModule {
     public static final String SERVER_2_SERVER_SESSIONS_KEY = "server_sessions";
     public static final String SESSIONS_KEY = "sessions";
     public static final String TRAFFIC_KEY = "packet_count";
+
+    /**
+     * Keys of statistics that have been replaced (key) by statics that use a different key (value).
+     *
+     * @deprecated Useful only to test backwards compatibility with Openfire versions that support both old and new statistic definitions. Should be removed when this plugin requires a minimum version of Openfire that supports only the newer definitions (which likely is Openfire 5.2.0).
+     */
+    @Deprecated(forRemoval = true) // Remove when this plugin requires a version of Openfire where the old statistics are no longer present (likely: Openfire 5.2.0).
+    public static final Map<String, String> OF_3142_DEPRECATED = Map.of(
+        "server_bytes_in", "server_bytes_in_amt",
+        "server_bytes_out", "server_bytes_out_amt",
+        "muc_rooms", "muc_rooms_amt",
+        "muc_occupants", "muc_occupants_amt",
+        "muc_users", "muc_users_amt",
+        "muc_incoming", "muc_incoming_amt",
+        "muc_outgoing", "muc_outgoing_amt",
+        "proxyTransferRate", "proxy_transfer_amt");
 
     private StatisticsManager statisticsManager;
 
@@ -101,7 +118,7 @@ public class StatisticsModule {
     private void addServerToServerStatistic() {
         // Register a statistic.
         Statistic serverToServerStatistic = new i18nStatistic(SERVER_2_SERVER_SESSIONS_KEY, MonitoringConstants.NAME,
-                Statistic.Type.count)
+                Statistic.Type.amount)
         {
             public double sample() {
                 return (SessionManager.getInstance().getIncomingServers().size() + SessionManager.
@@ -110,6 +127,11 @@ public class StatisticsModule {
 
             public boolean isPartialSample() {
                 return false;
+            }
+
+            @Override
+            public RepresentationSemantics getRepresentationSemantics() {
+                return RepresentationSemantics.SNAPSHOT;
             }
         };
 
@@ -123,13 +145,18 @@ public class StatisticsModule {
      */
     private void addActiveSessionsStatistic() {
         // Register a statistic.
-        Statistic activeSessionStatistic = new i18nStatistic(SESSIONS_KEY, MonitoringConstants.NAME, Statistic.Type.count) {
+        Statistic activeSessionStatistic = new i18nStatistic(SESSIONS_KEY, MonitoringConstants.NAME, Statistic.Type.amount) {
             public double sample() {
                 return SessionManager.getInstance().getUserSessionsCount(false);
             }
 
             public boolean isPartialSample() {
                 return false;
+            }
+
+            @Override
+            public RepresentationSemantics getRepresentationSemantics() {
+                return RepresentationSemantics.SNAPSHOT;
             }
         };
         statisticsManager.addStatistic(SESSIONS_KEY, activeSessionStatistic);
@@ -140,13 +167,18 @@ public class StatisticsModule {
      */
     private void addPacketStatistic() {
         // Register a statistic.
-        Statistic packetTrafficStatistic = new i18nStatistic(TRAFFIC_KEY, MonitoringConstants.NAME, Statistic.Type.rate) {
+        Statistic packetTrafficStatistic = new i18nStatistic(TRAFFIC_KEY, MonitoringConstants.NAME, Statistic.Type.amount) {
             public double sample() {
                 return packetCount.getAndSet(0);
             }
 
             public boolean isPartialSample() {
                 return true;
+            }
+
+            @Override
+            public RepresentationSemantics getRepresentationSemantics() {
+                return RepresentationSemantics.RATE;
             }
         };
         statisticsManager.addStatistic(TRAFFIC_KEY, packetTrafficStatistic);

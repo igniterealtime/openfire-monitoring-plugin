@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008 Jive Software. All rights reserved.
+ * Copyright (C) 2008 Jive Software, Ignite Realtime Foundation 2025. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -66,8 +66,9 @@ public class StatsAction {
     public Map<String, Map> getUpdatedStats(String timePeriod) {
         Map<String, Map> results = new HashMap<String, Map>();
         long[] startAndEnd = GraphEngine.parseTimePeriod(timePeriod);
-        String[] stats = new String[] {"sessions", "conversations", "packet_count",
-                "proxyTransferRate", "muc_rooms", "server_sessions", "server_bytes"};
+        String[] stats = new String[] {
+            StatisticsModule.SESSIONS_KEY, ConversationManager.CONVERSATIONS_KEY, StatisticsModule.TRAFFIC_KEY,
+                "proxy_transfer_amt", "muc_rooms_amt", StatisticsModule.SERVER_2_SERVER_SESSIONS_KEY, "server_bytes"};
         for (String stat : stats) {
             results.put(stat, getUpdatedStat(stat, startAndEnd));
         }
@@ -108,14 +109,14 @@ public class StatsAction {
     public static String[] getLowAndHigh(String key,  long[] timePeriod) {
         MonitoringPlugin plugin = (MonitoringPlugin)XMPPServer.getInstance().getPluginManager().getPluginByName(MonitoringConstants.PLUGIN_NAME).get();
         StatsViewer viewer = plugin.getStatsViewer();
-        Statistic.Type type = viewer.getStatistic(key)[0].getStatType();
+        Statistic.RepresentationSemantics representationSemantics = viewer.getStatistic(key)[0].getRepresentationSemantics();
         double[] lows = viewer.getMin(key, timePeriod[0], timePeriod[1], (int)timePeriod[2]);
         double[] highs = viewer.getMax(key, timePeriod[0], timePeriod[1], (int)timePeriod[2]);
         String low;
         NumberFormat format = NumberFormat.getNumberInstance();
         format.setMaximumFractionDigits(0);
         if(lows.length > 0) {
-            if(type == Statistic.Type.count) {
+            if (representationSemantics == Statistic.RepresentationSemantics.SNAPSHOT) {
                 double result = 0;
                 for (int i = 0; i < lows.length; i++ ) {
                         result += lows[i];
@@ -138,7 +139,7 @@ public class StatsAction {
         }
         String high;
         if(highs.length > 0) {
-            if(type == Statistic.Type.count) {
+            if (representationSemantics == Statistic.RepresentationSemantics.SNAPSHOT) {
                 double result = 0;
                 for (int i=0; i < highs.length; i++ ) {
                         result += highs[i];

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008 Jive Software, 2022-2024 Ignite Realtime Foundation. All rights reserved.
+ * Copyright (C) 2008 Jive Software, 2022-2025 Ignite Realtime Foundation. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -128,7 +128,7 @@ public class StatsEngine {
             try {
                 RrdDef rrdDef = new RrdDef(def[0].getDbPath(), STAT_RESOULUTION);
                 for (StatDefinition stat : def) {
-                    String dsType = determineDsType(stat.getStatistic().getStatType());
+                    String dsType = determineDsType(stat.getStatistic());
                     rrdDef.addDatasource(stat.getDatasourceName(), dsType, 5 * STAT_RESOULUTION, 0,
                             Double.NaN);
                 }
@@ -155,7 +155,7 @@ public class StatsEngine {
         }
     }
 
-    private String determineDsType(Statistic.Type statType) {
+    private String determineDsType(Statistic statistic) {
         return DsTypes.DT_GAUGE;
     }
 
@@ -238,7 +238,8 @@ public class StatsEngine {
             statList.add(def);
         }
         StatDefinition[] definitions;
-        if (statsManager.getStatGroup(statGroup).size() == statList.size()) {
+        //if (statsManager.getStatGroup(statGroup).size() == statList.size()) {
+        if (statsManager.getStatGroup(statGroup).stream().filter(key -> !StatisticsModule.OF_3142_DEPRECATED.containsKey(key)).count() == statList.size()) {
             definitions = statList.toArray(new StatDefinition[statList.size()]);
         }
         else {
@@ -308,6 +309,10 @@ public class StatsEngine {
                 // Create statistics definitions but do not sample them since we are not the senior cluster member
                 for (Map.Entry<String, Statistic> statisticEntry : statsManager.getAllStatistics()) {
                     String key = statisticEntry.getKey();
+                    if (StatisticsModule.OF_3142_DEPRECATED.containsKey(key)) {
+                        // Old statistic definition (OF-3142) that can be skipped, as there is a newer definition available, too.
+                        continue;
+                    }
                     StatDefinition def = createDefintion(key);
                     // Check to see if this stat belongs to a multi-stat and if that multi-stat group
                     // has been completly defined
@@ -332,6 +337,10 @@ public class StatsEngine {
             List<String> sampledStats = new ArrayList<String>();
             for (Map.Entry<String, Statistic> statisticEntry : statsManager.getAllStatistics()) {
                 String key = statisticEntry.getKey();
+                if (StatisticsModule.OF_3142_DEPRECATED.containsKey(key)) {
+                    // Old statistic definition (OF-3142) that can be skipped, as there is a newer definition available, too.
+                    continue;
+                }
                 StatDefinition def = createDefintion(key);
 
                 // Check to see if this stat belongs to a multi-stat and if that multi-stat group
@@ -446,12 +455,12 @@ public class StatsEngine {
 
         DefaultStatDefinition(String dbPath, String datasourceName, Statistic stat) {
             super(dbPath, datasourceName, stat);
-            this.consolidationFunction = determineConsolidationFun(stat.getStatType());
+            this.consolidationFunction = determineConsolidationFun(stat);
         }
 
-        private String determineConsolidationFun(Statistic.Type type) {
-            switch (type) {
-                case count:
+        private String determineConsolidationFun(Statistic statistic) {
+            switch (statistic.getRepresentationSemantics()) {
+                case SNAPSHOT:
                     return ConsolFuns.CF_LAST;
                 default:
                     return ConsolFuns.CF_AVERAGE;
@@ -512,7 +521,7 @@ public class StatsEngine {
                 return data.getValues();
             }
             catch ( Exception e) {
-                Log.error("Error initializing Rrdb from dbPath '{}' of datasource '{}'. Statistic name: {} (type: {})", getDbPath(), getDatasourceName(), getStatistic().getName(), getStatistic().getStatType(), e);
+                Log.error("Error initializing Rrdb from dbPath '{}' of datasource '{}'. Statistic name: {} (type: {}, representation: {})", getDbPath(), getDatasourceName(), getStatistic().getName(), getStatistic().getStatType(), getStatistic().getRepresentationSemantics(), e);
             }
             finally {
                 try {
