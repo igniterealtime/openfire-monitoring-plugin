@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008 Jive Software. All rights reserved.
+ * Copyright (C) 2008 Jive Software, 2025 Ignite Realtime Foundation. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,6 +16,8 @@
 package org.jivesoftware.openfire.reporting.stats;
 
 import org.jivesoftware.openfire.stats.Statistic;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A class used by the StatsEngine to track all relevant meta information and data
@@ -26,6 +28,8 @@ import org.jivesoftware.openfire.stats.Statistic;
  */
 abstract class StatDefinition {
 
+    private static final Logger Log = LoggerFactory.getLogger(StatDefinition.class);
+
     private String dbPath;
     private String datasourceName;
     private Statistic stat;
@@ -34,8 +38,11 @@ abstract class StatDefinition {
 
     StatDefinition(String dbPath, String datasourceName, Statistic stat) {
         this.dbPath = dbPath;
-        this.datasourceName = datasourceName;
+        this.datasourceName = RrdUtil.ensureValidRrdDataSourceName(datasourceName);
         this.stat = stat;
+        if (!this.datasourceName.equals(datasourceName)) {
+            Log.debug("The provided data source name for path '{}' was: '{}'. This value cannot be used by the RRD implementation. This value will be used instead: '{}'.", dbPath, datasourceName, this.datasourceName);
+        }
     }
 
     public String getDbPath() {
