@@ -314,7 +314,11 @@ public class ConversationManager implements ComponentEventListener{
             }
 
             public Type getStatType() {
-                return Type.count;
+                return Type.amount;
+            }
+
+            public RepresentationSemantics getRepresentationSemantics() {
+                return RepresentationSemantics.SNAPSHOT;
             }
 
             public String getDescription() {

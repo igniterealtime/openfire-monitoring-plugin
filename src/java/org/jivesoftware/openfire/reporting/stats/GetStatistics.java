@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008 Jive Software. All rights reserved.
+ * Copyright (C) 2008 Jive Software, Ignite Realtime Foundation 2025. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,6 +19,7 @@ import java.io.ObjectInput;
 import java.io.ObjectOutput;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 
 import org.jivesoftware.openfire.stats.Statistic;
 import org.jivesoftware.openfire.stats.StatisticsManager;
@@ -35,7 +36,7 @@ import org.slf4j.LoggerFactory;
  * @author Gaston Dombiak
  */
 public class GetStatistics implements ClusterTask<Map<String, Double>> {
-    
+
     private static final Logger Log = LoggerFactory.getLogger(GetStatistics.class);
     
     private Map<String, Double> samples;
@@ -48,6 +49,12 @@ public class GetStatistics implements ClusterTask<Map<String, Double>> {
         samples = new HashMap<>();
         for (Map.Entry<String, Statistic> statisticEntry : StatisticsManager.getInstance().getAllStatistics()) {
             String key = statisticEntry.getKey();
+
+            if (StatisticsModule.OF_3142_DEPRECATED.containsKey(key)) {
+                // Old statistic definition (OF-3142) that can be skipped, as there is a newer definition available, too.
+                continue;
+            }
+
             Statistic statistic = statisticEntry.getValue();
             // Only sample statistics that keep info of the cluster node and not the entire cluster
             if (statistic.isPartialSample()) {

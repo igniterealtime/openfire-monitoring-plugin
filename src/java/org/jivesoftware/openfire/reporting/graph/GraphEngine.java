@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008 Jive Software. All rights reserved.
+ * Copyright (C) 2008 Jive Software, Ignite Realtime Foundation 2025. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -131,7 +131,7 @@ public class GraphEngine {
         }
 
         XYDataset data = populateData(key, def, startTime, endTime, dataPoints);
-        if (def[0].getStatType() == Statistic.Type.count) {
+        if (def[0].getRepresentationSemantics() == Statistic.RepresentationSemantics.SNAPSHOT) {
             return createTimeBarChart(null, color, def[0].getUnits(), data);
         } else {
             return createTimeAreaChart(null, color, def[0].getUnits(), data);
@@ -164,7 +164,7 @@ public class GraphEngine {
         }
 
         JFreeChart chart;
-        if (def[0].getStatType() == Statistic.Type.count) {
+        if (def[0].getRepresentationSemantics() == Statistic.RepresentationSemantics.SNAPSHOT) {
             chart = generateSparklineBarGraph(key, color, def, startTime, endTime, dataPoints);
         } else {
             chart = generateSparklineAreaChart(key, color, def, startTime, endTime, dataPoints);
@@ -185,13 +185,13 @@ public class GraphEngine {
 
         for (int d = 0; d < values.length; d++) {
             series[d] = new TimeSeries(def[d].getName(), getTimePeriodClass(timePeriod));
-            Statistic.Type type = def[d].getStatType();
+            Statistic.RepresentationSemantics representationSemantics = def[d].getRepresentationSemantics();
 
             long interval = timePeriod / values[d].length;
             for (int i = 0; i < values[d].length; i++) {
                 series[d].addOrUpdate(
                         getTimePeriod(timePeriod, new Date(startTime + (i * interval)),
-                                JiveGlobals.getTimeZone()), cleanData(type, values[d][i]));
+                                JiveGlobals.getTimeZone()), cleanData(representationSemantics, values[d][i]));
             }
             dataSet.addSeries(series[d]);
         }
@@ -222,12 +222,12 @@ public class GraphEngine {
     /**
      * Round up a defined value.
      *
-     * @param type  the type of Statistic.
+     * @param representationSemantics the suggested type to represent the Statistic.
      * @param value the value.
      * @return the rounded up value.
      */
-    private double cleanData(Statistic.Type type, double value) {
-        if(type == Statistic.Type.count) {
+    private double cleanData(Statistic.RepresentationSemantics representationSemantics, double value) {
+        if (representationSemantics == Statistic.RepresentationSemantics.SNAPSHOT) {
             return Math.round(value);
         }
         return value;
