@@ -68,7 +68,7 @@ public class StatsAction {
         long[] startAndEnd = GraphEngine.parseTimePeriod(timePeriod);
         String[] stats = new String[] {
             StatisticsModule.SESSIONS_KEY, ConversationManager.CONVERSATIONS_KEY, StatisticsModule.TRAFFIC_KEY,
-                "proxy_transfer_amt", "muc_rooms_amt", StatisticsModule.SERVER_2_SERVER_SESSIONS_KEY, "server_bytes"};
+                "proxy_transfer_amt", "muc_rooms_amt", StatisticsModule.SERVER_2_SERVER_SESSIONS_KEY, "server_bytes_amt"};
         for (String stat : stats) {
             results.put(stat, getUpdatedStat(stat, startAndEnd));
         }
