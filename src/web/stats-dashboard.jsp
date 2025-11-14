@@ -473,7 +473,7 @@ function createCookie(name,value,days) {
                    String[] serversHighLow = StatsAction.getLowAndHigh(StatisticsModule.SERVER_2_SERVER_SESSIONS_KEY, startAndEnd);
                    String[] mucHighLow = StatsAction.getLowAndHigh("muc_rooms_amt", startAndEnd);
                    String[] fileTransferHighLow = StatsAction.getLowAndHigh("proxy_transfer_amt", startAndEnd);
-                   String[] serverBytesHighLow = StatsAction.getLowAndHigh("server_bytes", startAndEnd);
+                   String[] serverBytesHighLow = StatsAction.getLowAndHigh("server_bytes_amt", startAndEnd);
                 %>
                 <td align="left">
                     <table class="stat" width="220" id="table-sessions">
@@ -654,10 +654,10 @@ function createCookie(name,value,days) {
                                 <td id="proxyTransferRate.high" align="center"><%= fileTransferHighLow[1] %></td>
                             </tr>
                             <tr>
-                                <td><b><%= viewer.getStatistic("server_bytes")[0].getName() %></b><br />
+                                <td><b><%= viewer.getStatistic("server_bytes_amt")[0].getName() %></b><br />
                                 </td>
                                 <td width="1%"><img id="sparklines-server_bytes"
-                                         src="graph?stat=server_bytes&sparkline=true&color=dark&format=png"
+                                         src="graph?stat=server_bytes_amt&sparkline=true&color=dark&format=png"
                                          style="border: 1px solid #b4b4b4;" width="180" height="50" /></td>
                                 <td id="server_bytes.low" align="center"><%= serverBytesHighLow[0] %></td>
                                 <td><img src="images/blank.gif" border="0" width="7" height="1" alt="" /></td>
