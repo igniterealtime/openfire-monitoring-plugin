@@ -398,6 +398,14 @@ public class StatsEngine {
                                 statSample += remoteSample;
                             }
                         }
+                        if (definition.getStatistic().getRepresentationSemantics() == Statistic.RepresentationSemantics.RATE) {
+                            // Correct for changes made under OF-3142: Instead of rendering an absolute amount, this
+                            // graph should display deltas. It would arguably be nicer to address this in rendering, but
+                            // that would require far more work. This simple change resets the statistical sample back
+                            // to what they were before the OF-3142 change, requiring no further changes to the rendering.
+                            statSample = statSample - definition.lastSample;
+                        }
+
                         // Update sample with values
                         sample.setValue(definition.getDatasourceName(), statSample);
                         sampledStats.add(definition.getDatasourceName());
