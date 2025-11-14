@@ -169,7 +169,7 @@ public class StatisticsModule {
         // Register a statistic.
         Statistic packetTrafficStatistic = new i18nStatistic(TRAFFIC_KEY, MonitoringConstants.NAME, Statistic.Type.amount) {
             public double sample() {
-                return packetCount.getAndSet(0);
+                return packetCount.get();
             }
 
             public boolean isPartialSample() {
