@@ -5,6 +5,7 @@ import com.reucon.openfire.plugin.archive.model.ArchivedMessage;
 import com.reucon.openfire.plugin.archive.model.Conversation;
 import com.reucon.openfire.plugin.archive.xep0059.XmppResultSet;
 import org.jivesoftware.util.NotFoundException;
+import com.reucon.openfire.plugin.archive.model.MamArchiveMetadata;
 import org.xmpp.packet.JID;
 
 import java.util.Collection;
@@ -51,4 +52,11 @@ public interface PersistenceManager
      * @return the matching conversation or <code>null</code> if none matches.
      */
     Conversation getConversation(JID owner, JID with, Date start); // TODO move to ConversationManager?
+    
+    /**
+     * Retrieves the metadata information about the archive
+     * @param archiveJid The JID of the archive
+     * @return MamArchiveMetadata containing first and last message information
+     */
+    MamArchiveMetadata getArchiveMetadata(JID archiveJid);
 }

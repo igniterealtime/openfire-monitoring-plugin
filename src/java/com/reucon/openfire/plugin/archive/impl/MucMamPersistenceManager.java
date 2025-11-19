@@ -1,6 +1,7 @@
 package com.reucon.openfire.plugin.archive.impl;
 
 import com.reucon.openfire.plugin.archive.PersistenceManager;
+import com.reucon.openfire.plugin.archive.model.MamArchiveMetadata;
 import com.reucon.openfire.plugin.archive.model.ArchivedMessage;
 import com.reucon.openfire.plugin.archive.model.Conversation;
 import com.reucon.openfire.plugin.archive.xep0059.XmppResultSet;
@@ -50,6 +51,38 @@ public class MucMamPersistenceManager implements PersistenceManager {
     @Override
     public Collection<Conversation> findConversations(Date startDate, Date endDate, JID owner, JID with, XmppResultSet xmppResultSet) {
         throw new UnsupportedOperationException("MAM-MUC cannot perform this operation");
+    }
+
+    @Override
+    public MamArchiveMetadata getArchiveMetadata(JID archiveJid) {
+        Connection connection = null;
+        PreparedStatement pstmt = null;
+        ResultSet rs = null;
+        try {
+            connection = DbConnectionManager.getConnection();
+            // Get first and last message
+            pstmt = connection.prepareStatement(
+                "SELECT MIN(sentDate) as firstDate, MAX(sentDate) as lastDate, " +
+                "MIN(messageID) as firstId, MAX(messageID) as lastId " +
+                "FROM ofMessageArchive WHERE owner = ?");
+            pstmt.setString(1, archiveJid.toBareJID());
+            rs = pstmt.executeQuery();
+            
+            if (rs.next() && rs.getTimestamp("firstDate") != null) {
+                return new MamArchiveMetadata(
+                    rs.getLong("firstId"),
+                    rs.getTimestamp("firstDate"),
+                    rs.getLong("lastId"),
+                    rs.getTimestamp("lastDate")
+                );
+            }
+            return new MamArchiveMetadata(); // empty archive
+        } catch (SQLException e) {
+            Log.error("Error retrieving archive metadata", e);
+            throw new RuntimeException("Failed to retrieve archive metadata", e);
+        } finally {
+            DbConnectionManager.closeConnection(rs, pstmt, connection);
+        }
     }
 
     @Override
