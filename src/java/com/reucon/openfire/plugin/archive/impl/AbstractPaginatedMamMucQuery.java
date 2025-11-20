@@ -35,51 +35,31 @@ public abstract class AbstractPaginatedMamMucQuery extends AbstractPaginatedMamQ
     protected final MUCRoom room;
 
     /**
-     * To be able to return not only the public messages exchanged in the room, but also the private messages that are
-     * relevant for the user that performs this query, an additional JID is provided as the 'messageOwner' argument.
-     * This identifies the user for which to retrieve the (private) messages.
-     */
-    @Nonnull
-    protected final JID messageOwner;
-
-    /**
      * Creates a query for messages from a message archive.
-     * <p>
-     * To be able to return not only the public messages exchanged in the room, but also the private messages that are
-     * relevant for the user that performs this query, an additional JID is provided as the 'messageOwner' argument.
-     * This identifies the user for which to retrieve the (private) messages.
      *
      * @param startDate Start (inclusive) of period for which to return messages. EPOCH will be used if no value is provided.
      * @param endDate End (inclusive) of period for which to return messages. 'now' will be used if no value is provided.
      * @param room The multi-user chat room that is the message archive owner.
-     * @param messageOwner The entity for which to return messages (typically the JID of the entity making the request).
-     * @param with An optional conversation partner
+     * @param with An optional message author.
      */
-    public AbstractPaginatedMamMucQuery(@Nullable final Date startDate, @Nullable final Date endDate, @Nonnull final MUCRoom room, @Nonnull final JID messageOwner, @Nullable final JID with)
+    public AbstractPaginatedMamMucQuery(@Nullable final Date startDate, @Nullable final Date endDate, @Nonnull final MUCRoom room, @Nullable final JID with)
     {
         super(startDate, endDate, room.getJID(), with);
-        this.messageOwner = messageOwner;
         this.room = room;
     }
 
     /**
      * Creates a query for messages from a message archive.
-     * <p>
-     * To be able to return not only the public messages exchanged in the room, but also the private messages that are
-     * relevant for the user that performs this query, an additional JID is provided as the 'messageOwner' argument.
-     * This identifies the user for which to retrieve the (private) messages.
      *
      * @param startDate Start (inclusive) of period for which to return messages. EPOCH will be used if no value is provided.
      * @param endDate End (inclusive) of period for which to return messages. 'now' will be used if no value is provided.
      * @param room The multi-user chat room that is the message archive owner.
-     * @param messageOwner The entity for which to return messages (typically the JID of the entity making the request).
-     * @param with An optional conversation partner
+     * @param with An optional message author.
      * @param query A search string to be used for text-based search.
      */
-    public AbstractPaginatedMamMucQuery(@Nullable final Date startDate, @Nullable final Date endDate, @Nonnull final MUCRoom room, @Nonnull final JID messageOwner, @Nullable final JID with, @Nonnull final String query)
+    public AbstractPaginatedMamMucQuery(@Nullable final Date startDate, @Nullable final Date endDate, @Nonnull final MUCRoom room, @Nullable final JID with, @Nonnull final String query)
     {
         super(startDate, endDate, room.getJID(), with, query);
-        this.messageOwner = messageOwner;
         this.room = room;
     }
 
@@ -89,18 +69,11 @@ public abstract class AbstractPaginatedMamMucQuery extends AbstractPaginatedMamQ
         return room;
     }
 
-    @Nonnull
-    public JID getMessageOwner()
-    {
-        return messageOwner;
-    }
-
     @Override
     public String toString()
     {
         return "AbstractPaginatedMamMucQuery{" +
-            "messageOwner=" + messageOwner +
-            ", startDate=" + startDate +
+            "startDate=" + startDate +
             ", endDate=" + endDate +
             ", archiveOwner=" + archiveOwner +
             ", with=" + with +

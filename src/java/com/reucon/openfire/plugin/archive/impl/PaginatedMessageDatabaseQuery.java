@@ -211,13 +211,14 @@ public class PaginatedMessageDatabaseQuery extends AbstractPaginatedMamQuery
 
        /* Database table 'ofMessageArchive' content examples:
         *
-        *   Scenario       | fromJID | toJID | isPMforJID
-        * A sends B a 1:1  |    A    |   B   |   null
-        * B sends A a 1:1  |    B    |   A   |   null
-        * A sends MUC msg  |    A    |  MUC  |   null
-        * B sends MUC msg  |    B    |  MUC  |   null
-        * A sends B a PM   |    A    |  MUC  |    B
-        * B sends A a PM   |    B    |  MUC  |    A
+        *   Scenario       | fromJID      | fromJIDResource | toJID          | toJIDResource            | isPMforJID
+        * -------------------------------------------------------------------------------------------------------------
+        * A sends B a 1:1  | A's bare JID | A's resource    | B's bare JID   | B (if 'to' was full JID) | null
+        * B sends A a 1:1  | B's bare JID | B's resource    | A's bare JID   | B (if 'to' was full JID) | null
+        * A sends MUC msg  | A's bare JID | A's resource    | MUC's bare jid | A's nickname in MUC      | null
+        * B sends MUC msg  | B's bare JID | B's resource    | MUC's bare jid | B's nickname in MUC      | null
+        * A sends B a PM   | A's bare JID | A's resource    | MUC's bare jid | A's nickname in MUC      | B's bare JID
+        * B sends A a PM   | B's bare JID | B's resource    | MUC's bare jid | B's nickname in MUC      | A's bare JID
         *
         * To get messages from the personal archive of 'A':
         * - fromJID = OWNER OR toJID = OWNER (to get all 1:1 messages)

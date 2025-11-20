@@ -151,10 +151,9 @@ abstract public class IQQueryHandler extends AbstractIQHandler implements
 
         // The owner of the messages to be returned is the archive owner for requests to personal archives, or the requestor when querying a MUC archive.
         final JID requestor = packet.getFrom().asBareJID();
-        final JID messageOwner = room == null ? archiveJid.asBareJID() : requestor.asBareJID();
 
         // Parse the request.
-        QueryRequest queryRequest = new QueryRequest(packet.getChildElement(), archiveJid, messageOwner);
+        QueryRequest queryRequest = new QueryRequest(packet.getChildElement(), archiveJid);
 
         if ( queryRequest.getDataForm() != null ) {
             final List<String> supportedFieldNames = getSupportedFieldVariables();
@@ -249,7 +248,7 @@ abstract public class IQQueryHandler extends AbstractIQHandler implements
             }
         }
 
-        queryRequest = new QueryRequest(packet.getChildElement(), archiveJid, messageOwner);
+        queryRequest = new QueryRequest(packet.getChildElement(), archiveJid);
 
         // OF-1200: make sure that data is flushed to the database before retrieving it.
         final Optional<Plugin> plugin = XMPPServer.getInstance().getPluginManager().getPluginByName(MonitoringConstants.PLUGIN_NAME);
@@ -464,7 +463,6 @@ abstract public class IQQueryHandler extends AbstractIQHandler implements
 	                startDate,
 	                endDate,
 	                queryRequest.getArchive().asBareJID(),
-	                queryRequest.getMessageOwner(),
 	                withField,
 	                textField,
 	                queryRequest.getResultSet(),

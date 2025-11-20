@@ -32,15 +32,18 @@ public class PaginatedMucMessageLuceneQuery extends AbstractPaginatedMamMucQuery
     /**
      * Creates a query for messages from a message archive of a multi-user chat room.
      *
+     * Note that, per XEP-0313, the 'private messages' that are exchanged in a MUC room are not included in the MUC archive,
+     * which implies that they're included in the personal archive.
+     *
      * @param startDate Start (inclusive) of period for which to return messages. EPOCH will be used if no value is provided.
      * @param endDate End (inclusive) of period for which to return messages. 'now' will be used if no value is provided.
      * @param owner The message archive owner (the chat room).
-     * @param messageOwner The entity for which to return messages (typically the JID of the entity making the request).
+     * @param with On optional conversation partner.
      * @param query A search string to be used for text-based search.
      */
-    public PaginatedMucMessageLuceneQuery(@Nullable final Date startDate, @Nullable final Date endDate, @Nonnull final MUCRoom owner, final JID messageOwner, @Nullable final JID with, @Nonnull final String query)
+    public PaginatedMucMessageLuceneQuery(@Nullable final Date startDate, @Nullable final Date endDate, @Nonnull final MUCRoom owner, @Nullable final JID with, @Nonnull final String query)
     {
-        super(startDate, endDate, owner, messageOwner, with, query);
+        super(startDate, endDate, owner, with, query);
     }
 
     protected IndexSearcher getSearcher() throws IOException
@@ -128,23 +131,10 @@ public class PaginatedMucMessageLuceneQuery extends AbstractPaginatedMamMucQuery
         final Query textQuery = new QueryParser("body", analyzer).parse( QueryParser.escape(query) );
         builder.add(textQuery, BooleanClause.Occur.MUST );
 
-        // To retrieve all messages for a 'MUC archive', combine the following:
-        // - look up messages from the archive of the MUC that are not private
-        // - look up messages from the archive of the MUC that are private, where user making the request is a sender or recipient.
+        // To retrieve all messages for a 'MUC archive', look up messages from the archive of the MUC that are not private.
         final BooleanQuery ownerFilter = new BooleanQuery.Builder()
             .add(new TermQuery(new Term("room", room.getJID().toBareJID() ) ), BooleanClause.Occur.MUST ) // room
-
-            .setMinimumNumberShouldMatch(1)
-            // Either non-private messages...
-            .add(new TermQuery( new Term( "isPrivateMessage", "false") ), BooleanClause.Occur.SHOULD )
-
-            // ... or private, sent or received by the message owner
-            .add(new BooleanQuery.Builder()
-                .setMinimumNumberShouldMatch(1) // One of the 'SHOULD' terms (pmFromJID or pmToJID) must be true (isPrivateMessage is a 'MUST' and ignored by this).
-                .add( new TermQuery( new Term( "isPrivateMessage", "true") ), BooleanClause.Occur.MUST )
-                .add( new TermQuery(new Term("pmFromJID", messageOwner.toBareJID() ) ), BooleanClause.Occur.SHOULD )
-                .add( new TermQuery(new Term("pmToJID", messageOwner.toBareJID() ) ), BooleanClause.Occur.SHOULD )
-                .build(), BooleanClause.Occur.SHOULD )
+            .add(new TermQuery( new Term( "isPrivateMessage", "false") ), BooleanClause.Occur.MUST ) // exclude private messages
             .build();
 
         builder.add(ownerFilter, BooleanClause.Occur.MUST);
@@ -156,10 +146,12 @@ public class PaginatedMucMessageLuceneQuery extends AbstractPaginatedMamMucQuery
         // If defined, limit to specific senders.
         if ( with != null ) {
             // Always limit to the bare JID of the sender.
-            builder.add(new TermQuery(new Term("pmToJID", with.toBareJID() ) ), BooleanClause.Occur.MUST );
+            builder.add(new TermQuery(new Term("senderBare", with.toBareJID() ) ), BooleanClause.Occur.MUST );
 
-            // For MUC PMs, if the query specified a more specific full JID, the resource part is ignored. It is unlikely that the sender
-            // of the PM was aware of the recipient's resource that the message was delivered to.
+            // If the query specified a more specific full JID, include the resource part in the filter too.
+            if ( with.getResource() != null ) {
+                builder.add(new TermQuery( new Term( "senderResource", with.getResource() ) ), BooleanClause.Occur.MUST );
+            }
         }
 
         final BooleanQuery query = builder.build();
