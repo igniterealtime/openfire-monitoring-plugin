@@ -38,6 +38,9 @@ import java.util.List;
  * Encapsulates responsibility of creating a database query that retrieves a specific subset (page) of archived messages
  * from a chat room (the archive that's queried is considered to be a 'MUC archive').
  *
+ * Note that, per XEP-0313, the 'private messages' that are exchanged in a MUC room are not included in the MUC archive,
+ * which implies that they're included in the personal archive.
+ *
  * @author Guus der Kinderen, guus.der.kinderen@gmail.com
  */
 public class PaginatedMucMessageDatabaseQuery extends AbstractPaginatedMamMucQuery
@@ -47,19 +50,14 @@ public class PaginatedMucMessageDatabaseQuery extends AbstractPaginatedMamMucQue
     /**
      * Creates a query for messages from a message archive of a multi-user chat room.
      *
-     * Two identifying JIDs are provided to this method: one is the JID of the room that's being queried (the 'archive
-     * owner'). To be able to return the private messages for a particular user from the room archive, an additional JID
-     * is provided, that identifies the user for which to retrieve the messages.
-     *
      * @param startDate Start (inclusive) of period for which to return messages. EPOCH will be used if no value is provided.
      * @param endDate End (inclusive) of period for which to return messages. 'now' will be used if no value is provided.
      * @param archiveOwner The message archive owner (the JID of the chat room).
-     * @param messageOwner The entity for which to return messages (typically the JID of the entity making the request).
-     * @param with An optional conversation partner (or message author, in case of MUC).
+     * @param with An optional message author.
      */
-    public PaginatedMucMessageDatabaseQuery(@Nullable final Date startDate, @Nullable final Date endDate, @Nonnull final MUCRoom archiveOwner, @Nonnull final JID messageOwner, @Nullable final JID with)
+    public PaginatedMucMessageDatabaseQuery(@Nullable final Date startDate, @Nullable final Date endDate, @Nonnull final MUCRoom archiveOwner, @Nullable final JID with)
     {
-        super(startDate, endDate, archiveOwner, messageOwner, with);
+        super(startDate, endDate, archiveOwner, with);
     }
 
     @Override
@@ -69,7 +67,6 @@ public class PaginatedMucMessageDatabaseQuery extends AbstractPaginatedMamMucQue
             "startDate=" + startDate +
             ", endDate=" + endDate +
             ", archiveOwner=" + archiveOwner +
-            ", messageOwner=" + messageOwner +
             ", with='" + with + '\'' +
             '}';
     }
@@ -98,18 +95,11 @@ public class PaginatedMucMessageDatabaseQuery extends AbstractPaginatedMamMucQue
             pstmt.setLong( 2, dateToMillis( endDate ) );
 
             pstmt.setString( 3, archiveOwner.toBareJID() );
-            pstmt.setString( 4, messageOwner.toBareJID() );
-            pstmt.setString( 5, messageOwner.toBareJID() );
-            int pos = 5;
+            int pos = 3;
 
             if ( with != null ) {
-                if (with.getResource() == null) {
-                    pstmt.setString( ++pos, with.toString() );
-                    pstmt.setString( ++pos, with.toString() );
-                } else {
-                    pstmt.setString( ++pos, with.toBareJID() );
-                    pstmt.setString( ++pos, with.getResource() );
-                    pstmt.setString( ++pos, with.toBareJID() );
+                pstmt.setString( ++pos, with.toBareJID() );
+                if (with.getResource() != null) {
                     pstmt.setString( ++pos, with.getResource() );
                 }
             }
@@ -132,12 +122,12 @@ public class PaginatedMucMessageDatabaseQuery extends AbstractPaginatedMamMucQue
                 Collections.reverse(archivedMessages);
             }
         } catch (SQLException e) {
-            Log.error("SQL failure during MUC MAM for room {}, message owner: {}", this.archiveOwner, this.messageOwner, e);
+            Log.error("SQL failure during MUC MAM for room {}", this.archiveOwner, e);
             if (!IQQueryHandler.IGNORE_RETRIEVAL_EXCEPTIONS.getValue()) {
                 throw new DataRetrievalException(e);
             }
         } catch (DocumentException e) {
-            Log.error("Unable to parse 'stanza' value as valid XMPP for room {}, message owner {}", this.archiveOwner, this.messageOwner, e);
+            Log.error("Unable to parse 'stanza' value as valid XMPP for room {}", this.archiveOwner, e);
         } finally {
             DbConnectionManager.closeConnection(rs, pstmt, connection);
         }
@@ -163,18 +153,11 @@ public class PaginatedMucMessageDatabaseQuery extends AbstractPaginatedMamMucQue
             pstmt.setLong( 1, dateToMillis( startDate ) );
             pstmt.setLong( 2, dateToMillis( endDate ) );
             pstmt.setString( 3, archiveOwner.toBareJID() );
-            pstmt.setString( 4, messageOwner.toBareJID() );
-            pstmt.setString( 5, messageOwner.toBareJID() );
-            int pos = 5;
+            int pos = 3;
 
             if ( with != null ) {
-                if (with.getResource() == null) {
-                    pstmt.setString( ++pos, with.toString() );
-                    pstmt.setString( ++pos, with.toString() );
-                } else {
-                    pstmt.setString( ++pos, with.toBareJID() );
-                    pstmt.setString( ++pos, with.getResource() );
-                    pstmt.setString( ++pos, with.toBareJID() );
+                pstmt.setString( ++pos, with.toBareJID() );
+                if (with.getResource() != null) {
                     pstmt.setString( ++pos, with.getResource() );
                 }
             }
@@ -214,28 +197,39 @@ public class PaginatedMucMessageDatabaseQuery extends AbstractPaginatedMamMucQue
        sql += " AND sentDate <= ?";
 
        /*
-        * Scenario        | fromJID | toJID | isPMforJID
-        * A sends B a 1:1 | A       | B     | null
-        * B sends A a 1:1 | B       | A     | null
-        * A sends MUC msg | A       | MUC   | null
-        * B sends MUC msg | B       | MUC   | null
-        * A sends B a PM  | A       | MUC   | B
-        * B sends A a PM  | B       | MUC   | A
+        *   Scenario       | fromJID      | fromJIDResource | toJID          | toJIDResource            | isPMforJID
+        * -------------------------------------------------------------------------------------------------------------
+        * A sends B a 1:1  | A's bare JID | A's resource    | B's bare JID   | B (if 'to' was full JID) | null
+        * B sends A a 1:1  | B's bare JID | B's resource    | A's bare JID   | B (if 'to' was full JID) | null
+        * A sends MUC msg  | A's bare JID | A's resource    | MUC's bare jid | A's nickname in MUC      | null
+        * B sends MUC msg  | B's bare JID | B's resource    | MUC's bare jid | B's nickname in MUC      | null
+        * A sends B a PM   | A's bare JID | A's resource    | MUC's bare jid | A's nickname in MUC      | B's bare JID
+        * B sends A a PM   | B's bare JID | B's resource    | MUC's bare jid | B's nickname in MUC      | A's bare JID
+        *
         * If A wants MUC archive (the OWNER is MUC, the REQUESTOR is A):
         * - toJID = OWNER - to limit the returned messages to those shared in a chatroom
-        * - (isPMforJID = NULL OR (isPMforJID = REQUESTOR OR fromJID = REQUESTOR)) - either the message is a non-private one, or it is a private one that was sent or received by the requestor.
+        * - isPMforJID = NULL (per XEP-0313 private messages are not included in the MUC archive responses)
         */
 
        // Query for a MUC archive.
-       sql += " AND toJID = ? AND (isPMforJID IS NULL OR (isPMforJID = ? OR fromJID = ?))"; // owner, requestor, requestor
+       sql += " AND toJID = ? AND isPMforJID IS NULL";
 
        if (this.with != null) {
-          // XEP-0313 specifies: If (and only if) the supplied JID is a bare JID (i.e. no resource is present), then the server SHOULD return messages if their bare to/from address for a user archive, or from address otherwise, would match it.
-          if (this.with.getResource() == null) {
-             sql += " AND ( toJID = ? OR fromJID = ? )";
-          } else {
-             sql += " AND ( ( toJID = ? AND toJIDResource = ? ) OR ( fromJID = ? AND fromJIDResource = ? ) )";
-          }
+           // XEP-0313 specifies in 4.1.1: "If a 'with' field is present in the form, it contains a JID against which to
+           // match messages. The server MUST only return messages if they match the supplied JID. [...] An item in a
+           // MUC archive matches if the publisher of the item matches the JID; note that this should only be available
+           // to entities that would already have been allowed to know the publisher of the events (e.g. this could not
+           // be used by a visitor to a semi-anonymous MUC). [...] If (and only if) the supplied JID is a bare JID (i.e.
+           // no resource is present), then the server SHOULD return messages if their bare to/from address for a user
+           // archive, or from address otherwise, would match it."
+           //
+           // From this, it can be concluded that the 'with' value is to be evaluated against the 'real' (as opposed to
+           // 'occupant') JID of the message author (auth checks must be done, but elsewhere).
+           sql += " AND fromJID = ? ";
+           if (this.with.getResource() != null) {
+               sql += " AND fromJIDResource = ?";
+           }
+           // TODO Consider allowing the 'with' value to be used with an occupant JID (or only a nickname). XEP-0313 only specifies that the 'real' JID is to be used, but possibly, both can be allowed. This would allow for greater flexibility.
        }
 
        if (after != null) {
@@ -263,14 +257,12 @@ public class PaginatedMucMessageDatabaseQuery extends AbstractPaginatedMamMucQue
             + "AND messageID IS NOT NULL "
             + "AND sentDate >= ? "
             + "AND sentDate <= ? "
-            + "AND toJID = ? AND (isPMforJID IS NULL OR (isPMforJID = ? OR fromJID = ?)) ";
+            + "AND toJID = ? AND isPMforJID IS NULL ";
 
         if (with != null) {
-            // XEP-0313 specifies: If (and only if) the supplied JID is a bare JID (i.e. no resource is present), then the server SHOULD return messages if their bare to/from address for a user archive, or from address otherwise, would match it.
-            if (with.getResource() == null) {
-                sql += " AND ( toJID = ? OR fromJID = ? )";
-            } else {
-                sql += " AND ( (toJID = ? AND toJIDResource = ? ) OR (fromJID = ? AND fromJIDResource = ? ) )";
+            sql += " AND fromJID = ? ";
+            if (this.with.getResource() != null) {
+                sql += " AND fromJIDResource = ?";
             }
         }
 
