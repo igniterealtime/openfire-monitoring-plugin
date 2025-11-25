@@ -112,7 +112,7 @@ public class PaginatedMucMessageDatabaseQuery extends AbstractPaginatedMamMucQue
                 pstmt.setLong( ++pos, before );
             }
 
-            Log.trace( "Constructed query: {}", query );
+            Log.trace( "Constructed query: {}", pstmt );
             rs = pstmt.executeQuery();
             while (rs.next()) {
                 final ArchivedMessage archivedMessage = JdbcPersistenceManager.extractMessage(archiveOwner, rs);
