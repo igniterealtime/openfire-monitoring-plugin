@@ -206,12 +206,16 @@ abstract public class IQQueryHandler extends AbstractIQHandler implements
                         return buildErrorResponse(packet, PacketError.Condition.bad_request, "The value of the 'with' field must be a valid JID (but is not).");
                     }
 
-                    // Unless the requestor is a moderator, or is filtering by its own JID, disallow the request.
+                    // Limit the allowable value of a 'with' filter to occupant JIDs (unless the requestor is a
+                    // moderator, or is filtering by its own JID). This helps to guard against unintentional exposure of
+                    // the real JID of a participant's real JID, which in various room configurations should not be made
+                    // public.
+                    final boolean isOccupantJid = with.asBareJID().equals(room.getJID().asBareJID());
                     final boolean isModerator = occupant != null && occupant.getRole() == Role.moderator;
                     final boolean isFilteringByOwnJid = with.asBareJID().equals( packet.getFrom().asBareJID() );
-                    if ( !isModerator && !isFilteringByOwnJid ) {
-                        Log.debug("Unable to process query as requestor '{}' is not a moderator of the MUC room '{}', and is filtering by JID '{}' which is not its own.", requestor, archiveJid, with);
-                        return buildErrorResponse(packet, PacketError.Condition.forbidden, "You are currently not allowed to filter the the archive of room '" + room.getJID() + "' by JID.");
+                    if ( !isOccupantJid && !isModerator && !isFilteringByOwnJid ) {
+                        Log.debug("Unable to process query as requestor '{}' is not a moderator of the MUC room '{}', and is filtering by JID '{}' which is not its own nor an occupant JID", requestor, archiveJid, with);
+                        return buildErrorResponse(packet, PacketError.Condition.forbidden, "You are currently not allowed to filter the the archive of room '" + room.getJID() + "' by JID: the room configuration and your role in the room do not allow you to see the JIDs of occupants, therefor you cannot use them as filter values.");
                     }
                 }
             }
