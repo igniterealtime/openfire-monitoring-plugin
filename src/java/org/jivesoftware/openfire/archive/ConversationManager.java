@@ -139,21 +139,21 @@ public class ConversationManager implements ComponentEventListener{
 
     public static SystemProperty<Boolean> MESSAGE_ARCHIVING_ENABLED = SystemProperty.Builder.ofType(Boolean.class)
         .setKey("conversation.messageArchiving")
-        .setDefaultValue(false)
+        .setDefaultValue(true)
         .setDynamic(true)
         .setPlugin(MonitoringConstants.PLUGIN_NAME)
         .build();
 
     public static SystemProperty<Boolean> ROOM_ARCHIVING_ENABLED = SystemProperty.Builder.ofType(Boolean.class)
         .setKey("conversation.roomArchiving")
-        .setDefaultValue(false)
+        .setDefaultValue(true)
         .setDynamic(true)
         .setPlugin(MonitoringConstants.PLUGIN_NAME)
         .build();
 
     public static SystemProperty<Boolean> ROOM_STANZA_ARCHIVING_ENABLED = SystemProperty.Builder.ofType(Boolean.class)
         .setKey("conversation.roomArchivingStanzas")
-        .setDefaultValue(false)
+        .setDefaultValue(true)
         .setDynamic(true)
         .setPlugin(MonitoringConstants.PLUGIN_NAME)
         .build();
