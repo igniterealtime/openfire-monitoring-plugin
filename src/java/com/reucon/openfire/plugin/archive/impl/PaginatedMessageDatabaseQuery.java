@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2020-2024 Ignite Realtime Foundation. All rights reserved.
+ * Copyright (C) 2020-2025 Ignite Realtime Foundation. All rights reserved.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -89,9 +89,17 @@ public class PaginatedMessageDatabaseQuery extends AbstractPaginatedMamQuery
             pstmt = connection.prepareStatement( query );
 
             int pos = 0;
+
+            // An additional join is required to be able to answer queries that attempt to filter for private messages for a particular participant.
+            if (with != null && with.getResource() != null) {
+                pstmt.setString( ++pos, with.getResource() );
+            }
+
+            // For the date filters.
             pstmt.setLong( ++pos, dateToMillis( startDate ) );
             pstmt.setLong( ++pos, dateToMillis( endDate ) );
 
+            // For the one-on-one where-clause
             if (with == null) {
                 pstmt.setString( ++pos, archiveOwner.toBareJID() );
                 pstmt.setString( ++pos, archiveOwner.toBareJID() );
@@ -107,6 +115,16 @@ public class PaginatedMessageDatabaseQuery extends AbstractPaginatedMamQuery
                 pstmt.setString( ++pos, with.toBareJID() );
                 pstmt.setString( ++pos, with.getResource() );
                 pstmt.setString( ++pos, archiveOwner.toBareJID() );
+            }
+
+            // For the private-messages where-clause
+            pstmt.setString(++pos, archiveOwner.toBareJID());
+            pstmt.setString(++pos, archiveOwner.toBareJID());
+            if (with != null) {
+                pstmt.setString( ++pos, with.toBareJID() );
+                if (with.getResource() != null) {
+                    pstmt.setString( ++pos, with.getResource() );
+                }
             }
 
             if ( after != null ) {
@@ -157,9 +175,17 @@ public class PaginatedMessageDatabaseQuery extends AbstractPaginatedMamQuery
             pstmt = connection.prepareStatement( buildQueryForTotalCount() );
 
             int pos = 0;
+
+            // An additional join is required to be able to answer queries that attempt to filter for private messages for a particular participant.
+            if (with != null && with.getResource() != null) {
+                pstmt.setString( ++pos, with.getResource() );
+            }
+
+            // For the date filters.
             pstmt.setLong( ++pos, dateToMillis( startDate ) );
             pstmt.setLong( ++pos, dateToMillis( endDate ) );
 
+            // For the one-on-one where-clause
             if (with == null) {
                 pstmt.setString( ++pos, archiveOwner.toBareJID() );
                 pstmt.setString( ++pos, archiveOwner.toBareJID() );
@@ -175,6 +201,16 @@ public class PaginatedMessageDatabaseQuery extends AbstractPaginatedMamQuery
                 pstmt.setString( ++pos, with.toBareJID() );
                 pstmt.setString( ++pos, with.getResource() );
                 pstmt.setString( ++pos, archiveOwner.toBareJID() );
+            }
+
+            // For the private-messages where-clause
+            pstmt.setString(++pos, archiveOwner.toBareJID());
+            pstmt.setString(++pos, archiveOwner.toBareJID());
+            if (with != null) {
+                pstmt.setString( ++pos, with.toBareJID() );
+                if (with.getResource() != null) {
+                    pstmt.setString( ++pos, with.getResource() );
+                }
             }
 
             Log.trace( "Constructed query: {}", pstmt );
@@ -223,17 +259,20 @@ public class PaginatedMessageDatabaseQuery extends AbstractPaginatedMamQuery
         sql += " a.fromJID, a.fromJIDResource, a.toJID, a.toJIDResource, a.sentDate, a.body, a.stanza, a.messageID ";
         sql += """
             FROM ofMessageArchive a
-            JOIN ofConversation c USING (conversationID)
+            LEFT JOIN ofConversation c ON a.conversationID = c.conversationID
             """;
 
-        // Query for a personal archive.
-        sql += """
-            WHERE c.roomID IS NULL
-            """;
+        // An additional join is required to be able to answer queries that attempt to filter for private messages for a particular participant.
+        if (with != null && with.getResource() != null) {
+            sql += """
+                LEFT JOIN ofConParticipant p
+                    ON a.conversationID = p.conversationID AND p.nickname = ?
+                """;
+        }
 
         // Ignoring 'messageID IS NULL' as they are legacy messages.
         sql += """
-              AND (a.stanza IS NOT NULL OR a.body IS NOT NULL)
+            WHERE (a.stanza IS NOT NULL OR a.body IS NOT NULL)
               AND a.messageID IS NOT NULL
             """;
 
@@ -243,32 +282,10 @@ public class PaginatedMessageDatabaseQuery extends AbstractPaginatedMamQuery
               AND a.sentDate <= ?
             """;
 
-        // Apply the 'with' filter.
-        if (with == null) {
-            // No 'with' filter value was supplied.
-            sql += """
-              AND (
-                   a.fromJID = ?
-                OR a.toJID   = ?
-              )
-            """;
-        } else if (with.getResource() == null) {
-            // A 'with' filter value was supplied (bare JID).
-            sql += """
-              AND (
-                   (a.fromJID = ? AND a.toJID = ?)
-                OR (a.fromJID = ? AND a.toJID = ?)
-              )
-            """;
-        } else {
-            // A 'with' filter value was supplied (full JID).
-            sql += """
-              AND (
-                   (a.fromJID = ? AND a.toJID = ? AND toJIDResource = ?)
-                OR (a.fromJID = ? AND fromJIDResource = ? AND a.toJID = ?)
-              )
-            """;
-        }
+        // Combine 1-on-1 messages (conversation has no room) with private MUC messages addressed to OR sent by the user.
+        final String oneOnOne = buildWhereClauseForOneOnOne();
+        final String prvtmsgs = buildWhereClauseForPrivateMessages();
+        sql += "  AND ( (\n" + oneOnOne + ") OR (\n" + prvtmsgs + ") )\n";
 
         // Apply navigation instructions.
         if (after != null) {
@@ -290,56 +307,132 @@ public class PaginatedMessageDatabaseQuery extends AbstractPaginatedMamQuery
             sql += " FETCH FIRST " + maxResults + " ROWS ONLY";
         }
 
-        /* TODO DO NOT match any 'real jid' in the 'with' form against private messages (only use the 'occupant jid' for that.
-         * XEP-0313 defines that a filter value is to be applied to the stanza to/from attribute value. But, even
-         * besides that: In some configurations (eg: a non-anonymous room) the real JID of occupants is visible, which would,
-         * strictly speaking, allow for the private messages to be found by the query that's tested here. However, that
-         * opens the door for very confusing UX - in some configurations, certain messages would be returned, while in other
-         * configurations, similar messages would _not_ be returned. For consistency, private messages (exchanged in a MUC)
-         * should only be returned when filtering by the room JID.
-         */
-
         return sql;
     }
-
 
     private String buildQueryForTotalCount()
     {
         String sql = """
             SELECT COUNT(DISTINCT a.messageID)
+            """;
+
+        sql += """
             FROM ofMessageArchive a
-            JOIN ofConversation c USING (conversationID)
-            WHERE c.roomID IS NULL
-              AND (a.stanza IS NOT NULL OR a.body IS NOT NULL)
+            LEFT JOIN ofConversation c ON a.conversationID = c.conversationID
+            """;
+
+        // An additional join is required to be able to answer queries that attempt to filter for private messages for a particular participant.
+        if (with != null && with.getResource() != null) {
+            sql += """
+                LEFT JOIN ofConParticipant p
+                    ON a.conversationID = p.conversationID AND p.nickname = ?
+                """;
+        }
+
+        // Ignoring 'messageID IS NULL' as they are legacy messages.
+        sql += """
+            WHERE (a.stanza IS NOT NULL OR a.body IS NOT NULL)
               AND a.messageID IS NOT NULL
+            """;
+
+        // Apply the date filters.
+        sql += """    
               AND a.sentDate >= ?
               AND a.sentDate <= ?
             """;
 
+        // Combine 1-on-1 messages (conversation has no room) with private MUC messages addressed to OR sent by the user.
+        final String oneOnOne = buildWhereClauseForOneOnOne();
+        final String prvtmsgs = buildWhereClauseForPrivateMessages();
+        sql += "  AND ( (\n" + oneOnOne + ") OR (\n" + prvtmsgs + ") )\n";
+
+        return sql;
+    }
+
+    /**
+     * Constructs the SQL WHERE clause for filtering one-on-one messages in a message archive.
+     *
+     * @return A SQL WHERE clause string to filter one-on-one messages based on the specified conditions.
+     */
+    private String buildWhereClauseForOneOnOne()
+    {
+        String sql = """
+                      a.isPMforJID IS NULL
+                  AND c.roomID IS NULL
+            """;
+
+        // Apply the 'with' filter.
         if (with == null) {
             // No 'with' filter value was supplied.
             sql += """
-              AND (
-                   a.fromJID = ?
-                OR a.toJID   = ?
-              )
+                  AND (
+                           a.fromJID = ?
+                        OR a.toJID   = ?
+                      )
             """;
         } else if (with.getResource() == null) {
             // A 'with' filter value was supplied (bare JID).
             sql += """
-              AND (
-                   (a.fromJID = ? AND a.toJID = ?)
-                OR (a.fromJID = ? AND a.toJID = ?)
-              )
+                  AND (
+                           (a.fromJID = ? AND a.toJID = ?)
+                        OR (a.fromJID = ? AND a.toJID = ?)
+                      )
             """;
         } else {
             // A 'with' filter value was supplied (full JID).
             sql += """
-              AND (
-                   (a.fromJID = ? AND a.toJID = ? AND toJIDResource = ?)
-                OR (a.fromJID = ? AND fromJIDResource = ? AND a.toJID = ?)
-              )
+                  AND (
+                           (a.fromJID = ? AND a.toJID = ? AND toJIDResource = ?)
+                        OR (a.fromJID = ? AND a.fromJIDResource = ? AND a.toJID = ?)
+                      )
             """;
+        }
+        return sql;
+    }
+
+    /**
+     * Constructs the SQL WHERE clause for filtering private messages in a message archive.
+     *
+     * @return A SQL WHERE clause string to filter private messages based on the defined criteria.
+     */
+    private String buildWhereClauseForPrivateMessages()
+    {
+        String sql = """
+                      a.isPMforJID IS NOT NULL
+                  AND c.roomID IS NOT NULL
+            """;
+
+        // By default include all private messages (to/from the archive owner)
+        sql += """
+                      AND (
+                               a.isPMforJID = ?
+                            OR a.fromJID = ?
+                          )
+                """;
+
+        // Apply the 'with' filter. In rows that reflect room messages (which we're operating on here, given the
+        // condition above), the `a.toJID` column will contain the bare JID of the room that the message was sent to
+        // (and never a 'real JID' of a sender). The code MUST NOT match any 'real jid' in the 'with' filter against
+        // private messages (only use the 'occupant jid'), as XEP-0313 defines that a filter value is to be applied to
+        // the stanza to/from attribute value (which, for PMs, will be the occupant JID). Under certain conditions (e.g.
+        // non-anonymous room configuration, or users with elevated privileges), the 'real' JID of a sender may be
+        // available to use for filtering. However, this opens the door for very confusing UX - in some configurations,
+        // certain messages would be returned, while in other configurations, similar messages would NOT be returned.
+        // For consistency, private messages (exchanged in a MUC) should only be returned when filtering by the room
+        // JID. This also guards against potential accidental disclosure of the real JID of authors of private messages.
+        if (with != null) {
+            // A 'with' filter value was supplied. For PMs, this will be an occupant JID (or, if it's a bare JID, a room
+            // JID). In any case, limit the search to the room identified by the bare-JID of the 'with' filter value.
+            sql += """
+                      AND a.toJID = ?
+                """;
+
+            if (with.getResource() != null) {
+                // When the 'with' filter value is a full JID, it is an occupant JID that further filters for a specific nickname.
+                sql += """
+                      AND p.nickname = ?
+                """;
+            }
         }
 
         return sql;
