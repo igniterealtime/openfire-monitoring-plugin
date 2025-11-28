@@ -20,6 +20,26 @@
         <sourceDirectory>src/java</sourceDirectory>
         <plugins>
             <plugin>
+                <artifactId>maven-jar-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>custom-test-jar</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>jar</goal>
+                        </goals>
+                        <configuration>
+                            <classesDirectory>${project.build.testOutputDirectory}</classesDirectory>
+                            <classifier>integration-tests</classifier>
+                            <finalName>${project.artifactId}</finalName>
+                            <includes>
+                                <include>org/jivesoftware/smackx/muc/**</include>
+                            </includes>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
                 <artifactId>maven-assembly-plugin</artifactId>
             </plugin>
             <!-- Compiles the Openfire Admin Console JSP pages. -->
@@ -106,6 +126,12 @@
             <groupId>junit</groupId>
             <artifactId>junit</artifactId>
             <version>4.13.1</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.igniterealtime.smack</groupId>
+            <artifactId>smack-integration-test</artifactId>
+            <version>4.5.0-beta9</version>
             <scope>test</scope>
         </dependency>
     </dependencies>
