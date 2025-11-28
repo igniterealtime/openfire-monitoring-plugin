@@ -48,7 +48,7 @@ public abstract class AbstractPaginatedMamQuery
     protected final JID archiveOwner;
 
     /**
-     * An optional conversation partner.
+     * An optional conversation partner (or message author, in case of MUC).
      */
     @Nullable
     protected final JID with;
@@ -65,7 +65,7 @@ public abstract class AbstractPaginatedMamQuery
      * @param startDate Start (inclusive) of period for which to return messages. EPOCH will be used if no value is provided.
      * @param endDate End (inclusive) of period for which to return messages. 'now' will be used if no value is provided.
      * @param archiveOwner The message archive owner.
-     * @param with An optional conversation partner
+     * @param with An optional conversation partner (or message author, in case of MUC).
      */
     public AbstractPaginatedMamQuery(@Nullable final Date startDate, @Nullable final Date endDate, @Nonnull final JID archiveOwner, @Nullable final JID with)
     {
@@ -82,7 +82,7 @@ public abstract class AbstractPaginatedMamQuery
      * @param startDate Start (inclusive) of period for which to return messages. EPOCH will be used if no value is provided.
      * @param endDate End (inclusive) of period for which to return messages. 'now' will be used if no value is provided.
      * @param archiveOwner The message archive owner.
-     * @param with An optional conversation partner
+     * @param with An optional conversation partner (or message author, in case of MUC).
      * @param query A search string to be used for text-based search.
      */
     public AbstractPaginatedMamQuery(@Nullable final Date startDate, @Nullable final Date endDate, @Nonnull final JID archiveOwner, @Nullable final JID with, @Nonnull final String query)

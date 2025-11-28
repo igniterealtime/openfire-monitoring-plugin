@@ -38,6 +38,9 @@ import java.util.List;
  * Encapsulates responsibility of creating a database query that retrieves a specific subset (page) of archived messages
  * related to a MUC room.
  *
+ * Note that, per XEP-0313, the 'private messages' that are exchanged in a MUC room are not included in the MUC archive,
+ * which implies that they're included in the personal archive.
+ *
  * Note that this implementation primarily makes use of the database tables that are provided by Openfire (core), and
  * not of the database tables that are provided by the Monitoring plugin.
  *
@@ -53,11 +56,11 @@ public class PaginatedMucMessageFromOpenfireDatabaseQuery extends AbstractPagina
      * @param startDate Start (inclusive) of period for which to return messages. EPOCH will be used if no value is provided.
      * @param endDate End (inclusive) of period for which to return messages. 'now' will be used if no value is provided.
      * @param room The message archive owner (the chat room).
-     * @param with An optional conversation partner (or message author, in case of MUC).
+     * @param with An optional message author.
      */
     public PaginatedMucMessageFromOpenfireDatabaseQuery(@Nullable final Date startDate, @Nullable final Date endDate, @Nonnull final MUCRoom room, @Nullable final JID with)
     {
-        super(startDate, endDate, room, null, with);
+        super(startDate, endDate, room, with);
     }
 
     @Override

@@ -16,12 +16,10 @@ public class QueryRequest {
     private DataForm dataForm;
     private XmppResultSet resultSet;
     private final JID archive;
-    private final JID messageOwner;
 
-    public QueryRequest(Element queryElement, JID archive, JID messageOwner) {
+    public QueryRequest(Element queryElement, JID archive) {
 
         this.archive = archive;
-        this.messageOwner = messageOwner;
 
         if (queryElement.attribute("queryid") != null)
         {
@@ -55,9 +53,5 @@ public class QueryRequest {
 
     public JID getArchive() {
         return archive;
-    }
-
-    public JID getMessageOwner() {
-        return messageOwner;
     }
 }

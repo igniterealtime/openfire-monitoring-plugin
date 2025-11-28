@@ -31,19 +31,18 @@ public class PaginatedMucMessageFromOpenfireLuceneQuery extends AbstractPaginate
     /**
      * Creates a query for messages from a message archive of a multi-user chat room.
      *
-     * Two identifying JIDs are provided to this method: one is the JID of the room that's being queried (the 'archive
-     * owner'). To be able to return the private messages for a particular user from the room archive, an additional JID
-     * is provided, that identifies the user for which to retrieve the messages.
+     * Note that, per XEP-0313, the 'private messages' that are exchanged in a MUC room are not included in the MUC archive,
+     * which implies that they're included in the personal archive.
      *
      * @param startDate Start (inclusive) of period for which to return messages. EPOCH will be used if no value is provided.
      * @param endDate End (inclusive) of period for which to return messages. 'now' will be used if no value is provided.
      * @param room The message archive owner (the chat room).
-     * @param sender The entity for which to return messages (typically the JID of the entity making the request).
+     * @param with An optional message author.
      * @param query A search string to be used for text-based search.
      */
-    public PaginatedMucMessageFromOpenfireLuceneQuery(@Nullable final Date startDate, @Nullable final Date endDate, @Nonnull final MUCRoom room, @Nullable final JID sender, @Nonnull final String query)
+    public PaginatedMucMessageFromOpenfireLuceneQuery(@Nullable final Date startDate, @Nullable final Date endDate, @Nonnull final MUCRoom room, @Nullable final JID with, @Nonnull final String query)
     {
-        super(startDate, endDate, room, sender, null, query);
+        super(startDate, endDate, room, with, query);
     }
 
     protected IndexSearcher getSearcher() throws IOException
@@ -135,13 +134,13 @@ public class PaginatedMucMessageFromOpenfireLuceneQuery extends AbstractPaginate
         builder.add(dateRangeQuery, BooleanClause.Occur.MUST);
 
         // If defined, limit to specific senders.
-        if ( messageOwner != null ) {
+        if ( with != null ) {
             // Always limit to the bare JID of the sender.
-            builder.add(new TermQuery(new Term("senderBare", messageOwner.toBareJID() ) ), BooleanClause.Occur.MUST );
+            builder.add(new TermQuery(new Term("senderBare", with.toBareJID() ) ), BooleanClause.Occur.MUST );
 
             // If the query specified a more specific full JID, include the resource part in the filter too.
-            if ( messageOwner.getResource() != null ) {
-                builder.add(new TermQuery( new Term( "senderResource", messageOwner.getResource() ) ), BooleanClause.Occur.MUST );
+            if ( with.getResource() != null ) {
+                builder.add(new TermQuery( new Term( "senderResource", with.getResource() ) ), BooleanClause.Occur.MUST );
             }
         }
 
@@ -180,7 +179,6 @@ public class PaginatedMucMessageFromOpenfireLuceneQuery extends AbstractPaginate
             "startDate=" + startDate +
             ", endDate=" + endDate +
             ", room=" + room +
-            ", sender=" + messageOwner +
             ", query='" + query + '\'' +
             '}';
     }
