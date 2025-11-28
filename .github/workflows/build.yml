@@ -64,20 +64,25 @@ jobs:
         if: ${{ matrix.java == 17}}
         with:
           name: ${{ steps.get-id.outputs.id }}
-          path: target/${{ steps.get-id.outputs.id }}-openfire-plugin-assembly.jar
+          path: |
+            target/${{ steps.get-id.outputs.id }}-openfire-plugin-assembly.jar
+            target/${{ steps.get-id.outputs.id }}-integration-tests.jar
           retention-days: 3
 
   test:
     runs-on: ubuntu-latest
     needs: build
+    strategy:
+        matrix: *global_matrix
     steps:
-      - name: Download the built plugin
+
+      - name: Download the built artifacts
         uses: actions/download-artifact@v4
         with:
             name: ${{ needs.build.outputs.id }}
             path: .
 
-      - name: Rename plugin
+      - name: Rename built plugin (from artifacts)
         run: |
             mv ${{ needs.build.outputs.id }}-openfire-plugin-assembly.jar ${{ needs.build.outputs.id }}.jar
 
@@ -93,7 +98,9 @@ jobs:
           domain: 'example.org'
           adminAccountUsername: 'admin'
           adminAccountPassword: 'admin'
-          enabledSpecifications: 'XEP-0136, XEP-0313'
+          enabledSpecifications: 'XEP-0136,XEP-0313'
+          extensionJar: ${{ needs.build.outputs.id }}-integration-tests.jar
+          javaVersion: ${{ matrix.java }}
 
   deploy:
     runs-on: ubuntu-latest
