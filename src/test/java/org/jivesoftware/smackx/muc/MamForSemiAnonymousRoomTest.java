@@ -351,4 +351,82 @@ public class MamForSemiAnonymousRoomTest extends AbstractMamTest
     {
         super.testPersonalMamExcludesPrivateMessagesWithRealFullJidFilterForOwner();
     }
+
+    /**
+     * Verifies that archived private messages that were shared in a semi-anonymous room and are retrieved by a regular
+     * participant do not contain the real JID of the sender.
+     */
+    @SmackIntegrationTest()
+    public void testPrivateMessagesDoNotContainRealJidForParticipant() throws Exception
+    {
+        // Setup test fixture.
+        final MamManager.MamQueryArgs mamQueryArgsForUserTwo = MamManager.MamQueryArgs.builder()
+            .limitResultsToJid(mucAsSeenByOwner.getMyRoomJid()) // Room JID of the 'other' user.
+            .build();
+
+        // Execute system under test.
+        final MamManager.MamQuery queryResultForUserTwo = personalMamManagerUserTwo.queryArchive(mamQueryArgsForUserTwo);
+
+        // Verify: sent and received private messages should not contain the 'ofrom' of the sender.
+        assertMessageDoesNotContainOFrom(findMessageWithBody(queryResultForUserTwo, MUC_PM_USER1_TO_USER2), conOne.getUser());
+        assertMessageDoesNotContainOFrom(findMessageWithBody(queryResultForUserTwo, MUC_PM_USER2_TO_USER1), conTwo.getUser());
+    }
+
+    /**
+     * Verifies that archived private messages that were shared in a semi-anonymous room and are retrieved by a
+     * privileged user contain the real JID of the sender.
+     */
+    // TODO enable this after fixing https://github.com/igniterealtime/openfire-monitoring-plugin/issues/444 @SmackIntegrationTest()
+    public void testPrivateMessagesContainRealJidForOwner() throws Exception
+    {
+        // Setup test fixture.
+        final MamManager.MamQueryArgs mamQueryArgsForUserOne = MamManager.MamQueryArgs.builder()
+            .limitResultsToJid(mucAsSeenByParticipant.getMyRoomJid()) // Room JID of the 'other' user.
+            .build();
+
+        // Execute system under test.
+        final MamManager.MamQuery queryResultForUserOne = personalMamManagerUserOne.queryArchive(mamQueryArgsForUserOne);
+
+        // Verify: sent and received private messages should contain the 'ofrom' of the sender.
+        assertMessageContainsOFrom(findMessageWithBody(queryResultForUserOne, MUC_PM_USER1_TO_USER2), conOne.getUser());
+        assertMessageContainsOFrom(findMessageWithBody(queryResultForUserOne, MUC_PM_USER2_TO_USER1), conTwo.getUser());
+    }
+
+    /**
+     * Verifies that archived public messages that were shared in a semi-anonymous room and are retrieved by a regular
+     * participant do not contain the real JID of the sender.
+     */
+    @SmackIntegrationTest()
+    public void testMucMessagesDoNotContainRealJidForParticipant() throws Exception
+    {
+        // Setup test fixture.
+        final MamManager.MamQueryArgs mamQueryArgs = MamManager.MamQueryArgs.builder()
+            .build();
+
+        // Execute system under test.
+        final MamManager.MamQuery queryResultForUserTwo = mucMamManagerUserTwo.queryArchive(mamQueryArgs);
+
+        // Verify: sent and received public messages should contain the 'ofrom' of the sender.
+        assertMessageDoesNotContainOFrom(findMessageWithBody(queryResultForUserTwo, MUC_BY_USER1), conOne.getUser());
+        assertMessageDoesNotContainOFrom(findMessageWithBody(queryResultForUserTwo, MUC_BY_USER2), conTwo.getUser());
+    }
+
+    /**
+     * Verifies that archived public messages that were shared in a semi-anonymous room and are retrieved by a
+     * privileged user contain the real JID of the sender.
+     */
+    // TODO enable this after fixing https://github.com/igniterealtime/openfire-monitoring-plugin/issues/444 @SmackIntegrationTest()
+    public void testMucMessagesContainRealJidForOwner() throws Exception
+    {
+        // Setup test fixture.
+        final MamManager.MamQueryArgs mamQueryArgs = MamManager.MamQueryArgs.builder()
+            .build();
+
+        // Execute system under test.
+        final MamManager.MamQuery queryResultForUserOne = mucMamManagerUserOne.queryArchive(mamQueryArgs);
+
+        // Verify: sent and received public messages should contain the 'ofrom' of the sender.
+        assertMessageContainsOFrom(findMessageWithBody(queryResultForUserOne, MUC_BY_USER1), conOne.getUser());
+        assertMessageContainsOFrom(findMessageWithBody(queryResultForUserOne, MUC_BY_USER2), conTwo.getUser());
+    }
 }

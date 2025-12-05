@@ -5,12 +5,13 @@ import org.igniterealtime.smack.inttest.annotations.AfterClass;
 import org.igniterealtime.smack.inttest.annotations.SpecificationReference;
 import org.jivesoftware.smack.packet.Message;
 import org.jivesoftware.smack.packet.MessageBuilder;
+import org.jivesoftware.smackx.address.packet.MultipleAddresses;
 import org.jivesoftware.smackx.mam.MamManager;
 import org.jxmpp.jid.EntityBareJid;
+import org.jxmpp.jid.Jid;
 import org.jxmpp.jid.impl.JidCreate;
 
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.*;
 
 /**
  * Base class for MAM filter tests in MUC environments.
@@ -641,6 +642,53 @@ public abstract class AbstractMamTest extends AbstractMultiUserChatIntegrationTe
     }
 
     // ===== Common Helper Methods =====
+
+    /**
+     * Finds and retrieves a message from the given MAM query result that matches the specified body text.
+     *
+     * @param queryResult the MAM query result containing a list of messages to be searched
+     * @param expectedBody the text of the body to find in the message
+     * @return the message that matches the specified body text
+     * @throws AssertionError if no message with the specified body text is found
+     */
+    protected Message findMessageWithBody(final MamManager.MamQuery queryResult, final String expectedBody)
+    {
+        return queryResult.getMessages().stream()
+            .filter(message -> message.getBody().equals(expectedBody))
+            .findFirst()
+            .orElseThrow(() -> new AssertionError("Expected message with body '" + expectedBody + "' not found in query result."));
+    }
+
+    /**
+     * Verifies that the given {@link Message} contains an 'addresses' extension with an 'ofrom'
+     * address matching the specified JID.
+     *
+     * @param message the {@link Message} to be checked for an 'addresses' extension
+     * @param ofrom the {@link Jid} expected to be present as an 'ofrom' address in the message's 'addresses' extension
+     */
+    protected void assertMessageContainsOFrom(final Message message, final Jid ofrom)
+    {
+        final MultipleAddresses multipleAddresses = message.getExtension(MultipleAddresses.class);
+        assertNotNull("Expected message to contain an 'addresses' extension (but it did not)", multipleAddresses);
+        final boolean match = multipleAddresses.getAddressesOfType(MultipleAddresses.Type.ofrom).stream().anyMatch(address -> address.getJid().equals(ofrom));
+        assertTrue("Expected message to contain an 'addresses' extension with an 'ofrom' address of '" + ofrom + "' (but it did not)", match);
+    }
+
+    /**
+     * Verifies that the given {@link Message} does not contain an 'addresses' extension with an 'ofrom'
+     * address matching the specified JID.
+     *
+     * @param message the {@link Message} to be checked for an 'addresses' extension
+     * @param ofrom the {@link Jid} expected to be present as an 'ofrom' address in the message's 'addresses' extension
+     */
+    protected void assertMessageDoesNotContainOFrom(final Message message, final Jid ofrom)
+    {
+        final MultipleAddresses multipleAddresses = message.getExtension(MultipleAddresses.class);
+        if (multipleAddresses != null) {
+            final boolean match = multipleAddresses.getAddressesOfType(MultipleAddresses.Type.ofrom).stream().anyMatch(address -> address.getJid().equals(ofrom));
+            assertFalse("Expected message to not contain an 'addresses' extension with an 'ofrom' address of '" + ofrom + "' (but it did)", match);
+        }
+    }
 
     /**
      * Asserts that a MAM query result contains a message with the specified body.

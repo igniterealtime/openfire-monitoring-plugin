@@ -3,6 +3,8 @@ package org.jivesoftware.smackx.muc;
 import org.igniterealtime.smack.inttest.SmackIntegrationTestEnvironment;
 import org.igniterealtime.smack.inttest.annotations.SmackIntegrationTest;
 import org.igniterealtime.smack.inttest.annotations.SpecificationReference;
+import org.jivesoftware.smack.packet.Message;
+import org.jivesoftware.smackx.address.packet.MultipleAddresses;
 import org.jivesoftware.smackx.mam.MamManager;
 import org.jxmpp.jid.parts.Resourcepart;
 
@@ -349,5 +351,53 @@ public class MamForNonAnonymousRoomTest extends AbstractMamTest
     public void testPersonalMamExcludesPrivateMessagesWithRealFullJidFilterForOwner() throws Exception
     {
         super.testPersonalMamExcludesPrivateMessagesWithRealFullJidFilterForOwner();
+    }
+
+    /**
+     * Verifies that archived private messages that were shared in a non-anonymous room contain the real JID of the
+     * sender.
+     */
+    @SmackIntegrationTest()
+    public void testPrivateMessagesContainRealJid() throws Exception
+    {
+        // Setup test fixture.
+        final MamManager.MamQueryArgs mamQueryArgsForUserOne = MamManager.MamQueryArgs.builder()
+            .limitResultsToJid(mucAsSeenByParticipant.getMyRoomJid()) // Room JID of the 'other' user.
+            .build();
+        final MamManager.MamQueryArgs mamQueryArgsForUserTwo = MamManager.MamQueryArgs.builder()
+            .limitResultsToJid(mucAsSeenByOwner.getMyRoomJid()) // Room JID of the 'other' user.
+            .build();
+
+        // Execute system under test.
+        final MamManager.MamQuery queryResultForUserOne = personalMamManagerUserOne.queryArchive(mamQueryArgsForUserOne);
+        final MamManager.MamQuery queryResultForUserTwo = personalMamManagerUserTwo.queryArchive(mamQueryArgsForUserTwo);
+
+        // Verify: sent and received private messages should contain the 'ofrom' of the sender.
+        assertMessageContainsOFrom(findMessageWithBody(queryResultForUserOne, MUC_PM_USER1_TO_USER2), conOne.getUser());
+        assertMessageContainsOFrom(findMessageWithBody(queryResultForUserOne, MUC_PM_USER2_TO_USER1), conTwo.getUser());
+        assertMessageContainsOFrom(findMessageWithBody(queryResultForUserTwo, MUC_PM_USER1_TO_USER2), conOne.getUser());
+        assertMessageContainsOFrom(findMessageWithBody(queryResultForUserTwo, MUC_PM_USER2_TO_USER1), conTwo.getUser());
+    }
+
+    /**
+     * Verifies that archived public messages that were shared in a non-anonymous room contain the real JID of the
+     * sender.
+     */
+    @SmackIntegrationTest()
+    public void testMucMessagesContainRealJid() throws Exception
+    {
+        // Setup test fixture.
+        final MamManager.MamQueryArgs mamQueryArgs = MamManager.MamQueryArgs.builder()
+            .build();
+
+        // Execute system under test.
+        final MamManager.MamQuery queryResultForUserOne = mucMamManagerUserOne.queryArchive(mamQueryArgs);
+        final MamManager.MamQuery queryResultForUserTwo = mucMamManagerUserTwo.queryArchive(mamQueryArgs);
+
+        // Verify: sent and received public messages should contain the 'ofrom' of the sender.
+        assertMessageContainsOFrom(findMessageWithBody(queryResultForUserOne, MUC_BY_USER1), conOne.getUser());
+        assertMessageContainsOFrom(findMessageWithBody(queryResultForUserOne, MUC_BY_USER2), conTwo.getUser());
+        assertMessageContainsOFrom(findMessageWithBody(queryResultForUserTwo, MUC_BY_USER1), conOne.getUser());
+        assertMessageContainsOFrom(findMessageWithBody(queryResultForUserTwo, MUC_BY_USER2), conTwo.getUser());
     }
 }
