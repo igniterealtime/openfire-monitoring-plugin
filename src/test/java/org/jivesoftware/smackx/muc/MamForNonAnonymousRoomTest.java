@@ -3,14 +3,12 @@ package org.jivesoftware.smackx.muc;
 import org.igniterealtime.smack.inttest.SmackIntegrationTestEnvironment;
 import org.igniterealtime.smack.inttest.annotations.SmackIntegrationTest;
 import org.igniterealtime.smack.inttest.annotations.SpecificationReference;
-import org.jivesoftware.smack.packet.Message;
-import org.jivesoftware.smackx.address.packet.MultipleAddresses;
 import org.jivesoftware.smackx.mam.MamManager;
 import org.jxmpp.jid.parts.Resourcepart;
 
 /**
  * Integration tests for XEP-0313 MAM queries executed against a NON-ANONYMOUS MUC archive.
- * 
+ *
  * All test messages are sent once during class initialization. Each test method queries
  * the same static archive with different filters or from different perspectives.
  */
@@ -35,6 +33,9 @@ public class MamForNonAnonymousRoomTest extends AbstractMamTest
         // Make the second user join the chatroom.
         mucAsSeenByParticipant = mucManagerTwo.getMultiUserChat(mucAddress);
         mucAsSeenByParticipant.join(Resourcepart.from("participant-" + randomString));
+
+        // Init the non-occupant objects
+        mucAsSeenByNonOccupant = mucManagerThree.getMultiUserChat(mucAddress);
     }
 
     /**
@@ -45,6 +46,16 @@ public class MamForNonAnonymousRoomTest extends AbstractMamTest
     public void testMucMamContainsPublicMessages() throws Exception
     {
         super.testMucMamContainsPublicMessages();
+    }
+
+    /**
+     * Verifies that querying the MUC archive doesn't require a user to be in the chatroom.
+     */
+    @SmackIntegrationTest
+    @Override // Sadly, the SINT test framework requires a method in the child class. Working around code duplication using this override that delegates to the parent class.
+    public void testMucMamNonOccupant() throws Exception
+    {
+        super.testMucMamNonOccupant();
     }
 
     /**

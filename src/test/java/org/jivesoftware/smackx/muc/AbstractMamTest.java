@@ -33,6 +33,7 @@ public abstract class AbstractMamTest extends AbstractMultiUserChatIntegrationTe
     // Common MAM managers
     protected MamManager mucMamManagerUserOne;
     protected MamManager mucMamManagerUserTwo;
+    protected MamManager mucMamManagerUserThree;
     protected MamManager personalMamManagerUserOne;
     protected MamManager personalMamManagerUserTwo;
     
@@ -40,7 +41,8 @@ public abstract class AbstractMamTest extends AbstractMultiUserChatIntegrationTe
     protected EntityBareJid mucAddress;
     protected MultiUserChat mucAsSeenByOwner;
     protected MultiUserChat mucAsSeenByParticipant;
-    
+    protected MultiUserChat mucAsSeenByNonOccupant;
+
     public AbstractMamTest(SmackIntegrationTestEnvironment environment) throws Exception {
         super(environment);
         
@@ -61,7 +63,7 @@ public abstract class AbstractMamTest extends AbstractMultiUserChatIntegrationTe
      * Create and configure a MUC room with the appropriate anonymity setting.
      * Subclasses override to specify room configuration.
      *
-     * Must populate mucAddress, mucAsSeenByOwner and mucAsSeenByParticipant.
+     * Must populate mucAddress, mucAsSeenByOwner, mucAsSeenByParticipant, mucAsSeenByNonOccupant.
      */
     protected abstract void createAndConfigureRoom() throws Exception;
 
@@ -76,6 +78,9 @@ public abstract class AbstractMamTest extends AbstractMultiUserChatIntegrationTe
 
         mucMamManagerUserTwo = MamManager.getInstanceFor(mucAsSeenByParticipant);
         mucMamManagerUserTwo.getMamNamespace(); // Required to be able to query the archive, without explicitly setting preferences.
+
+        mucMamManagerUserThree = MamManager.getInstanceFor(mucAsSeenByNonOccupant);
+        mucMamManagerUserThree.getMamNamespace(); // Required to be able to query the archive, without explicitly setting preferences.
 
         personalMamManagerUserOne = MamManager.getInstanceFor(conOne);
         personalMamManagerUserOne.getMamNamespace(); // Required to be able to query the archive, without explicitly setting preferences.
@@ -163,6 +168,23 @@ public abstract class AbstractMamTest extends AbstractMultiUserChatIntegrationTe
         assertMamResultContains(queryResultForUserOne, MUC_BY_USER2);
         assertMamResultContains(queryResultForUserTwo, MUC_BY_USER1);
         assertMamResultContains(queryResultForUserTwo, MUC_BY_USER2);
+    }
+
+    /**
+     * Verifies that querying the MUC archive doesn't require a user to be in the chatroom.
+     */
+    public void testMucMamNonOccupant() throws Exception
+    {
+        // Setup test fixture.
+        final MamManager.MamQueryArgs mamQueryArgs = MamManager.MamQueryArgs.builder()
+            .build();
+
+        // Execute system under test.
+        final MamManager.MamQuery queryResultForUserThree = mucMamManagerUserThree.queryArchive(mamQueryArgs);
+
+        // Verify: Public messages present
+        assertMamResultContains(queryResultForUserThree, MUC_BY_USER1);
+        assertMamResultContains(queryResultForUserThree, MUC_BY_USER2);
     }
 
     /**
