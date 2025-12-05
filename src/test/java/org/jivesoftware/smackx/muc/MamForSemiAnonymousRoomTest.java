@@ -36,6 +36,9 @@ public class MamForSemiAnonymousRoomTest extends AbstractMamTest
         // Make the second user join the chatroom.
         mucAsSeenByParticipant = mucManagerTwo.getMultiUserChat(mucAddress);
         mucAsSeenByParticipant.join(Resourcepart.from("participant-" + randomString));
+
+        // Init the non-occupant objects
+        mucAsSeenByNonOccupant = mucManagerThree.getMultiUserChat(mucAddress);
     }
 
     /**
@@ -46,6 +49,16 @@ public class MamForSemiAnonymousRoomTest extends AbstractMamTest
     public void testMucMamContainsPublicMessages() throws Exception
     {
         super.testMucMamContainsPublicMessages();
+    }
+
+    /**
+     * Verifies that querying the MUC archive doesn't require a user to be in the chatroom.
+     */
+    @SmackIntegrationTest
+    @Override // Sadly, the SINT test framework requires a method in the child class. Working around code duplication using this override that delegates to the parent class.
+    public void testMucMamNonOccupant() throws Exception
+    {
+        super.testMucMamNonOccupant();
     }
 
     /**
