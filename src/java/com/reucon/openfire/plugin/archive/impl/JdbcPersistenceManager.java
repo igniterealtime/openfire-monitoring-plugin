@@ -273,11 +273,8 @@ public class JdbcPersistenceManager implements PersistenceManager {
     }
 
     @Override
-    public Collection<ArchivedMessage> findMessages(Date startDate, Date endDate, JID owner, JID messageOwner, JID with, String query, XmppResultSet xmppResultSet, boolean useStableID) throws DataRetrievalException, NotFoundException
+    public Collection<ArchivedMessage> findMessages(Date startDate, Date endDate, JID owner, JID with, String query, XmppResultSet xmppResultSet, boolean useStableID) throws DataRetrievalException, NotFoundException
     {
-        if ( !owner.equals(messageOwner)) {
-            throw new IllegalArgumentException("A personal archive can't be queried for messages of a different owner than the archive. Supplied archive owner: " + owner + ", supplied message owner: " + messageOwner);
-        }
         Log.debug( "Finding messages of owner '{}' with start date '{}', end date '{}' with '{}' and resultset '{}', useStableId '{}'.", owner, startDate, endDate, with, xmppResultSet, useStableID );
 
         if (startDate == null) {

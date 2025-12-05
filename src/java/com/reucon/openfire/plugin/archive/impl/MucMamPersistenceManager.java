@@ -53,8 +53,8 @@ public class MucMamPersistenceManager implements PersistenceManager {
     }
 
     @Override
-    public Collection<ArchivedMessage> findMessages(Date startDate, Date endDate, JID archiveOwner, JID messageOwner, JID with, String query, XmppResultSet xmppResultSet, boolean useStableID ) throws NotFoundException, DataRetrievalException {
-        Log.debug( "Finding messages in archive '{}' for user '{}' with start date '{}', end date '{}' with '{}', query: '{}' and resultset '{}', useStableId '{}'.", archiveOwner, messageOwner, startDate, endDate, with, query, xmppResultSet, useStableID );
+    public Collection<ArchivedMessage> findMessages(Date startDate, Date endDate, JID archiveOwner, JID with, String query, XmppResultSet xmppResultSet, boolean useStableID ) throws NotFoundException, DataRetrievalException {
+        Log.debug( "Finding messages in archive '{}' with start date '{}', end date '{}' with '{}', query: '{}' and resultset '{}', useStableId '{}'.", archiveOwner, startDate, endDate, with, query, xmppResultSet, useStableID );
         final MultiUserChatManager manager = XMPPServer.getInstance().getMultiUserChatManager();
         final MultiUserChatService service = manager.getMultiUserChatService(archiveOwner);
         final MUCRoom room = service.getChatRoom(archiveOwner.getNode());
@@ -97,7 +97,7 @@ public class MucMamPersistenceManager implements PersistenceManager {
                 }
             } else {
                 Log.debug("Using Monitoring plugin tables");
-                final PaginatedMucMessageLuceneQuery paginatedMucMessageLuceneQuery = new PaginatedMucMessageLuceneQuery(startDate, endDate, room, messageOwner, with, query);
+                final PaginatedMucMessageLuceneQuery paginatedMucMessageLuceneQuery = new PaginatedMucMessageLuceneQuery(startDate, endDate, room, with, query);
                 Log.debug("Request for message archive of room '{}' resulted in the following query data: {}", room.getJID(), paginatedMucMessageLuceneQuery);
                 totalCount = paginatedMucMessageLuceneQuery.getTotalCount();
                 if (totalCount == 0) {
@@ -120,7 +120,7 @@ public class MucMamPersistenceManager implements PersistenceManager {
                 }
             } else {
                 Log.debug("Using Monitoring plugin tables");
-                final PaginatedMucMessageDatabaseQuery paginatedMessageDatabaseQuery = new PaginatedMucMessageDatabaseQuery(startDate, endDate, room, messageOwner, with);
+                final PaginatedMucMessageDatabaseQuery paginatedMessageDatabaseQuery = new PaginatedMucMessageDatabaseQuery(startDate, endDate, room, with);
                 Log.debug("Request for message archive of room '{}' resulted in the following query data: {}", room.getJID(), paginatedMessageDatabaseQuery);
                 totalCount = paginatedMessageDatabaseQuery.getTotalCount();
                 if (totalCount == 0) {
@@ -181,7 +181,7 @@ public class MucMamPersistenceManager implements PersistenceManager {
                     final PaginatedMucMessageFromOpenfireDatabaseQuery paginatedMucMessageFromOpenfireDatabaseQuery = new PaginatedMucMessageFromOpenfireDatabaseQuery(startDate, endDate, room, with);
                     nextPage = paginatedMucMessageFromOpenfireDatabaseQuery.getPage(afterForNextPage, beforeForNextPage, 1, isPagingBackwards);
                 } else {
-                    final PaginatedMucMessageDatabaseQuery paginatedMessageDatabaseQuery = new PaginatedMucMessageDatabaseQuery(startDate, endDate, room, messageOwner, with);
+                    final PaginatedMucMessageDatabaseQuery paginatedMessageDatabaseQuery = new PaginatedMucMessageDatabaseQuery(startDate, endDate, room, with);
                     nextPage = paginatedMessageDatabaseQuery.getPage(afterForNextPage, beforeForNextPage, 1, isPagingBackwards);
                 }
             }

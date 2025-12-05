@@ -25,7 +25,6 @@ import org.apache.lucene.store.FSDirectory;
 import org.dom4j.DocumentFactory;
 import org.dom4j.io.OutputFormat;
 import org.dom4j.io.XMLWriter;
-import org.jivesoftware.openfire.archive.ArchiveIndexer;
 import org.jivesoftware.openfire.archive.MonitoringConstants;
 import org.jivesoftware.openfire.reporting.util.TaskEngine;
 import org.jivesoftware.util.SystemProperty;
@@ -82,7 +81,7 @@ public abstract class LuceneIndexer
         this.taskEngine = taskEngine;
         this.searchDir = searchDir;
         this.schemaVersion = schemaVersion;
-        Log = LoggerFactory.getLogger(ArchiveIndexer.class.getName() + "["+logName+"]");
+        Log = LoggerFactory.getLogger(LuceneIndexer.class.getName() + "["+logName+"]");
     }
 
     public void start()
