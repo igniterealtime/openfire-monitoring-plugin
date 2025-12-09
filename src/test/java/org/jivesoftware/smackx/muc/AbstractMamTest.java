@@ -78,6 +78,10 @@ public abstract class AbstractMamTest extends AbstractMultiUserChatIntegrationTe
         // Send all test messages once - these populate the archive for all tests
         sendAllTestMessages();
 
+        // Wait for messages to be archived - without this, CI will frequently fail when a message is sent by a user
+        // that's being removed in the next step.
+        Thread.sleep(500);
+
         // Finish setting up the room.
         postMessagePopulationRoomConfiguration();
 
@@ -85,7 +89,7 @@ public abstract class AbstractMamTest extends AbstractMultiUserChatIntegrationTe
         initializeMamManagers();
 
         // Wait for messages to be archived
-        Thread.sleep(1000);
+        Thread.sleep(500);
     }
 
     /**
