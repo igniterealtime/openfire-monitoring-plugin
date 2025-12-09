@@ -7,29 +7,55 @@ import org.jivesoftware.smack.packet.Message;
 import org.jivesoftware.smack.packet.MessageBuilder;
 import org.jivesoftware.smackx.address.packet.MultipleAddresses;
 import org.jivesoftware.smackx.mam.MamManager;
+import org.jivesoftware.smackx.xdata.FormField;
 import org.jxmpp.jid.EntityBareJid;
 import org.jxmpp.jid.Jid;
 import org.jxmpp.jid.impl.JidCreate;
+import org.jxmpp.jid.parts.Resourcepart;
+
+import java.util.List;
 
 import static org.junit.Assert.*;
 
 /**
  * Base class for MAM filter tests in MUC environments.
  * Sets up a message archive once during class initialization that all tests query against.
+ *
+ * This class sets up three users:
+ * <ol>
+ * <li>A user that is the owner of a chatroom</li>
+ * <li>A user that is a participant of a chatroom</li>
+ * <li>A user that was, but no longer is a participant of a chatroom</li>
+ * </ol>
+ * For all of these users, various messages are sent during the setup phase of the test. This intends to populate the
+ * various message archives that are being tested by this implementation.
  */
 @SpecificationReference(document = "XEP-0313", version = "1.1.3")
-public abstract class AbstractMamTest extends AbstractMultiUserChatIntegrationTest {
-    
+public abstract class AbstractMamTest extends AbstractMultiUserChatIntegrationTest
+{
     // Common test data - messages that will be sent during setup
     protected static final String DIRECT_USER1_TO_USER2_BAREJID = "Direct message from User 1 to User 2 (bare JID)";
     protected static final String DIRECT_USER1_TO_USER2_FULLJID = "Direct message from User 1 to User 2 (full JID)";
+    protected static final String DIRECT_USER1_TO_USER3_BAREJID = "Direct message from User 1 to User 3 (bare JID)";
+    protected static final String DIRECT_USER1_TO_USER3_FULLJID = "Direct message from User 1 to User 3 (full JID)";
     protected static final String DIRECT_USER2_TO_USER1_BAREJID = "Direct message from User 2 to User 1 (bare JID)";
     protected static final String DIRECT_USER2_TO_USER1_FULLJID = "Direct message from User 2 to User 1 (full JID)";
-    protected static final String MUC_BY_USER1 = "Public chat room message by User 1";
-    protected static final String MUC_BY_USER2 = "Public chat room message by User 2";
+    protected static final String DIRECT_USER2_TO_USER3_BAREJID = "Direct message from User 2 to User 3 (bare JID)";
+    protected static final String DIRECT_USER2_TO_USER3_FULLJID = "Direct message from User 2 to User 3 (full JID)";
+    protected static final String DIRECT_USER3_TO_USER1_BAREJID = "Direct message from User 3 to User 1 (bare JID)";
+    protected static final String DIRECT_USER3_TO_USER1_FULLJID = "Direct message from User 3 to User 1 (full JID)";
+    protected static final String DIRECT_USER3_TO_USER2_BAREJID = "Direct message from User 3 to User 2 (bare JID)";
+    protected static final String DIRECT_USER3_TO_USER2_FULLJID = "Direct message from User 3 to User 2 (full JID)";
+    protected static final String MUC_BY_USER1 = "Public chat room message by User 1, with random word train to be used as a search needle.";
+    protected static final String MUC_BY_USER2 = "Public chat room message by User 2, with random word apple to be used as a search needle.";
+    protected static final String MUC_BY_USER3 = "Public chat room message by User 3, with random word river to be used as a search needle.";
     protected static final String MUC_PM_USER1_TO_USER2 = "Private chat room message from User 1 to User 2";
+    protected static final String MUC_PM_USER1_TO_USER3 = "Private chat room message from User 1 to User 3";
     protected static final String MUC_PM_USER2_TO_USER1 = "Private chat room message from User 2 to User 1";
-    
+    protected static final String MUC_PM_USER2_TO_USER3 = "Private chat room message from User 2 to User 3";
+    protected static final String MUC_PM_USER3_TO_USER1 = "Private chat room message from User 3 to User 1";
+    protected static final String MUC_PM_USER3_TO_USER2 = "Private chat room message from User 3 to User 2";
+
     // Common MAM managers
     protected MamManager mucMamManagerUserOne;
     protected MamManager mucMamManagerUserTwo;
@@ -52,6 +78,9 @@ public abstract class AbstractMamTest extends AbstractMultiUserChatIntegrationTe
         // Send all test messages once - these populate the archive for all tests
         sendAllTestMessages();
 
+        // Finish setting up the room.
+        postMessagePopulationRoomConfiguration();
+
         // Initialize managers that subclasses use to interact with the various message archives.
         initializeMamManagers();
 
@@ -68,76 +97,143 @@ public abstract class AbstractMamTest extends AbstractMultiUserChatIntegrationTe
     protected abstract void createAndConfigureRoom() throws Exception;
 
     /**
+     * After the room has been created and populated with messages, do any additional configuration that is required.
+     * This, for example, allows occupants to be removed from the room again, while membership is being revoked.
+     */
+    protected abstract void postMessagePopulationRoomConfiguration() throws Exception;
+
+    /**
      * Initialize the MAM managers that are used by the subclasses to query the various message archives.
      */
     private void initializeMamManagers() throws Exception
     {
         // Initialize MAM managers
         mucMamManagerUserOne = MamManager.getInstanceFor(mucAsSeenByOwner);
-        mucMamManagerUserOne.getMamNamespace(); // Required to be able to query the archive, without explicitly setting preferences.
+        mucMamManagerUserOne.getMamNamespace(); // Required to be able to query the archive without explicitly setting preferences.
 
         mucMamManagerUserTwo = MamManager.getInstanceFor(mucAsSeenByParticipant);
-        mucMamManagerUserTwo.getMamNamespace(); // Required to be able to query the archive, without explicitly setting preferences.
+        mucMamManagerUserTwo.getMamNamespace(); // Required to be able to query the archive without explicitly setting preferences.
 
         mucMamManagerUserThree = MamManager.getInstanceFor(mucAsSeenByNonOccupant);
-        mucMamManagerUserThree.getMamNamespace(); // Required to be able to query the archive, without explicitly setting preferences.
+        mucMamManagerUserThree.getMamNamespace(); // Required to be able to query the archive without explicitly setting preferences.
 
         personalMamManagerUserOne = MamManager.getInstanceFor(conOne);
-        personalMamManagerUserOne.getMamNamespace(); // Required to be able to query the archive, without explicitly setting preferences.
+        personalMamManagerUserOne.getMamNamespace(); // Required to be able to query the archive without explicitly setting preferences.
 
         personalMamManagerUserTwo = MamManager.getInstanceFor(conTwo);
-        personalMamManagerUserTwo.getMamNamespace(); // Required to be able to query the archive, without explicitly setting preferences.
+        personalMamManagerUserTwo.getMamNamespace(); // Required to be able to query the archive without explicitly setting preferences.
     }
-
 
     /**
      * Send all test messages ONCE during setup to populate the archive.
      * All tests will query against this static set of archived messages.
      */
-    private void sendAllTestMessages() throws Exception {
+    private void sendAllTestMessages() throws Exception
+    {
         // Send direct messages (User1 -> User2)
-        Message directBareJid = MessageBuilder.buildMessage()
+        conOne.sendStanza(MessageBuilder.buildMessage()
             .to(conTwo.getUser().asEntityBareJid())
             .setBody(DIRECT_USER1_TO_USER2_BAREJID)
-            .build();
-        conOne.sendStanza(directBareJid);
+            .build());
         
-        Message directFullJid = MessageBuilder.buildMessage()
+        conOne.sendStanza(MessageBuilder.buildMessage()
             .to(conTwo.getUser().asFullJidOrThrow())
             .setBody(DIRECT_USER1_TO_USER2_FULLJID)
-            .build();
-        conOne.sendStanza(directFullJid);
-        
+            .build());
+
+        // Send direct messages (User1 -> User3)
+        conOne.sendStanza(MessageBuilder.buildMessage()
+            .to(conThree.getUser().asEntityBareJid())
+            .setBody(DIRECT_USER1_TO_USER3_BAREJID)
+            .build());
+
+        conOne.sendStanza(MessageBuilder.buildMessage()
+            .to(conThree.getUser().asFullJidOrThrow())
+            .setBody(DIRECT_USER1_TO_USER3_FULLJID)
+            .build());
+
         // Send direct messages (User2 -> User1)
-        Message directBareJid2 = MessageBuilder.buildMessage()
+        conTwo.sendStanza(MessageBuilder.buildMessage()
             .to(conOne.getUser().asEntityBareJid())
             .setBody(DIRECT_USER2_TO_USER1_BAREJID)
-            .build();
-        conTwo.sendStanza(directBareJid2);
-        
-        Message directFullJid2 = MessageBuilder.buildMessage()
+            .build());
+
+        conTwo.sendStanza(MessageBuilder.buildMessage()
             .to(conOne.getUser().asFullJidOrThrow())
             .setBody(DIRECT_USER2_TO_USER1_FULLJID)
-            .build();
-        conTwo.sendStanza(directFullJid2);
-        
+            .build());
+
+        // Send direct messages (User2 -> User3)
+        conTwo.sendStanza(MessageBuilder.buildMessage()
+            .to(conThree.getUser().asEntityBareJid())
+            .setBody(DIRECT_USER2_TO_USER3_BAREJID)
+            .build());
+
+        conTwo.sendStanza(MessageBuilder.buildMessage()
+            .to(conThree.getUser().asFullJidOrThrow())
+            .setBody(DIRECT_USER2_TO_USER3_FULLJID)
+            .build());
+
+        // Send direct messages (User3 -> User1)
+        conThree.sendStanza(MessageBuilder.buildMessage()
+            .to(conOne.getUser().asEntityBareJid())
+            .setBody(DIRECT_USER3_TO_USER1_BAREJID)
+            .build());
+
+        conThree.sendStanza(MessageBuilder.buildMessage()
+            .to(conOne.getUser().asFullJidOrThrow())
+            .setBody(DIRECT_USER3_TO_USER1_FULLJID)
+            .build());
+
+        // Send direct messages (User3 -> User2)
+        conThree.sendStanza(MessageBuilder.buildMessage()
+            .to(conTwo.getUser().asEntityBareJid())
+            .setBody(DIRECT_USER3_TO_USER2_BAREJID)
+            .build());
+
+        conThree.sendStanza(MessageBuilder.buildMessage()
+            .to(conTwo.getUser().asFullJidOrThrow())
+            .setBody(DIRECT_USER3_TO_USER2_FULLJID)
+            .build());
+
+
         // Send MUC public messages
         mucAsSeenByOwner.sendMessage(MUC_BY_USER1);
         mucAsSeenByParticipant.sendMessage(MUC_BY_USER2);
-        
-        // Send MUC private messages (User1 -> User2)
-        Message mucPm1 = MessageBuilder.buildMessage()
+        mucAsSeenByNonOccupant.sendMessage(MUC_BY_USER3);
+
+        // Send MUC private messages (User1)
+        conOne.sendStanza(MessageBuilder.buildMessage()
             .to(JidCreate.entityFullFrom(mucAsSeenByOwner.getRoom(), mucAsSeenByParticipant.getNickname()))
             .setBody(MUC_PM_USER1_TO_USER2)
-            .build();
-        conOne.sendStanza(mucPm1);
-        
-        // Send MUC private messages (User2 -> User1)
-        Message mucPm2 = MessageBuilder.buildMessage()
+            .build());
+
+        conOne.sendStanza(MessageBuilder.buildMessage()
+            .to(JidCreate.entityFullFrom(mucAsSeenByOwner.getRoom(), mucAsSeenByNonOccupant.getNickname()))
+            .setBody(MUC_PM_USER1_TO_USER3)
+            .build());
+
+        // Send MUC private messages (User2)
+        conTwo.sendStanza(MessageBuilder.buildMessage()
             .to(JidCreate.entityFullFrom(mucAsSeenByOwner.getRoom(), mucAsSeenByOwner.getNickname()))
             .setBody(MUC_PM_USER2_TO_USER1)
-            .build();
-        conTwo.sendStanza(mucPm2);
+            .build());
+
+        conTwo.sendStanza(MessageBuilder.buildMessage()
+            .to(JidCreate.entityFullFrom(mucAsSeenByOwner.getRoom(), mucAsSeenByNonOccupant.getNickname()))
+            .setBody(MUC_PM_USER2_TO_USER3)
+            .build());
+
+        // Send MUC private messages (User3)
+        conThree.sendStanza(MessageBuilder.buildMessage()
+            .to(JidCreate.entityFullFrom(mucAsSeenByOwner.getRoom(), mucAsSeenByOwner.getNickname()))
+            .setBody(MUC_PM_USER3_TO_USER1)
+            .build());
+
+        conThree.sendStanza(MessageBuilder.buildMessage()
+            .to(JidCreate.entityFullFrom(mucAsSeenByOwner.getRoom(), mucAsSeenByParticipant.getNickname()))
+            .setBody(MUC_PM_USER3_TO_USER2)
+            .build());
     }
     
     @AfterClass
@@ -166,8 +262,33 @@ public abstract class AbstractMamTest extends AbstractMultiUserChatIntegrationTe
         // Verify: Public messages present
         assertMamResultContains(queryResultForUserOne, MUC_BY_USER1);
         assertMamResultContains(queryResultForUserOne, MUC_BY_USER2);
+        assertMamResultContains(queryResultForUserOne, MUC_BY_USER3);
         assertMamResultContains(queryResultForUserTwo, MUC_BY_USER1);
         assertMamResultContains(queryResultForUserTwo, MUC_BY_USER2);
+        assertMamResultContains(queryResultForUserTwo, MUC_BY_USER3);
+    }
+
+    /**
+     * Verifies that querying the MUC archive with a text filter returns the appropriate public messages.
+     */
+    public void testMucMamContainsPublicMessagesTextFilter() throws Exception
+    {
+        // Setup test fixture.
+        final List<FormField> searchFields = List.of(FormField.textSingleBuilder("{urn:xmpp:fulltext:0}fulltext").setValue("train").build());
+        final MamManager.MamQueryArgs mamQueryArgs = MamManager.MamQueryArgs.builder()
+            .withAdditionalFormFields(searchFields).build();
+
+        // Execute system under test.
+        final MamManager.MamQuery queryResultForUserOne = mucMamManagerUserOne.queryArchive(mamQueryArgs);
+        final MamManager.MamQuery queryResultForUserTwo = mucMamManagerUserTwo.queryArchive(mamQueryArgs);
+
+        // Verify: Public messages present
+        assertMamResultContains(queryResultForUserOne, MUC_BY_USER1);
+        assertMamResultDoesNotContain(queryResultForUserOne, MUC_BY_USER2);
+        assertMamResultDoesNotContain(queryResultForUserOne, MUC_BY_USER3);
+        assertMamResultContains(queryResultForUserTwo, MUC_BY_USER1);
+        assertMamResultDoesNotContain(queryResultForUserTwo, MUC_BY_USER2);
+        assertMamResultDoesNotContain(queryResultForUserTwo, MUC_BY_USER3);
     }
 
     /**
@@ -185,6 +306,7 @@ public abstract class AbstractMamTest extends AbstractMultiUserChatIntegrationTe
         // Verify: Public messages present
         assertMamResultContains(queryResultForUserThree, MUC_BY_USER1);
         assertMamResultContains(queryResultForUserThree, MUC_BY_USER2);
+        assertMamResultContains(queryResultForUserThree, MUC_BY_USER3);
     }
 
     /**
@@ -211,6 +333,7 @@ public abstract class AbstractMamTest extends AbstractMultiUserChatIntegrationTe
         // Verify: Only public messages from that participant are included
         assertMamResultContains(queryResultForUserOne, MUC_BY_USER2); // message by participant
         assertMamResultDoesNotContain(queryResultForUserOne, MUC_BY_USER1); // other participant's message
+        assertMamResultDoesNotContain(queryResultForUserOne, MUC_BY_USER3); // non-participant's message
     }
 
     /**
@@ -237,6 +360,7 @@ public abstract class AbstractMamTest extends AbstractMultiUserChatIntegrationTe
         // Verify: Only public messages from that participant are included
         assertMamResultContains(queryResultForUserOne, MUC_BY_USER2); // message by participant
         assertMamResultDoesNotContain(queryResultForUserOne, MUC_BY_USER1); // other participant's message
+        assertMamResultDoesNotContain(queryResultForUserOne, MUC_BY_USER3); // non-participant's message
     }
 
     /**
@@ -280,9 +404,17 @@ public abstract class AbstractMamTest extends AbstractMultiUserChatIntegrationTe
 
         // Verify: Private messages NOT present
         assertMamResultDoesNotContain(queryResultForUserOne, MUC_PM_USER1_TO_USER2);
+        assertMamResultDoesNotContain(queryResultForUserOne, MUC_PM_USER1_TO_USER3);
         assertMamResultDoesNotContain(queryResultForUserOne, MUC_PM_USER2_TO_USER1);
+        assertMamResultDoesNotContain(queryResultForUserOne, MUC_PM_USER2_TO_USER3);
+        assertMamResultDoesNotContain(queryResultForUserOne, MUC_PM_USER3_TO_USER1);
+        assertMamResultDoesNotContain(queryResultForUserOne, MUC_PM_USER3_TO_USER2);
         assertMamResultDoesNotContain(queryResultForUserTwo, MUC_PM_USER1_TO_USER2);
+        assertMamResultDoesNotContain(queryResultForUserTwo, MUC_PM_USER1_TO_USER3);
         assertMamResultDoesNotContain(queryResultForUserTwo, MUC_PM_USER2_TO_USER1);
+        assertMamResultDoesNotContain(queryResultForUserTwo, MUC_PM_USER2_TO_USER3);
+        assertMamResultDoesNotContain(queryResultForUserTwo, MUC_PM_USER3_TO_USER1);
+        assertMamResultDoesNotContain(queryResultForUserTwo, MUC_PM_USER3_TO_USER2);
     }
 
     /**
@@ -300,9 +432,29 @@ public abstract class AbstractMamTest extends AbstractMultiUserChatIntegrationTe
 
         // Verify: Direct (non-MUC) messages NOT present
         assertMamResultDoesNotContain(queryResultForUserOne, DIRECT_USER1_TO_USER2_BAREJID);
+        assertMamResultDoesNotContain(queryResultForUserOne, DIRECT_USER1_TO_USER2_FULLJID);
+        assertMamResultDoesNotContain(queryResultForUserOne, DIRECT_USER1_TO_USER3_BAREJID);
+        assertMamResultDoesNotContain(queryResultForUserOne, DIRECT_USER1_TO_USER3_FULLJID);
         assertMamResultDoesNotContain(queryResultForUserOne, DIRECT_USER2_TO_USER1_BAREJID);
+        assertMamResultDoesNotContain(queryResultForUserOne, DIRECT_USER2_TO_USER1_FULLJID);
+        assertMamResultDoesNotContain(queryResultForUserOne, DIRECT_USER2_TO_USER3_BAREJID);
+        assertMamResultDoesNotContain(queryResultForUserOne, DIRECT_USER2_TO_USER3_FULLJID);
+        assertMamResultDoesNotContain(queryResultForUserOne, DIRECT_USER3_TO_USER1_BAREJID);
+        assertMamResultDoesNotContain(queryResultForUserOne, DIRECT_USER3_TO_USER1_FULLJID);
+        assertMamResultDoesNotContain(queryResultForUserOne, DIRECT_USER3_TO_USER2_BAREJID);
+        assertMamResultDoesNotContain(queryResultForUserOne, DIRECT_USER3_TO_USER2_FULLJID);
         assertMamResultDoesNotContain(queryResultForUserTwo, DIRECT_USER1_TO_USER2_BAREJID);
+        assertMamResultDoesNotContain(queryResultForUserTwo, DIRECT_USER1_TO_USER2_FULLJID);
+        assertMamResultDoesNotContain(queryResultForUserTwo, DIRECT_USER1_TO_USER3_BAREJID);
+        assertMamResultDoesNotContain(queryResultForUserTwo, DIRECT_USER1_TO_USER3_FULLJID);
         assertMamResultDoesNotContain(queryResultForUserTwo, DIRECT_USER2_TO_USER1_BAREJID);
+        assertMamResultDoesNotContain(queryResultForUserTwo, DIRECT_USER2_TO_USER1_FULLJID);
+        assertMamResultDoesNotContain(queryResultForUserTwo, DIRECT_USER2_TO_USER3_BAREJID);
+        assertMamResultDoesNotContain(queryResultForUserTwo, DIRECT_USER2_TO_USER3_FULLJID);
+        assertMamResultDoesNotContain(queryResultForUserTwo, DIRECT_USER3_TO_USER1_BAREJID);
+        assertMamResultDoesNotContain(queryResultForUserTwo, DIRECT_USER3_TO_USER1_FULLJID);
+        assertMamResultDoesNotContain(queryResultForUserTwo, DIRECT_USER3_TO_USER2_BAREJID);
+        assertMamResultDoesNotContain(queryResultForUserTwo, DIRECT_USER3_TO_USER2_FULLJID);
     }
 
     /**
@@ -325,9 +477,17 @@ public abstract class AbstractMamTest extends AbstractMultiUserChatIntegrationTe
 
         // Verify: Private messages NOT present
         assertMamResultDoesNotContain(queryResultForUserOne, MUC_PM_USER1_TO_USER2);
+        assertMamResultDoesNotContain(queryResultForUserOne, MUC_PM_USER1_TO_USER3);
         assertMamResultDoesNotContain(queryResultForUserOne, MUC_PM_USER2_TO_USER1);
+        assertMamResultDoesNotContain(queryResultForUserOne, MUC_PM_USER2_TO_USER3);
+        assertMamResultDoesNotContain(queryResultForUserOne, MUC_PM_USER3_TO_USER1);
+        assertMamResultDoesNotContain(queryResultForUserOne, MUC_PM_USER3_TO_USER2);
         assertMamResultDoesNotContain(queryResultForUserTwo, MUC_PM_USER1_TO_USER2);
+        assertMamResultDoesNotContain(queryResultForUserTwo, MUC_PM_USER1_TO_USER3);
         assertMamResultDoesNotContain(queryResultForUserTwo, MUC_PM_USER2_TO_USER1);
+        assertMamResultDoesNotContain(queryResultForUserTwo, MUC_PM_USER2_TO_USER3);
+        assertMamResultDoesNotContain(queryResultForUserTwo, MUC_PM_USER3_TO_USER1);
+        assertMamResultDoesNotContain(queryResultForUserTwo, MUC_PM_USER3_TO_USER2);
     }
 
     /**
@@ -346,7 +506,11 @@ public abstract class AbstractMamTest extends AbstractMultiUserChatIntegrationTe
 
         // Verify: Private messages NOT present
         assertMamResultDoesNotContain(queryResultForUserOne, MUC_PM_USER1_TO_USER2);
+        assertMamResultDoesNotContain(queryResultForUserOne, MUC_PM_USER1_TO_USER3);
         assertMamResultDoesNotContain(queryResultForUserOne, MUC_PM_USER2_TO_USER1);
+        assertMamResultDoesNotContain(queryResultForUserOne, MUC_PM_USER2_TO_USER3);
+        assertMamResultDoesNotContain(queryResultForUserOne, MUC_PM_USER3_TO_USER1);
+        assertMamResultDoesNotContain(queryResultForUserOne, MUC_PM_USER3_TO_USER2);
     }
 
     /**
@@ -365,7 +529,11 @@ public abstract class AbstractMamTest extends AbstractMultiUserChatIntegrationTe
 
         // Verify: Private messages NOT present
         assertMamResultDoesNotContain(queryResultForUserOne, MUC_PM_USER1_TO_USER2);
+        assertMamResultDoesNotContain(queryResultForUserOne, MUC_PM_USER1_TO_USER3);
         assertMamResultDoesNotContain(queryResultForUserOne, MUC_PM_USER2_TO_USER1);
+        assertMamResultDoesNotContain(queryResultForUserOne, MUC_PM_USER2_TO_USER3);
+        assertMamResultDoesNotContain(queryResultForUserOne, MUC_PM_USER3_TO_USER1);
+        assertMamResultDoesNotContain(queryResultForUserOne, MUC_PM_USER3_TO_USER2);
     }
 
     /**
@@ -384,9 +552,17 @@ public abstract class AbstractMamTest extends AbstractMultiUserChatIntegrationTe
 
         // Verify: Both sent and received private messages should be in the personal archive (of each user)
         assertMamResultContains(queryResultForUserOne, MUC_PM_USER1_TO_USER2);
+        assertMamResultContains(queryResultForUserOne, MUC_PM_USER1_TO_USER3);
         assertMamResultContains(queryResultForUserOne, MUC_PM_USER2_TO_USER1);
+        assertMamResultDoesNotContain(queryResultForUserOne, MUC_PM_USER2_TO_USER3);
+        assertMamResultContains(queryResultForUserOne, MUC_PM_USER3_TO_USER1);
+        assertMamResultDoesNotContain(queryResultForUserOne, MUC_PM_USER3_TO_USER2);
         assertMamResultContains(queryResultForUserTwo, MUC_PM_USER1_TO_USER2);
+        assertMamResultDoesNotContain(queryResultForUserTwo, MUC_PM_USER1_TO_USER3);
         assertMamResultContains(queryResultForUserTwo, MUC_PM_USER2_TO_USER1);
+        assertMamResultContains(queryResultForUserTwo, MUC_PM_USER2_TO_USER3);
+        assertMamResultDoesNotContain(queryResultForUserTwo, MUC_PM_USER3_TO_USER1);
+        assertMamResultContains(queryResultForUserTwo, MUC_PM_USER3_TO_USER2);
     }
 
     /**
@@ -407,9 +583,17 @@ public abstract class AbstractMamTest extends AbstractMultiUserChatIntegrationTe
 
         // Verify: Both sent and received private messages should be in the personal archive (of each user)
         assertMamResultContains(queryResultForUserOne, MUC_PM_USER1_TO_USER2);
+        assertMamResultContains(queryResultForUserOne, MUC_PM_USER1_TO_USER3);
         assertMamResultContains(queryResultForUserOne, MUC_PM_USER2_TO_USER1);
+        assertMamResultDoesNotContain(queryResultForUserOne, MUC_PM_USER2_TO_USER3);
+        assertMamResultContains(queryResultForUserOne, MUC_PM_USER3_TO_USER1);
+        assertMamResultDoesNotContain(queryResultForUserOne, MUC_PM_USER3_TO_USER2);
         assertMamResultContains(queryResultForUserTwo, MUC_PM_USER1_TO_USER2);
+        assertMamResultDoesNotContain(queryResultForUserTwo, MUC_PM_USER1_TO_USER3);
         assertMamResultContains(queryResultForUserTwo, MUC_PM_USER2_TO_USER1);
+        assertMamResultContains(queryResultForUserTwo, MUC_PM_USER2_TO_USER3);
+        assertMamResultDoesNotContain(queryResultForUserTwo, MUC_PM_USER3_TO_USER1);
+        assertMamResultContains(queryResultForUserTwo, MUC_PM_USER3_TO_USER2);
     }
 
     /**
@@ -430,12 +614,28 @@ public abstract class AbstractMamTest extends AbstractMultiUserChatIntegrationTe
         // Verify: Should NOT include direct messages (not from the room)
         assertMamResultDoesNotContain(queryResultForUserOne, DIRECT_USER1_TO_USER2_BAREJID);
         assertMamResultDoesNotContain(queryResultForUserOne, DIRECT_USER1_TO_USER2_FULLJID);
+        assertMamResultDoesNotContain(queryResultForUserOne, DIRECT_USER1_TO_USER3_BAREJID);
+        assertMamResultDoesNotContain(queryResultForUserOne, DIRECT_USER1_TO_USER3_FULLJID);
         assertMamResultDoesNotContain(queryResultForUserOne, DIRECT_USER2_TO_USER1_BAREJID);
         assertMamResultDoesNotContain(queryResultForUserOne, DIRECT_USER2_TO_USER1_FULLJID);
+        assertMamResultDoesNotContain(queryResultForUserOne, DIRECT_USER2_TO_USER3_BAREJID);
+        assertMamResultDoesNotContain(queryResultForUserOne, DIRECT_USER2_TO_USER3_FULLJID);
+        assertMamResultDoesNotContain(queryResultForUserOne, DIRECT_USER3_TO_USER1_BAREJID);
+        assertMamResultDoesNotContain(queryResultForUserOne, DIRECT_USER3_TO_USER1_FULLJID);
+        assertMamResultDoesNotContain(queryResultForUserOne, DIRECT_USER3_TO_USER2_BAREJID);
+        assertMamResultDoesNotContain(queryResultForUserOne, DIRECT_USER3_TO_USER2_FULLJID);
         assertMamResultDoesNotContain(queryResultForUserTwo, DIRECT_USER1_TO_USER2_BAREJID);
         assertMamResultDoesNotContain(queryResultForUserTwo, DIRECT_USER1_TO_USER2_FULLJID);
+        assertMamResultDoesNotContain(queryResultForUserTwo, DIRECT_USER1_TO_USER3_BAREJID);
+        assertMamResultDoesNotContain(queryResultForUserTwo, DIRECT_USER1_TO_USER3_FULLJID);
         assertMamResultDoesNotContain(queryResultForUserTwo, DIRECT_USER2_TO_USER1_BAREJID);
         assertMamResultDoesNotContain(queryResultForUserTwo, DIRECT_USER2_TO_USER1_FULLJID);
+        assertMamResultDoesNotContain(queryResultForUserTwo, DIRECT_USER2_TO_USER3_BAREJID);
+        assertMamResultDoesNotContain(queryResultForUserTwo, DIRECT_USER2_TO_USER3_FULLJID);
+        assertMamResultDoesNotContain(queryResultForUserTwo, DIRECT_USER3_TO_USER1_BAREJID);
+        assertMamResultDoesNotContain(queryResultForUserTwo, DIRECT_USER3_TO_USER1_FULLJID);
+        assertMamResultDoesNotContain(queryResultForUserTwo, DIRECT_USER3_TO_USER2_BAREJID);
+        assertMamResultDoesNotContain(queryResultForUserTwo, DIRECT_USER3_TO_USER2_FULLJID);
     }
 
     /**
@@ -460,8 +660,47 @@ public abstract class AbstractMamTest extends AbstractMultiUserChatIntegrationTe
         // Verify: Both sent and received private messages should be in the personal archive (of each user)
         assertMamResultContains(queryResultForUserOne, MUC_PM_USER1_TO_USER2);
         assertMamResultContains(queryResultForUserOne, MUC_PM_USER2_TO_USER1);
+        assertMamResultDoesNotContain(queryResultForUserOne, MUC_PM_USER1_TO_USER3);
+        assertMamResultDoesNotContain(queryResultForUserOne, MUC_PM_USER3_TO_USER1);
+        assertMamResultDoesNotContain(queryResultForUserOne, MUC_PM_USER2_TO_USER3);
+        assertMamResultDoesNotContain(queryResultForUserOne, MUC_PM_USER3_TO_USER2);
         assertMamResultContains(queryResultForUserTwo, MUC_PM_USER1_TO_USER2);
         assertMamResultContains(queryResultForUserTwo, MUC_PM_USER2_TO_USER1);
+        assertMamResultDoesNotContain(queryResultForUserTwo, MUC_PM_USER2_TO_USER3);
+        assertMamResultDoesNotContain(queryResultForUserTwo, MUC_PM_USER3_TO_USER2);
+        assertMamResultDoesNotContain(queryResultForUserTwo, MUC_PM_USER1_TO_USER3);
+        assertMamResultDoesNotContain(queryResultForUserTwo, MUC_PM_USER3_TO_USER1);
+    }
+
+    /**
+     * Verifies that no unrelated private MUC messages are returned from the user's personal archive when filtering by
+     * the occupant JID (room@service/nick) of a(nother) user.
+     */
+    // There's no explicit quote in the specification that says that private MUC messages can be retrieved from the user's personal archive, but as it _is_ specified that they MUST NOT be included in the MUC archive, it can be deduced that they need to be in the personal archives.
+    public void testPersonalMamExcludesPrivateMessagesWithOccupantJidFilter() throws Exception
+    {
+        // Setup test fixture.
+        final MamManager.MamQueryArgs mamQueryArgs = MamManager.MamQueryArgs.builder()
+            .limitResultsToJid(JidCreate.entityFullFrom(mucAddress, Resourcepart.from("UnrelatedNickname"))) // Room JID of an unrelated user.
+            .build();
+
+        // Execute system under test.
+        final MamManager.MamQuery queryResultForUserOne = personalMamManagerUserOne.queryArchive(mamQueryArgs);
+        final MamManager.MamQuery queryResultForUserTwo = personalMamManagerUserTwo.queryArchive(mamQueryArgs);
+
+        // Verify: Both sent and received private messages should be in the personal archive (of each user)
+        assertMamResultDoesNotContain(queryResultForUserOne, MUC_PM_USER1_TO_USER2);
+        assertMamResultDoesNotContain(queryResultForUserOne, MUC_PM_USER2_TO_USER1);
+        assertMamResultDoesNotContain(queryResultForUserOne, MUC_PM_USER1_TO_USER3);
+        assertMamResultDoesNotContain(queryResultForUserOne, MUC_PM_USER3_TO_USER1);
+        assertMamResultDoesNotContain(queryResultForUserOne, MUC_PM_USER2_TO_USER3);
+        assertMamResultDoesNotContain(queryResultForUserOne, MUC_PM_USER3_TO_USER2);
+        assertMamResultDoesNotContain(queryResultForUserTwo, MUC_PM_USER1_TO_USER2);
+        assertMamResultDoesNotContain(queryResultForUserTwo, MUC_PM_USER2_TO_USER1);
+        assertMamResultDoesNotContain(queryResultForUserTwo, MUC_PM_USER2_TO_USER3);
+        assertMamResultDoesNotContain(queryResultForUserTwo, MUC_PM_USER3_TO_USER2);
+        assertMamResultDoesNotContain(queryResultForUserTwo, MUC_PM_USER1_TO_USER3);
+        assertMamResultDoesNotContain(queryResultForUserTwo, MUC_PM_USER3_TO_USER1);
     }
 
     /**
@@ -485,12 +724,28 @@ public abstract class AbstractMamTest extends AbstractMultiUserChatIntegrationTe
         // Verify: Should NOT include direct messages (not from the room)
         assertMamResultDoesNotContain(queryResultForUserOne, DIRECT_USER1_TO_USER2_BAREJID);
         assertMamResultDoesNotContain(queryResultForUserOne, DIRECT_USER1_TO_USER2_FULLJID);
+        assertMamResultDoesNotContain(queryResultForUserOne, DIRECT_USER1_TO_USER3_BAREJID);
+        assertMamResultDoesNotContain(queryResultForUserOne, DIRECT_USER1_TO_USER3_FULLJID);
         assertMamResultDoesNotContain(queryResultForUserOne, DIRECT_USER2_TO_USER1_BAREJID);
         assertMamResultDoesNotContain(queryResultForUserOne, DIRECT_USER2_TO_USER1_FULLJID);
+        assertMamResultDoesNotContain(queryResultForUserOne, DIRECT_USER2_TO_USER3_BAREJID);
+        assertMamResultDoesNotContain(queryResultForUserOne, DIRECT_USER2_TO_USER3_FULLJID);
+        assertMamResultDoesNotContain(queryResultForUserOne, DIRECT_USER3_TO_USER1_BAREJID);
+        assertMamResultDoesNotContain(queryResultForUserOne, DIRECT_USER3_TO_USER1_FULLJID);
+        assertMamResultDoesNotContain(queryResultForUserOne, DIRECT_USER3_TO_USER2_BAREJID);
+        assertMamResultDoesNotContain(queryResultForUserOne, DIRECT_USER3_TO_USER2_FULLJID);
         assertMamResultDoesNotContain(queryResultForUserTwo, DIRECT_USER1_TO_USER2_BAREJID);
         assertMamResultDoesNotContain(queryResultForUserTwo, DIRECT_USER1_TO_USER2_FULLJID);
+        assertMamResultDoesNotContain(queryResultForUserTwo, DIRECT_USER1_TO_USER3_BAREJID);
+        assertMamResultDoesNotContain(queryResultForUserTwo, DIRECT_USER1_TO_USER3_FULLJID);
         assertMamResultDoesNotContain(queryResultForUserTwo, DIRECT_USER2_TO_USER1_BAREJID);
         assertMamResultDoesNotContain(queryResultForUserTwo, DIRECT_USER2_TO_USER1_FULLJID);
+        assertMamResultDoesNotContain(queryResultForUserTwo, DIRECT_USER2_TO_USER3_BAREJID);
+        assertMamResultDoesNotContain(queryResultForUserTwo, DIRECT_USER2_TO_USER3_FULLJID);
+        assertMamResultDoesNotContain(queryResultForUserTwo, DIRECT_USER3_TO_USER1_BAREJID);
+        assertMamResultDoesNotContain(queryResultForUserTwo, DIRECT_USER3_TO_USER1_FULLJID);
+        assertMamResultDoesNotContain(queryResultForUserTwo, DIRECT_USER3_TO_USER2_BAREJID);
+        assertMamResultDoesNotContain(queryResultForUserTwo, DIRECT_USER3_TO_USER2_FULLJID);
     }
 
     /**
@@ -516,10 +771,26 @@ public abstract class AbstractMamTest extends AbstractMultiUserChatIntegrationTe
         assertMamResultContains(queryResultForUserOne, DIRECT_USER1_TO_USER2_FULLJID);
         assertMamResultContains(queryResultForUserOne, DIRECT_USER2_TO_USER1_BAREJID);
         assertMamResultContains(queryResultForUserOne, DIRECT_USER2_TO_USER1_FULLJID);
+        assertMamResultDoesNotContain(queryResultForUserOne, DIRECT_USER1_TO_USER3_BAREJID);
+        assertMamResultDoesNotContain(queryResultForUserOne, DIRECT_USER1_TO_USER3_FULLJID);
+        assertMamResultDoesNotContain(queryResultForUserOne, DIRECT_USER2_TO_USER3_BAREJID);
+        assertMamResultDoesNotContain(queryResultForUserOne, DIRECT_USER2_TO_USER3_FULLJID);
+        assertMamResultDoesNotContain(queryResultForUserOne, DIRECT_USER3_TO_USER1_BAREJID);
+        assertMamResultDoesNotContain(queryResultForUserOne, DIRECT_USER3_TO_USER1_FULLJID);
+        assertMamResultDoesNotContain(queryResultForUserOne, DIRECT_USER3_TO_USER2_BAREJID);
+        assertMamResultDoesNotContain(queryResultForUserOne, DIRECT_USER3_TO_USER2_FULLJID);
         assertMamResultContains(queryResultForUserTwo, DIRECT_USER1_TO_USER2_BAREJID);
         assertMamResultContains(queryResultForUserTwo, DIRECT_USER1_TO_USER2_FULLJID);
         assertMamResultContains(queryResultForUserTwo, DIRECT_USER2_TO_USER1_BAREJID);
         assertMamResultContains(queryResultForUserTwo, DIRECT_USER2_TO_USER1_FULLJID);
+        assertMamResultDoesNotContain(queryResultForUserTwo, DIRECT_USER1_TO_USER3_BAREJID);
+        assertMamResultDoesNotContain(queryResultForUserTwo, DIRECT_USER1_TO_USER3_FULLJID);
+        assertMamResultDoesNotContain(queryResultForUserTwo, DIRECT_USER2_TO_USER3_BAREJID);
+        assertMamResultDoesNotContain(queryResultForUserTwo, DIRECT_USER2_TO_USER3_FULLJID);
+        assertMamResultDoesNotContain(queryResultForUserTwo, DIRECT_USER3_TO_USER1_BAREJID);
+        assertMamResultDoesNotContain(queryResultForUserTwo, DIRECT_USER3_TO_USER1_FULLJID);
+        assertMamResultDoesNotContain(queryResultForUserTwo, DIRECT_USER3_TO_USER2_BAREJID);
+        assertMamResultDoesNotContain(queryResultForUserTwo, DIRECT_USER3_TO_USER2_FULLJID);
     }
 
     /**
@@ -601,10 +872,26 @@ public abstract class AbstractMamTest extends AbstractMultiUserChatIntegrationTe
         assertMamResultContains(queryResultForUserOne, DIRECT_USER1_TO_USER2_FULLJID);
         assertMamResultContains(queryResultForUserOne, DIRECT_USER2_TO_USER1_BAREJID);
         assertMamResultContains(queryResultForUserOne, DIRECT_USER2_TO_USER1_FULLJID);
+        assertMamResultDoesNotContain(queryResultForUserOne, DIRECT_USER1_TO_USER3_BAREJID);
+        assertMamResultDoesNotContain(queryResultForUserOne, DIRECT_USER1_TO_USER3_FULLJID);
+        assertMamResultDoesNotContain(queryResultForUserOne, DIRECT_USER2_TO_USER3_BAREJID);
+        assertMamResultDoesNotContain(queryResultForUserOne, DIRECT_USER2_TO_USER3_FULLJID);
+        assertMamResultDoesNotContain(queryResultForUserOne, DIRECT_USER3_TO_USER1_BAREJID);
+        assertMamResultDoesNotContain(queryResultForUserOne, DIRECT_USER3_TO_USER1_FULLJID);
+        assertMamResultDoesNotContain(queryResultForUserOne, DIRECT_USER3_TO_USER2_BAREJID);
+        assertMamResultDoesNotContain(queryResultForUserOne, DIRECT_USER3_TO_USER2_FULLJID);
         assertMamResultContains(queryResultForUserTwo, DIRECT_USER1_TO_USER2_BAREJID);
         assertMamResultContains(queryResultForUserTwo, DIRECT_USER1_TO_USER2_FULLJID);
         assertMamResultDoesNotContain(queryResultForUserTwo, DIRECT_USER2_TO_USER1_BAREJID);
         assertMamResultContains(queryResultForUserTwo, DIRECT_USER2_TO_USER1_FULLJID);
+        assertMamResultDoesNotContain(queryResultForUserTwo, DIRECT_USER1_TO_USER3_BAREJID);
+        assertMamResultDoesNotContain(queryResultForUserTwo, DIRECT_USER1_TO_USER3_FULLJID);
+        assertMamResultDoesNotContain(queryResultForUserTwo, DIRECT_USER2_TO_USER3_BAREJID);
+        assertMamResultDoesNotContain(queryResultForUserTwo, DIRECT_USER2_TO_USER3_FULLJID);
+        assertMamResultDoesNotContain(queryResultForUserTwo, DIRECT_USER3_TO_USER1_BAREJID);
+        assertMamResultDoesNotContain(queryResultForUserTwo, DIRECT_USER3_TO_USER1_FULLJID);
+        assertMamResultDoesNotContain(queryResultForUserTwo, DIRECT_USER3_TO_USER2_BAREJID);
+        assertMamResultDoesNotContain(queryResultForUserTwo, DIRECT_USER3_TO_USER2_FULLJID);
     }
 
     /**

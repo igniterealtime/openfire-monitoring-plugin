@@ -37,8 +37,15 @@ public class MamForSemiAnonymousRoomTest extends AbstractMamTest
         mucAsSeenByParticipant = mucManagerTwo.getMultiUserChat(mucAddress);
         mucAsSeenByParticipant.join(Resourcepart.from("participant-" + randomString));
 
-        // Init the non-occupant objects
+        // Init the non-occupant objects. Initially make it join the chatroom (to populate it with messages).
         mucAsSeenByNonOccupant = mucManagerThree.getMultiUserChat(mucAddress);
+        mucAsSeenByNonOccupant.join(Resourcepart.from("nonoccupant-" + randomString));
+    }
+
+    @Override
+    protected void postMessagePopulationRoomConfiguration() throws Exception
+    {
+        mucAsSeenByNonOccupant.leave();
     }
 
     /**
@@ -49,6 +56,16 @@ public class MamForSemiAnonymousRoomTest extends AbstractMamTest
     public void testMucMamContainsPublicMessages() throws Exception
     {
         super.testMucMamContainsPublicMessages();
+    }
+
+    /**
+     * Verifies that querying the MUC archive with a text filter returns the appropriate public messages.
+     */
+    // FIXME this test currently fails because the Lucene index takes a few seconds to update, which means that the query doesn't find the keyword yet. @SmackIntegrationTest
+    @Override // Sadly, the SINT test framework requires a method in the child class. Working around code duplication using this override that delegates to the parent class.
+    public void testMucMamContainsPublicMessagesTextFilter() throws Exception
+    {
+        super.testMucMamContainsPublicMessagesTextFilter();
     }
 
     /**
@@ -207,7 +224,7 @@ public class MamForSemiAnonymousRoomTest extends AbstractMamTest
     {
         super.testMucMamExcludesPrivateMessagesWithRealFullJidFilter();
     }
-    
+
     /**
      * Verifies that private MUC messages can be retrieved from the user's personal archive when no filter is applied.
      */
@@ -239,7 +256,7 @@ public class MamForSemiAnonymousRoomTest extends AbstractMamTest
     {
         super.testPersonalMamExcludesDirectMessagesWithRoomJidFilter();
     }
-    
+
     /**
      * Verifies that private MUC messages can be retrieved from the user's personal archive when filtering by the
      * occupant JID (room@service/nick).
@@ -250,6 +267,18 @@ public class MamForSemiAnonymousRoomTest extends AbstractMamTest
     public void testPersonalMamIncludesPrivateMessagesWithOccupantJidFilter() throws Exception
     {
         super.testPersonalMamIncludesPrivateMessagesWithOccupantJidFilter();
+    }
+
+    /**
+     * Verifies that no unrelated private MUC messages are returned from the user's personal archive when filtering by
+     * the occupant JID (room@service/nick) of a(nother) user.
+     */
+    @SmackIntegrationTest(section = "4.1.1", quote = "If a 'with' field is present in the form, it contains a JID against which to match messages. The server MUST only return messages if they match the supplied JID. A message in a user's archive matches if the JID matches either the to or from of the message.")
+    @Override // Sadly, the SINT test framework requires a method in the child class. Working around code duplication using this override that delegates to the parent class.
+    // There's no explicit quote in the specification that says that private MUC messages can be retrieved from the user's personal archive, but as it _is_ specified that they MUST NOT be included in the MUC archive, it can be deduced that they need to be in the personal archives.
+    public void testPersonalMamExcludesPrivateMessagesWithOccupantJidFilter() throws Exception
+    {
+        super.testPersonalMamExcludesPrivateMessagesWithOccupantJidFilter();
     }
 
     /**
