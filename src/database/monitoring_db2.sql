@@ -1,5 +1,5 @@
 
-INSERT INTO ofVersion (name, version) VALUES ('monitoring', 9);
+INSERT INTO ofVersion (name, version) VALUES ('monitoring', 10);
 
 CREATE TABLE ofConversation (
   conversationID        INTEGER      NOT NULL,
@@ -25,6 +25,7 @@ CREATE TABLE ofConParticipant (
   nickname             VARCHAR(255)
 );
 CREATE INDEX entConPar_con_idx ON ofConParticipant (conversationID, bareJID, jidResource, joinedDate);
+CREATE INDEX entConPar_con_nck ON ofConParticipant (conversationID, nickname);
 CREATE INDEX entConPar_jid_idx ON ofConParticipant (bareJID);
 
 CREATE TABLE ofMessageArchive (
@@ -44,6 +45,8 @@ CREATE INDEX ofMessageArchive_fromjid_idx ON ofMessageArchive (fromJID);
 CREATE INDEX ofMessageArchive_tojid_idx ON ofMessageArchive (toJID);
 CREATE INDEX ofMessageArchive_sent_idx ON ofMessageArchive (sentDate);
 CREATE INDEX ofMessageArchive_pm_idx ON ofMessageArchive (isPMforJID);
+CREATE INDEX ofMessageArchive_pm_dir ON ofMessageArchive (isPMforJID, fromJID, toJID);
+CREATE INDEX ofMessageArchive_from_to ON ofMessageArchive (fromJID, toJID);
 
 CREATE TABLE ofRRDs (
    id            VARCHAR(100)        NOT NULL,
