@@ -90,11 +90,6 @@ public class PaginatedMessageDatabaseQuery extends AbstractPaginatedMamQuery
 
             int pos = 0;
 
-            // An additional join is required to be able to answer queries that attempt to filter for private messages for a particular participant.
-            if (with != null && with.getResource() != null) {
-                pstmt.setString( ++pos, with.getResource() );
-            }
-
             // For the date filters.
             pstmt.setLong( ++pos, dateToMillis( startDate ) );
             pstmt.setLong( ++pos, dateToMillis( endDate ) );
@@ -123,6 +118,9 @@ public class PaginatedMessageDatabaseQuery extends AbstractPaginatedMamQuery
             if (with != null) {
                 pstmt.setString( ++pos, with.toBareJID() );
                 if (with.getResource() != null) {
+                    pstmt.setString( ++pos, archiveOwner.toBareJID() );
+                    pstmt.setString( ++pos, with.getResource() );
+                    pstmt.setString( ++pos, archiveOwner.toBareJID() );
                     pstmt.setString( ++pos, with.getResource() );
                 }
             }
@@ -176,11 +174,6 @@ public class PaginatedMessageDatabaseQuery extends AbstractPaginatedMamQuery
 
             int pos = 0;
 
-            // An additional join is required to be able to answer queries that attempt to filter for private messages for a particular participant.
-            if (with != null && with.getResource() != null) {
-                pstmt.setString( ++pos, with.getResource() );
-            }
-
             // For the date filters.
             pstmt.setLong( ++pos, dateToMillis( startDate ) );
             pstmt.setLong( ++pos, dateToMillis( endDate ) );
@@ -209,6 +202,9 @@ public class PaginatedMessageDatabaseQuery extends AbstractPaginatedMamQuery
             if (with != null) {
                 pstmt.setString( ++pos, with.toBareJID() );
                 if (with.getResource() != null) {
+                    pstmt.setString( ++pos, archiveOwner.toBareJID() );
+                    pstmt.setString( ++pos, with.getResource() );
+                    pstmt.setString( ++pos, archiveOwner.toBareJID() );
                     pstmt.setString( ++pos, with.getResource() );
                 }
             }
@@ -265,8 +261,12 @@ public class PaginatedMessageDatabaseQuery extends AbstractPaginatedMamQuery
         // An additional join is required to be able to answer queries that attempt to filter for private messages for a particular participant.
         if (with != null && with.getResource() != null) {
             sql += """
-                LEFT JOIN ofConParticipant p
-                    ON a.conversationID = p.conversationID AND p.nickname = ?
+                LEFT JOIN ofConParticipant senderP
+                       ON a.conversationID = senderP.conversationID
+                      AND a.fromJID = senderP.bareJID
+                LEFT JOIN ofConParticipant targetP
+                       ON a.conversationID = targetP.conversationID
+                      AND a.isPMforJID = targetP.bareJID
                 """;
         }
 
@@ -324,8 +324,12 @@ public class PaginatedMessageDatabaseQuery extends AbstractPaginatedMamQuery
         // An additional join is required to be able to answer queries that attempt to filter for private messages for a particular participant.
         if (with != null && with.getResource() != null) {
             sql += """
-                LEFT JOIN ofConParticipant p
-                    ON a.conversationID = p.conversationID AND p.nickname = ?
+                LEFT JOIN ofConParticipant senderP
+                       ON a.conversationID = senderP.conversationID
+                      AND a.fromJID = senderP.bareJID
+                LEFT JOIN ofConParticipant targetP
+                       ON a.conversationID = targetP.conversationID
+                      AND a.isPMforJID = targetP.bareJID
                 """;
         }
 
@@ -428,9 +432,13 @@ public class PaginatedMessageDatabaseQuery extends AbstractPaginatedMamQuery
                 """;
 
             if (with.getResource() != null) {
-                // When the 'with' filter value is a full JID, it is an occupant JID that further filters for a specific nickname.
+                // When the 'with' filter value is a full JID, it is an occupant JID that further filters for a specific
+                // nickname. This nickname is either the sender or recipient of the messages that are of interest.
                 sql += """
-                      AND p.nickname = ?
+                      AND (
+                             (a.fromJID = ? AND targetP.nickname = ?)
+                          OR (a.isPMforJID = ? AND senderP.nickname = ?)
+                          )
                 """;
             }
         }
