@@ -75,6 +75,8 @@ jobs:
     strategy:
         matrix: *global_matrix
     steps:
+      # Checkout repo again (for the workflow-resources directory content)
+      - uses: actions/checkout@v3
 
       - name: Download the built artifacts
         uses: actions/download-artifact@v4
@@ -91,6 +93,7 @@ jobs:
         with:
             daily: true
             plugin: ./${{ needs.build.outputs.id }}.jar
+            config: ./.github/workflow-resources/openfire-demoboot-continuous-lucene-update.xml
 
       - name: Run XMPP interop tests
         uses: XMPP-Interop-Testing/xmpp-interop-tests-action@main
