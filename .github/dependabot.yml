@@ -10,7 +10,7 @@ updates:
     schedule:
       interval: "monthly"
     groups:
-      github-actions:
+      maven:
         patterns:
           - '*'
 
