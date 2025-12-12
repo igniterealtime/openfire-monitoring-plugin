@@ -9,10 +9,6 @@ updates:
     directory: "/"
     schedule:
       interval: "monthly"
-    groups:
-      maven:
-        patterns:
-          - '*'
 
   - package-ecosystem: "github-actions"
     directory: "/"
