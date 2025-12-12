@@ -43,7 +43,7 @@ jobs:
           distribution: temurin
 
       - name: Cache Maven repository
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ~/.m2/repository
           key: ${{ runner.os }}-java${{ matrix.java }}-maven-${{ hashFiles('**/pom.xml') }}
@@ -60,7 +60,7 @@ jobs:
         run:  mvn -B package
 
       - name: Stash the built artifacts
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         if: ${{ matrix.java == 17}}
         with:
           name: ${{ steps.get-id.outputs.id }}
@@ -77,7 +77,7 @@ jobs:
     steps:
 
       - name: Download the built artifacts
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v7
         with:
             name: ${{ needs.build.outputs.id }}
             path: .
@@ -111,7 +111,7 @@ jobs:
       - uses: actions/checkout@v6
 
       - name: Download the built plugin
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v7
         with:
           name: ${{ needs.build.outputs.id }}
           path: .
