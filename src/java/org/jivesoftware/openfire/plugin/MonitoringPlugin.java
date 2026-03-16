@@ -20,8 +20,10 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Duration;
 
 import com.reucon.openfire.plugin.archive.impl.*;
+import com.reucon.openfire.plugin.archive.xep.XEP0313TimerTask;
 import com.reucon.openfire.plugin.archive.xep0313.Xep0313Support1;
 import com.reucon.openfire.plugin.archive.xep0313.Xep0313Support2;
 import org.eclipse.jetty.ee8.webapp.WebAppContext;
@@ -190,6 +192,8 @@ public class MonitoringPlugin implements Plugin, PluginListener
         archiveSearcher.start();
         mucIndexer.start();
         messageIndexer.start();
+        // Run a background task to add MAM features to new muc service
+        taskEngine.scheduleAtFixedRate(new XEP0313TimerTask(xep0313Support, xep0313Support1, xep0313Support2), Duration.ofMinutes(5), Duration.ofMinutes(1));
     }
 
     public void destroyPlugin() {
