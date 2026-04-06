@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008 Jive Software, Ignite Realtime Foundation 2024-2025. All rights reserved.
+ * Copyright (C) 2008 Jive Software, Ignite Realtime Foundation 2024-2026. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -1432,7 +1432,7 @@ public class ConversationManager implements ComponentEventListener{
                     pstmt.setLong(1, work.left.getTime());
                     pstmt.setLong(2, work.conversationID);
                     pstmt.setString(3, work.user.toBareJID());
-                    pstmt.setString(4, work.user.getResource() == null ? " " : work.user.getResource());
+                    pstmt.setString(4, ConversationDAO.toStoredResource(work.user));
                     pstmt.setLong(5, work.joined.getTime());
                     if ( DbConnectionManager.isBatchUpdatesSupported() )
                     {
