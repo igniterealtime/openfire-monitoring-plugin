@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2021-2025 Ignite Realtime Foundation. All rights reserved.
+ * Copyright (C) 2021-2026 Ignite Realtime Foundation. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -374,7 +374,7 @@ public class ConversationDAO {
                 // Rebuild full JID of participant
                 String baredJID = rs.getString(1);
                 String resource = rs.getString(2);
-                JID fullJID = new JID("".equals(resource) ? baredJID : baredJID + "/" + resource);
+                JID fullJID = new JID(hasStoredResource(resource) ? baredJID + "/" + resource : baredJID);
                 // Rebuild joined and left time
                 ConversationParticipation participation = new ConversationParticipation(new Date(rs.getLong(4)), rs.getString(3));
                 if (rs.getLong(5) > 0) {
@@ -432,7 +432,7 @@ public class ConversationDAO {
                     pstmt.setLong(1, conversation.getConversationID());
                     pstmt.setLong(2, participation.getJoined().getTime());
                     pstmt.setString(3, user.toBareJID());
-                    pstmt.setString(4, user.getResource() == null ? "" : user.getResource());
+                    pstmt.setString(4, toStoredResource(user));
                     pstmt.setString(5, participation.getNickname());
                     pstmt.executeUpdate();
                 }
@@ -466,12 +466,48 @@ public class ConversationDAO {
             pstmt.setLong(1, conversationID);
             pstmt.setLong(2, joined);
             pstmt.setString(3, participant.toBareJID());
-            pstmt.setString(4, participant.getResource() == null ? "" : participant.getResource());
+            pstmt.setString(4, toStoredResource(participant));
             pstmt.setString(5, nickname);
             pstmt.executeUpdate();
             pstmt.close();
         } finally {
             DbConnectionManager.closeConnection(con);
         }
+    }
+
+    /**
+     * Converts a JID resource into the value that is stored in the {@code jidResource} column of {@code ofConParticipant}.
+     *
+     * Oracle treats empty strings as {@code NULL}, which would violate the {@code NOT NULL} constraint on
+     * {@code jidResource}. When the database is Oracle and the JID has no resource (i.e. it is a bare JID),
+     * a single-space sentinel value is used instead of an empty string. On all other databases the historic
+     * empty-string value is preserved.
+     *
+     * @param jid the JID whose resource part is to be stored.
+     * @return the value to store in the {@code jidResource} column; never {@code null}.
+     * @see <a href="https://github.com/igniterealtime/openfire-monitoring-plugin/issues/461">ORA-01400 crash when archiving a conversation that involves a bare JID (no resource) on Oracle</a>
+     */
+    static String toStoredResource(final JID jid)
+    {
+        if (jid.getResource() != null) {
+            return jid.getResource();
+        }
+        return DbConnectionManager.getDatabaseType() == DbConnectionManager.DatabaseType.oracle ? " " : "";
+    }
+
+    /**
+     * Determines whether a value read from the {@code jidResource} column of {@code ofConParticipant} represents
+     * a real XMPP resource.
+     *
+     * Both an empty string (used by non-Oracle databases for bare JIDs) and the single-space sentinel (used by
+     * Oracle, because Oracle treats empty strings as {@code NULL}) are considered "no resource" values and cause
+     * this method to return {@code false}.
+     *
+     * @param storedResource the raw value read from the database column.
+     * @return {@code true} if the value represents an actual JID resource; {@code false} if it is absent or a sentinel.
+     */
+    static boolean hasStoredResource(final String storedResource)
+    {
+        return storedResource != null && !storedResource.trim().isEmpty();
     }
 }
