@@ -448,4 +448,35 @@ public class MucMamPersistenceManager implements PersistenceManager {
         }
         return null;
     }
+
+    /**
+     * Checks if there are 1 or more messages logged in the database for the given room.
+     *
+     * @param room The room to check for messages in.
+     * @return true if there is at least one recorded message, false otherwise.
+     */
+    public static boolean hasLoggedMessage(MUCRoom room)
+    {
+        Connection connection = null;
+        PreparedStatement pstmt = null;
+        ResultSet rs = null;
+
+        try {
+            connection = DbConnectionManager.getConnection();
+            if (USE_OPENFIRE_TABLES.getValue()) {
+                pstmt = connection.prepareStatement("SELECT 1 FROM ofMucConversationLog WHERE roomid = ? LIMIT 1");
+                pstmt.setLong(1, room.getID());
+            } else {
+                pstmt = connection.prepareStatement("SELECT 1 FROM ofMessageArchive WHERE toJid=? LIMIT 1");
+                pstmt.setString(1, room.getJID().toBareJID());
+            }
+            rs = pstmt.executeQuery();
+            return rs.next();
+        } catch (SQLException e) {
+            Log.error("SQL failure while trying to find the if room {} has any messages logged in MAM-MUC: ", room.getJID(), e);
+        } finally {
+            DbConnectionManager.closeConnection(rs, pstmt, connection);
+        }
+        return false;
+    }
 }

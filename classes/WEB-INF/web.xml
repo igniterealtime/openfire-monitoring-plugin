@@ -13,8 +13,18 @@
         </init-param>
     </servlet>
 
+    <servlet>
+        <servlet-name>LogsBrowserServlet</servlet-name>
+        <servlet-class>org.jivesoftware.openfire.plugin.web.LogsBrowserServlet</servlet-class>
+    </servlet>
+
     <servlet-mapping>
         <servlet-name>JerseyApplicationPublic</servlet-name>
         <url-pattern>/api/*</url-pattern>
+    </servlet-mapping>
+
+    <servlet-mapping>
+        <servlet-name>LogsBrowserServlet</servlet-name>
+        <url-pattern>/*</url-pattern>
     </servlet-mapping>
 </web-app>
