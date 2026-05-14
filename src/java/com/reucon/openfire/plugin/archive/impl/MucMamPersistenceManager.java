@@ -464,10 +464,20 @@ public class MucMamPersistenceManager implements PersistenceManager {
         try {
             connection = DbConnectionManager.getConnection();
             if (USE_OPENFIRE_TABLES.getValue()) {
-                pstmt = connection.prepareStatement("SELECT 1 FROM ofMucConversationLog WHERE roomid = ? LIMIT 1");
+                final String query = switch (DbConnectionManager.getDatabaseType().getResultSetLimitKeyword()) {
+                    case FETCH_FIRST -> "SELECT 1 FROM ofMucConversationLog WHERE roomid = ? FETCH FIRST 1 ROWS ONLY";
+                    case TOP         -> "SELECT TOP (1) 1 FROM ofMucConversationLog WHERE roomid = ?";
+                    default          -> "SELECT 1 FROM ofMucConversationLog WHERE roomid = ? LIMIT 1";
+                };
+                pstmt = connection.prepareStatement(query);
                 pstmt.setLong(1, room.getID());
             } else {
-                pstmt = connection.prepareStatement("SELECT 1 FROM ofMessageArchive WHERE toJid=? LIMIT 1");
+                final String query = switch (DbConnectionManager.getDatabaseType().getResultSetLimitKeyword()) {
+                    case FETCH_FIRST -> "SELECT 1 FROM ofMessageArchive WHERE toJid = ? FETCH FIRST 1 ROWS ONLY";
+                    case TOP         -> "SELECT TOP (1) 1 FROM ofMessageArchive WHERE toJid = ?";
+                    default          -> "SELECT 1 FROM ofMessageArchive WHERE toJid = ? LIMIT 1";
+                };
+                pstmt = connection.prepareStatement(query);
                 pstmt.setString(1, room.getJID().toBareJID());
             }
             rs = pstmt.executeQuery();
