@@ -1,12 +1,16 @@
 package org.jivesoftware.openfire.plugin.web;
 
 import com.reucon.openfire.plugin.archive.impl.MucMamPersistenceManager;
+import org.jivesoftware.database.DbConnectionManager;
 import org.jivesoftware.openfire.XMPPServer;
+import org.jivesoftware.openfire.archive.MonitoringConstants;
 import org.jivesoftware.openfire.muc.MUCRoom;
 import org.jivesoftware.openfire.muc.MultiUserChatService;
-import org.jivesoftware.openfire.plugin.service.LogAPI;
+import org.jivesoftware.util.StringUtils;
+import org.jivesoftware.util.SystemProperty;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.xmpp.packet.JID;
 
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
@@ -17,6 +21,10 @@ import java.io.InputStream;
 import java.net.URLDecoder;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
@@ -24,12 +32,7 @@ import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.time.format.FormatStyle;
 import java.time.temporal.ChronoUnit;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Locale;
-import java.util.Objects;
+import java.util.*;
 import java.util.stream.Collectors;
 
 /**
@@ -45,6 +48,13 @@ import java.util.stream.Collectors;
  */
 public class LogsBrowserServlet extends HttpServlet
 {
+    public static final SystemProperty<Boolean> PROP_ENABLED = SystemProperty.Builder.ofType( Boolean.class )
+        .setKey("archive.settings.logapi.enabled" )
+        .setDefaultValue( false )
+        .setDynamic( true )
+        .setPlugin(MonitoringConstants.PLUGIN_NAME)
+        .build();
+
     private static final Logger Log = LoggerFactory.getLogger(LogsBrowserServlet.class);
     private static final String TEMPLATE_PATH = "/WEB-INF/templates/logs-browser.html";
     private static final DateTimeFormatter ISO_LOCAL_DATE = DateTimeFormatter.ISO_LOCAL_DATE;
@@ -59,7 +69,7 @@ public class LogsBrowserServlet extends HttpServlet
 
         final String basePath = request.getContextPath();
 
-        if (!LogAPI.PROP_ENABLED.getValue()) {
+        if (!PROP_ENABLED.getValue()) {
             renderError(response, HttpServletResponse.SC_FORBIDDEN, basePath, "Public log browsing is disabled.", "Enable archive.settings.logapi.enabled to expose public logs.");
             return;
         }
@@ -88,7 +98,7 @@ public class LogsBrowserServlet extends HttpServlet
     protected void doPost( final HttpServletRequest request, final HttpServletResponse response ) throws IOException
     {
         final String basePath = request.getContextPath();
-        if (!LogAPI.PROP_ENABLED.getValue()) {
+        if (!PROP_ENABLED.getValue()) {
             renderError(response, HttpServletResponse.SC_FORBIDDEN, basePath, "Public log browsing is disabled.", "Enable archive.settings.logapi.enabled to expose public logs.");
             return;
         }
@@ -239,7 +249,7 @@ public class LogsBrowserServlet extends HttpServlet
         }
 
         final HighlightRange highlightRange = parseHighlightRange(request);
-        final List<LogAPI.Message> messages = LogAPI.getMessages(dayStart, dayStart.plus(1, ChronoUnit.DAYS), room);
+        final List<LogsBrowserServlet.Message> messages = getMessages(dayStart, dayStart.plus(1, ChronoUnit.DAYS), room);
         final List<String> dates = getDatesForRoom(room);
         final String dayNavigation = renderDayNavigation(basePath, serviceName, roomName, date, dates, request.getLocale());
         final String content = dayNavigation
@@ -300,6 +310,7 @@ public class LogsBrowserServlet extends HttpServlet
             return Collections.emptyList();
         }
 
+        //TODO: https://github.com/igniterealtime/openfire-monitoring-plugin/issues/228
         return service.getActiveChatRooms().stream()
             .filter(Objects::nonNull)
             .filter(room -> room.isPublicRoom() && room.isLogEnabled())
@@ -350,6 +361,41 @@ public class LogsBrowserServlet extends HttpServlet
             needle = needle.plus(1, ChronoUnit.DAYS);
         }
         return dates;
+    }
+
+    public static List<LogsBrowserServlet.Message> getMessages(Instant after, Instant before, MUCRoom room )
+    {
+        Connection connection = null;
+        PreparedStatement pstmt = null;
+        ResultSet rs = null;
+        List<LogsBrowserServlet.Message> msgs = new LinkedList<>();
+        try {
+            connection = DbConnectionManager.getConnection();
+            pstmt = connection.prepareStatement( "SELECT sender, nickname, logTime, body from ofMucConversationLog WHERE roomID = ? AND logTime >= ? AND logTime < ? ORDER BY logTime ASC" );
+            pstmt.setLong( 1, room.getID() );
+            pstmt.setString(2, StringUtils.dateToMillis(Date.from(after) ) ); // inclusive
+            pstmt.setString( 3, StringUtils.dateToMillis( Date.from(before) ) ); // exclusive
+            rs = pstmt.executeQuery();
+            final DateTimeFormatter formatter = DateTimeFormatter.ISO_INSTANT.withZone( ZoneOffset.UTC );
+            while (rs.next()) {
+                String senderJID = rs.getString(1);
+                String nickname = rs.getString(2);
+                Date sentDate = new Date(Long.parseLong(rs.getString(3).trim()));
+                String body = rs.getString(4);
+
+                final LogsBrowserServlet.Message message = new LogsBrowserServlet.Message();
+                message.setTimestamp( formatter.format( sentDate.toInstant() ) );
+                message.setNickname( nickname != null && !nickname.isEmpty() ? nickname : new JID(senderJID).getResource());
+                message.setMessage( body );
+                msgs.add( message );
+            }
+        } catch ( SQLException e) {
+            Log.error("SQL failure during MAM-MUC message retrieval for room {} between {} and {} ", room, after, before, e);
+        } finally {
+            DbConnectionManager.closeConnection(rs, pstmt, connection);
+        }
+
+        return msgs;
     }
 
     /**
@@ -540,7 +586,7 @@ public class LogsBrowserServlet extends HttpServlet
      * Render a message table for one day of room logs.
      */
     private String renderMessagesTable( final String basePath, final String serviceName, final String roomName,
-                                        final String date, final List<LogAPI.Message> messages,
+                                        final String date, final List<LogsBrowserServlet.Message> messages,
                                         final HighlightRange highlightRange )
     {
         if (messages.isEmpty()) {
@@ -558,7 +604,7 @@ public class LogsBrowserServlet extends HttpServlet
 
         result.append("<div id=\"table-wrapper\"><table id=\"message-table\"><thead><tr><th>Time (UTC)</th><th>Nickname</th><th>Message</th></tr></thead><tbody>");
         for (int i = 0; i < messages.size(); i++) {
-            final LogAPI.Message message = messages.get(i);
+            final LogsBrowserServlet.Message message = messages.get(i);
             final int id = i + 1;
             final boolean highlighted = highlightRange.includes(id);
             result.append("<tr id=\"m-")
@@ -805,6 +851,45 @@ public class LogsBrowserServlet extends HttpServlet
         private int getEnd()
         {
             return end;
+        }
+    }
+
+    public static class Message
+    {
+        private String timestamp;
+        private String nickname;
+        private String message;
+
+        public Message() {}
+
+        public String getTimestamp()
+        {
+            return timestamp;
+        }
+
+        public void setTimestamp( final String timestamp )
+        {
+            this.timestamp = timestamp;
+        }
+
+        public String getNickname()
+        {
+            return nickname;
+        }
+
+        public void setNickname( final String nickname )
+        {
+            this.nickname = nickname;
+        }
+
+        public String getMessage()
+        {
+            return message;
+        }
+
+        public void setMessage( final String message )
+        {
+            this.message = message;
         }
     }
 }
