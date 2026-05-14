@@ -448,4 +448,45 @@ public class MucMamPersistenceManager implements PersistenceManager {
         }
         return null;
     }
+
+    /**
+     * Checks if there are 1 or more messages logged in the database for the given room.
+     *
+     * @param room The room to check for messages in.
+     * @return true if there is at least one recorded message, false otherwise.
+     */
+    public static boolean hasLoggedMessage(MUCRoom room)
+    {
+        Connection connection = null;
+        PreparedStatement pstmt = null;
+        ResultSet rs = null;
+
+        try {
+            connection = DbConnectionManager.getConnection();
+            if (USE_OPENFIRE_TABLES.getValue()) {
+                final String query = switch (DbConnectionManager.getDatabaseType().getResultSetLimitKeyword()) {
+                    case FETCH_FIRST -> "SELECT 1 FROM ofMucConversationLog WHERE roomid = ? FETCH FIRST 1 ROWS ONLY";
+                    case TOP         -> "SELECT TOP (1) 1 FROM ofMucConversationLog WHERE roomid = ?";
+                    default          -> "SELECT 1 FROM ofMucConversationLog WHERE roomid = ? LIMIT 1";
+                };
+                pstmt = connection.prepareStatement(query);
+                pstmt.setLong(1, room.getID());
+            } else {
+                final String query = switch (DbConnectionManager.getDatabaseType().getResultSetLimitKeyword()) {
+                    case FETCH_FIRST -> "SELECT 1 FROM ofMessageArchive WHERE toJid = ? FETCH FIRST 1 ROWS ONLY";
+                    case TOP         -> "SELECT TOP (1) 1 FROM ofMessageArchive WHERE toJid = ?";
+                    default          -> "SELECT 1 FROM ofMessageArchive WHERE toJid = ? LIMIT 1";
+                };
+                pstmt = connection.prepareStatement(query);
+                pstmt.setString(1, room.getJID().toBareJID());
+            }
+            rs = pstmt.executeQuery();
+            return rs.next();
+        } catch (SQLException e) {
+            Log.error("SQL failure while trying to find the if room {} has any messages logged in MAM-MUC: ", room.getJID(), e);
+        } finally {
+            DbConnectionManager.closeConnection(rs, pstmt, connection);
+        }
+        return false;
+    }
 }

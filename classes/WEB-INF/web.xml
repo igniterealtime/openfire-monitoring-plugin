@@ -5,16 +5,12 @@
          version="3.1">
 
     <servlet>
-        <servlet-name>JerseyApplicationPublic</servlet-name>
-        <servlet-class>org.glassfish.jersey.servlet.ServletContainer</servlet-class>
-        <init-param>
-            <param-name>javax.ws.rs.Application</param-name>
-            <param-value>org.jivesoftware.openfire.plugin.JerseyApplicationPublic</param-value>
-        </init-param>
+        <servlet-name>LogsBrowserServlet</servlet-name>
+        <servlet-class>org.jivesoftware.openfire.plugin.web.LogsBrowserServlet</servlet-class>
     </servlet>
 
     <servlet-mapping>
-        <servlet-name>JerseyApplicationPublic</servlet-name>
-        <url-pattern>/api/*</url-pattern>
+        <servlet-name>LogsBrowserServlet</servlet-name>
+        <url-pattern>/*</url-pattern>
     </servlet-mapping>
 </web-app>

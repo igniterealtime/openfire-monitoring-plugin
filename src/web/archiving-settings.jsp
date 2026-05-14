@@ -2,21 +2,22 @@
 <%@ page errorPage="/error.jsp" %>
 <%@ page import="org.jivesoftware.openfire.plugin.MonitoringPlugin"%>
 <%@ page import="org.jivesoftware.openfire.archive.ArchiveIndexer" %>
-<%@ page import="org.jivesoftware.openfire.archive.ConversationManager, org.jivesoftware.util.ByteFormat, org.jivesoftware.util.ParamUtils" %>
+<%@ page import="org.jivesoftware.openfire.archive.ConversationManager" %>
+<%@ page import="org.jivesoftware.util.ByteFormat" %>
+<%@ page import="org.jivesoftware.util.ParamUtils" %>
 <%@ page import="org.jivesoftware.openfire.XMPPServer" %>
 <%@ page import="org.jivesoftware.util.StringUtils" %>
 <%@ page import="org.jivesoftware.util.CookieUtils" %>
-<%@ page import="org.jivesoftware.util.ParamUtils" %>
 <%@ page import="java.time.Duration" %>
 <%@ page import="java.util.HashMap" %>
 <%@ page import="java.util.Map" %>
 <%@ page import="com.reucon.openfire.plugin.archive.impl.MucIndexer" %>
-<%@ page import="org.jivesoftware.openfire.plugin.service.LogAPI" %>
 <%@ page import="org.jivesoftware.openfire.http.HttpBindManager" %>
 <%@ page import="com.reucon.openfire.plugin.archive.impl.MessageIndexer" %>
 <%@ page import="org.jivesoftware.openfire.archive.MonitoringConstants" %>
 <%@ page import="org.jivesoftware.openfire.cluster.ClusterManager" %>
 <%@ page import="org.jivesoftware.openfire.index.LuceneIndexer" %>
+<%@ page import="org.jivesoftware.openfire.plugin.web.LogsBrowserServlet" %>
 
 <%@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c" %>
 <%@ taglib uri="http://java.sun.com/jsp/jstl/fmt" prefix="fmt" %>
@@ -296,10 +297,10 @@
         boolean publicLogs = request.getParameter("publicLogs") != null;
 
         if (errors.isEmpty()) {
-            LogAPI.PROP_ENABLED.setValue(publicLogs);
+            LogsBrowserServlet.PROP_ENABLED.setValue(publicLogs);
 
             webManager.logEvent("Changed public logs settings (monitoring plugin)",
-                                "Expose public room logs API: " + publicLogs);
+                                "Expose public room logs: " + publicLogs);
 %>
 <div class="success">
     <fmt:message key="archive.settings.success"/>
@@ -467,7 +468,7 @@
         <tr>
             <td width="90%"><label class="jive-label" for="publicLogs"><fmt:message key="archive.settings.logs.public.enable"/>:</label><br>
                 <fmt:message key="archive.settings.logs.public.enable.description"/></td>
-            <td><input type="checkbox" id="publicLogs" name="publicLogs" <%= LogAPI.PROP_ENABLED.getValue() ? "checked" : "" %> /></td>
+            <td><input type="checkbox" id="publicLogs" name="publicLogs" <%= LogsBrowserServlet.PROP_ENABLED.getValue() ? "checked" : "" %> /></td>
         </tr>
         </tbody>
     </table>

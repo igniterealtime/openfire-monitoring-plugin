@@ -1,0 +1,189 @@
+/* Styling for server-rendered public log browser pages. */
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background: #fff;
+  color: #000;
+}
+
+.page {
+  margin: 0 auto;
+  max-width: 1280px;
+  padding: 1.5rem;
+}
+
+.header {
+  margin-bottom: 1rem;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.brand img {
+  max-width: 160px;
+  height: auto;
+}
+
+.brand h1 {
+  color: #475457;
+  margin: 0;
+}
+
+.subtitle {
+  margin: 0.2rem 0 0;
+  color: #666;
+}
+
+a {
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+.selector-form {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.8rem;
+  flex-wrap: wrap;
+  background: #f6f6f6;
+  border: 1px solid #e1e1e1;
+  padding: 0.9rem;
+  margin-bottom: 0.6rem;
+}
+
+.selector-form label {
+  font-weight: 600;
+  color: #475457;
+}
+
+.selector-form select,
+.selector-form input[type="date"] {
+  min-width: 280px;
+  padding: 0.45rem 0.5rem;
+  border: 1px solid #bbb;
+  border-radius: 3px;
+  background: #fff;
+}
+
+.selector-form button {
+  padding: 0.5rem 0.8rem;
+  border: 1px solid #0e639c;
+  background: #0e639c;
+  color: #fff;
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+.selector-form button:hover {
+  background: #0b517d;
+}
+
+.hint {
+  margin-top: 0.3rem;
+  color: #666;
+}
+
+.day-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  background: #f6f6f6;
+  border: 1px solid #e1e1e1;
+  padding: 0.55rem 0.7rem;
+  margin-bottom: 0.6rem;
+}
+
+.day-nav-current {
+  font-weight: 600;
+  color: #475457;
+}
+
+.day-nav-link {
+  font-weight: 600;
+}
+
+.day-nav-disabled {
+  color: #999;
+}
+
+ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border: 1px solid #e1e1e1;
+}
+
+li + li {
+  border-top: 1px solid #e9e9e9;
+}
+
+li a {
+  display: block;
+  padding: 0.7rem 0.8rem;
+  background: #fff;
+}
+
+li a:hover {
+  background: #f6f6f6;
+}
+
+#table-wrapper {
+  position: relative;
+}
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+th,
+td {
+  border: 1px solid #ddd;
+  padding: 0.4rem;
+  text-align: left;
+  vertical-align: top;
+}
+
+th {
+  white-space: nowrap;
+  background: #f4f4f4;
+}
+
+td {
+  white-space: nowrap;
+}
+
+td:last-child {
+  white-space: normal;
+}
+
+tr:nth-child(even) {
+  background: #f6f6f6;
+}
+
+.error {
+  color: #b20000;
+}
+
+.message-row {
+  cursor: pointer;
+}
+
+.message-row td {
+  user-select: none;
+}
+
+.message-row:hover {
+  background: #eef6ff;
+}
+
+tr.selected {
+  background: #fff7d1 !important;
+}
+

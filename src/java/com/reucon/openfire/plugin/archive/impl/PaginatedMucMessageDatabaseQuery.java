@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2020 Ignite Realtime Foundation. All rights reserved.
+ * Copyright (C) 2020-2026 Ignite Realtime Foundation. All rights reserved.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -177,13 +177,8 @@ public class PaginatedMucMessageDatabaseQuery extends AbstractPaginatedMamMucQue
 
     private String buildQueryForMessages( @Nullable final Long after, @Nullable final Long before, final int maxResults, final boolean isPagingBackwards )
     {
-       // What SQL keyword should be used to limit the result set: TOP() or LIMIT ?
-       final boolean useTopClause = DbConnectionManager.getDatabaseType().equals(DbConnectionManager.DatabaseType.sqlserver);
-       final boolean useFetchFirstClause = DbConnectionManager.getDatabaseType().equals(DbConnectionManager.DatabaseType.oracle);
-       final boolean useLimitClause = !useTopClause && !useFetchFirstClause;
-
        String sql = "SELECT";
-       if (useTopClause) {
+       if (DbConnectionManager.getDatabaseType().getResultSetLimitKeyword() == DbConnectionManager.ResultSetLimitKeyword.TOP) {
           sql += " TOP(" + maxResults + ")";
        }
        sql += " fromJID, fromJIDResource, toJID, toJIDResource, sentDate, body, stanza, messageID"
@@ -241,9 +236,9 @@ public class PaginatedMucMessageDatabaseQuery extends AbstractPaginatedMamMucQue
 
        sql += " ORDER BY sentDate " + (isPagingBackwards ? "DESC" : "ASC");
 
-       if (useLimitClause) {
+       if (DbConnectionManager.getDatabaseType().getResultSetLimitKeyword() == DbConnectionManager.ResultSetLimitKeyword.LIMIT) {
           sql += " LIMIT " + maxResults;
-       } else if(useFetchFirstClause) {
+       } else if (DbConnectionManager.getDatabaseType().getResultSetLimitKeyword() == DbConnectionManager.ResultSetLimitKeyword.FETCH_FIRST) {
           sql += " FETCH FIRST " + maxResults + " ROWS ONLY ";          
        }
        return sql;
