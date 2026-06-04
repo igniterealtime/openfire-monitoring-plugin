@@ -135,8 +135,14 @@ public class JdbcPersistenceManager implements PersistenceManager {
                 limitSB.append(" AND ").append(firstIndex+max);
             }
             else {
-                limitSB.append(" LIMIT ").append(max);
-                limitSB.append(" OFFSET ").append(firstIndex);
+                if (DbConnectionManager.getDatabaseType() == DbConnectionManager.DatabaseType.firebird) {
+                    limitSB.append(" OFFSET ").append(firstIndex);
+                    limitSB.append(" ROWS FETCH NEXT ").append(max).append(" ROWS ONLY");
+                }
+                else {
+                    limitSB.append(" LIMIT ").append(max);
+                    limitSB.append(" OFFSET ").append(firstIndex);
+                }
             }
             xmppResultSet.setFirstIndex(firstIndex);
         }

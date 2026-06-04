@@ -202,6 +202,33 @@ public class PaginatedMucMessageFromOpenfireDatabaseQuery extends AbstractPagina
         return sql;
     }
 
+    private String getStatementForFirebird(final Long after, final Long before, final int maxResults, final boolean isPagingBackwards)
+    {
+        String sql = "SELECT sender, nickname, logTime, subject, body, stanza, messageId ";
+        sql += " FROM ( ";
+        sql += "   SELECT sender, nickname, logTime, subject, body, stanza, messageId FROM ofMucConversationLog ";
+        sql += "   WHERE messageId IS NOT NULL AND logTime > ? AND logTime <= ? AND roomID = ? AND (nickname IS NOT NULL OR subject IS NOT NULL) ";
+        if ( with != null ) {
+            if (with.getResource() == null) {
+                sql += " AND sender LIKE ? ";
+            } else {
+                sql += " AND sender = ? ";
+            }
+        }
+        if ( after != null ) {
+            sql += " AND messageId > ? ";
+        }
+        if ( before != null ) {
+            sql += " AND messageId < ? ";
+        }
+
+        sql += "ORDER BY logTime " + (isPagingBackwards ? "DESC" : "ASC");
+        sql += " FETCH FIRST " + maxResults + " ROWS ONLY";
+        sql += " ) AS part ";
+        sql += " ORDER BY logTime ASC";
+        return sql;
+    }
+
     private String getStatementForSQLServer(final Long after, final Long before, final int maxResults, final boolean isPagingBackwards)
     {
         String sql = "SELECT sender, nickname, logTime, subject, body, stanza, messageId ";
@@ -238,6 +265,9 @@ public class PaginatedMucMessageFromOpenfireDatabaseQuery extends AbstractPagina
             case mysql:
             case mariadb:
                 return getStatementForMySQL( after, before, maxResults, isPagingBackwards );
+
+            case firebird:
+                return getStatementForFirebird( after, before, maxResults, isPagingBackwards );
 
             case sqlserver:
                 return getStatementForSQLServer( after, before, maxResults, isPagingBackwards );

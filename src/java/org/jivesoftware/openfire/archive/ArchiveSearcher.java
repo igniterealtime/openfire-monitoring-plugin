@@ -354,12 +354,18 @@ public class ArchiveSearcher {
                 || DbConnectionManager.getDatabaseType() == DbConnectionManager.DatabaseType.cockroachdb) {
                 query.append(" LIMIT ").append(numResults).append(" OFFSET ").append(startIndex);
             }
-			// SQL Server optimization: use the OFFSET command to tell the database how many
-            // rows we need returned. The syntax is OFFSET [offset] ROWS FETCH NEXT [rows] ROWS ONLY
-			else if (DbConnectionManager.getDatabaseType() == DbConnectionManager.DatabaseType.sqlserver) {
+            // Firebird optimization: use the OFFSET/FETCH syntax.
+            else if (DbConnectionManager.getDatabaseType() == DbConnectionManager.DatabaseType.firebird) {
                 query.append(" OFFSET ").append(startIndex)
-				.append(" ROWS FETCH NEXT ").append(numResults)
-				.append(" ROWS ONLY ");
+                    .append(" ROWS FETCH NEXT ").append(numResults)
+                    .append(" ROWS ONLY ");
+            }
+            // SQL Server optimization: use the OFFSET command to tell the database how many
+            // rows we need returned. The syntax is OFFSET [offset] ROWS FETCH NEXT [rows] ROWS ONLY
+            else if (DbConnectionManager.getDatabaseType() == DbConnectionManager.DatabaseType.sqlserver) {
+                query.append(" OFFSET ").append(startIndex)
+                .append(" ROWS FETCH NEXT ").append(numResults)
+                .append(" ROWS ONLY ");
             }
         }
 
@@ -376,22 +382,24 @@ public class ArchiveSearcher {
             pstmt = DbConnectionManager.createScrollablePreparedStatement(con, cachedPstmt.getSQL());
             cachedPstmt.setParams(pstmt);
             // Set the maximum number of rows to end at the end of this block.
-            // A MySQL/MariaDB/CockroachDB/PostgreSQL optimization using the LIMIT command is part of the SQL.
-            // Therefore, we can skip this call on MySQL/MariaDB/CockroachDB/PostgreSQL.
+            // A MySQL/MariaDB/CockroachDB/PostgreSQL/Firebird optimization using the result-set pagination syntax is part of the SQL.
+            // Therefore, we can skip this call on MySQL/MariaDB/CockroachDB/PostgreSQL/Firebird.
             if (DbConnectionManager.getDatabaseType() != DbConnectionManager.DatabaseType.mysql
                 && DbConnectionManager.getDatabaseType() != DbConnectionManager.DatabaseType.mariadb
                 && DbConnectionManager.getDatabaseType() != DbConnectionManager.DatabaseType.postgresql
+                && DbConnectionManager.getDatabaseType() != DbConnectionManager.DatabaseType.firebird
                 && DbConnectionManager.getDatabaseType() != DbConnectionManager.DatabaseType.cockroachdb)
             {
                 DbConnectionManager.setMaxRows(pstmt, startIndex+numResults);
             }
             ResultSet rs = pstmt.executeQuery();
             // Position the cursor right before the first row that we're insterested in.
-            // A MySQL/MariaDB/CockroachDB and Postgres optimization using the LIMIT command is part of the SQL.
-            // Therefore, we can skip this call on MySQL/MariaDB/CockroachDB or Postgres.
+            // A MySQL/MariaDB/CockroachDB/PostgreSQL/Firebird optimization using pagination syntax is part of the SQL.
+            // Therefore, we can skip this call on MySQL/MariaDB/CockroachDB/PostgreSQL/Firebird.
             if (DbConnectionManager.getDatabaseType() != DbConnectionManager.DatabaseType.mysql
                 && DbConnectionManager.getDatabaseType() != DbConnectionManager.DatabaseType.mariadb
                 && DbConnectionManager.getDatabaseType() != DbConnectionManager.DatabaseType.postgresql
+                && DbConnectionManager.getDatabaseType() != DbConnectionManager.DatabaseType.firebird
                 && DbConnectionManager.getDatabaseType() != DbConnectionManager.DatabaseType.cockroachdb)
             {
                 DbConnectionManager.scrollResultSet(rs, startIndex);
