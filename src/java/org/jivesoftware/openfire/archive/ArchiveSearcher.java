@@ -348,9 +348,10 @@ public class ArchiveSearcher {
                 || DbConnectionManager.getDatabaseType() == DbConnectionManager.DatabaseType.mariadb) {
                 query.append(" LIMIT ").append(startIndex).append(",").append(numResults);
             }
-            // PostgreSQL optimization: use the LIMIT command to tell the database how many
+            // PostgreSQL/CockroachDB optimization: use the LIMIT command to tell the database how many
             // rows we need returned. The syntax is LIMIT [rows] OFFSET [offset]
-            else if (DbConnectionManager.getDatabaseType() == DbConnectionManager.DatabaseType.postgresql) {
+            else if (DbConnectionManager.getDatabaseType() == DbConnectionManager.DatabaseType.postgresql
+                || DbConnectionManager.getDatabaseType() == DbConnectionManager.DatabaseType.cockroachdb) {
                 query.append(" LIMIT ").append(numResults).append(" OFFSET ").append(startIndex);
             }
 			// SQL Server optimization: use the OFFSET command to tell the database how many
@@ -375,21 +376,23 @@ public class ArchiveSearcher {
             pstmt = DbConnectionManager.createScrollablePreparedStatement(con, cachedPstmt.getSQL());
             cachedPstmt.setParams(pstmt);
             // Set the maximum number of rows to end at the end of this block.
-            // A MySQL/MariaDB optimization using the LIMIT command is part of the SQL.
-            // Therefore, we can skip this call on MySQL/MariaDB.
+            // A MySQL/MariaDB/CockroachDB/PostgreSQL optimization using the LIMIT command is part of the SQL.
+            // Therefore, we can skip this call on MySQL/MariaDB/CockroachDB/PostgreSQL.
             if (DbConnectionManager.getDatabaseType() != DbConnectionManager.DatabaseType.mysql
                 && DbConnectionManager.getDatabaseType() != DbConnectionManager.DatabaseType.mariadb
-                && DbConnectionManager.getDatabaseType() != DbConnectionManager.DatabaseType.postgresql)
+                && DbConnectionManager.getDatabaseType() != DbConnectionManager.DatabaseType.postgresql
+                && DbConnectionManager.getDatabaseType() != DbConnectionManager.DatabaseType.cockroachdb)
             {
                 DbConnectionManager.setMaxRows(pstmt, startIndex+numResults);
             }
             ResultSet rs = pstmt.executeQuery();
             // Position the cursor right before the first row that we're insterested in.
-            // A MySQL/MariaDB and Postgres optimization using the LIMIT command is part of the SQL.
-            // Therefore, we can skip this call on MySQL/MariaDB or Postgres.
+            // A MySQL/MariaDB/CockroachDB and Postgres optimization using the LIMIT command is part of the SQL.
+            // Therefore, we can skip this call on MySQL/MariaDB/CockroachDB or Postgres.
             if (DbConnectionManager.getDatabaseType() != DbConnectionManager.DatabaseType.mysql
                 && DbConnectionManager.getDatabaseType() != DbConnectionManager.DatabaseType.mariadb
-                && DbConnectionManager.getDatabaseType() != DbConnectionManager.DatabaseType.postgresql)
+                && DbConnectionManager.getDatabaseType() != DbConnectionManager.DatabaseType.postgresql
+                && DbConnectionManager.getDatabaseType() != DbConnectionManager.DatabaseType.cockroachdb)
             {
                 DbConnectionManager.scrollResultSet(rs, startIndex);
             }
