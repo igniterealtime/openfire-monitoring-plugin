@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019 Ignite Realtime Foundation. All rights reserved.
+ * Copyright (C) 2019-2026 Ignite Realtime Foundation. All rights reserved.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -236,6 +236,7 @@ public class PaginatedMucMessageFromOpenfireDatabaseQuery extends AbstractPagina
         switch (org.jivesoftware.database.DbConnectionManager.getDatabaseType())
         {
             case mysql:
+            case mariadb:
                 return getStatementForMySQL( after, before, maxResults, isPagingBackwards );
 
             case sqlserver:

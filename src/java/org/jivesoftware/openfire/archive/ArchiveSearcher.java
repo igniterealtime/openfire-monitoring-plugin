@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008 Jive Software. All rights reserved.
+ * Copyright (C) 2008 Jive Software, 2026 Ignite Realtime Foundation. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -342,9 +342,10 @@ public class ArchiveSearcher {
         int startIndex = search.getStartIndex();
         int numResults = search.getNumResults();
         if (numResults != ArchiveSearch.NULL_INT) {
-            // MySQL optimization: use the LIMIT command to tell the database how many
+            // MySQL/MariaDB optimization: use the LIMIT command to tell the database how many
             // rows we need returned. The syntax is LIMIT [offset],[rows]
-            if (DbConnectionManager.getDatabaseType() == DbConnectionManager.DatabaseType.mysql) {
+            if (DbConnectionManager.getDatabaseType() == DbConnectionManager.DatabaseType.mysql
+                || DbConnectionManager.getDatabaseType() == DbConnectionManager.DatabaseType.mariadb) {
                 query.append(" LIMIT ").append(startIndex).append(",").append(numResults);
             }
             // PostgreSQL optimization: use the LIMIT command to tell the database how many
@@ -374,18 +375,20 @@ public class ArchiveSearcher {
             pstmt = DbConnectionManager.createScrollablePreparedStatement(con, cachedPstmt.getSQL());
             cachedPstmt.setParams(pstmt);
             // Set the maximum number of rows to end at the end of this block.
-            // A MySQL optimization using the LIMIT command is part of the SQL.
-            // Therefore, we can skip this call on MySQL.
+            // A MySQL/MariaDB optimization using the LIMIT command is part of the SQL.
+            // Therefore, we can skip this call on MySQL/MariaDB.
             if (DbConnectionManager.getDatabaseType() != DbConnectionManager.DatabaseType.mysql
+                && DbConnectionManager.getDatabaseType() != DbConnectionManager.DatabaseType.mariadb
                 && DbConnectionManager.getDatabaseType() != DbConnectionManager.DatabaseType.postgresql)
             {
                 DbConnectionManager.setMaxRows(pstmt, startIndex+numResults);
             }
             ResultSet rs = pstmt.executeQuery();
             // Position the cursor right before the first row that we're insterested in.
-            // A MySQL and Postgres optimization using the LIMIT command is part of the SQL.
-            // Therefore, we can skip this call on MySQL or Postgres.
+            // A MySQL/MariaDB and Postgres optimization using the LIMIT command is part of the SQL.
+            // Therefore, we can skip this call on MySQL/MariaDB or Postgres.
             if (DbConnectionManager.getDatabaseType() != DbConnectionManager.DatabaseType.mysql
+                && DbConnectionManager.getDatabaseType() != DbConnectionManager.DatabaseType.mariadb
                 && DbConnectionManager.getDatabaseType() != DbConnectionManager.DatabaseType.postgresql)
             {
                 DbConnectionManager.scrollResultSet(rs, startIndex);
