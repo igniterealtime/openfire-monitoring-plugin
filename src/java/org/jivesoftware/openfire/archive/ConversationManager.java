@@ -1077,6 +1077,11 @@ public class ConversationManager implements ComponentEventListener{
      * Returns the database identifier of a message that is identified by a particular
      * XEP-0359-defined Unique and Stable Stanza ID.
      *
+     * For backwards compatibility, a value that does not match any XEP-0359 identifier in the archive is evaluated as
+     * a database identifier (which is the identifier that was used by this implementation before it started to use
+     * XEP-0359 identifiers). This allows clients that obtained a database identifier from an older version of this
+     * plugin to continue to use that value in, for example, RSM-based paging.
+     *
      * @param owner The owner of the message to lookup (cannot be null).
      * @param value The XEP-0359 identifier (cannot be null or empty)
      * @return A message ID, or null of no match was found.
@@ -1107,7 +1112,10 @@ public class ConversationManager implements ComponentEventListener{
                     final Document doc = DocumentHelper.parseText( stanza );
                     final Message message = new Message( doc.getRootElement() );
                     final String sid = StanzaIDUtil.findFirstUniqueAndStableStanzaID( message, owner.toBareJID() );
-                    if ( sid != null ) {
+
+                    // The database query uses a 'like' comparison. Verify that the value is an exact match (otherwise,
+                    // a message that merely _contains_ the value, eg: in its body, would be matched).
+                    if ( sid != null && sid.equals( value ) ) {
                         Log.debug( "Found stable/unique stanza ID {} in message with ID {}.", value, messageId );
                         return messageId;
                     }
@@ -1129,6 +1137,9 @@ public class ConversationManager implements ComponentEventListener{
 
         Log.debug( "Unable to find ID of the message with stable/unique stanza ID {}", value );
 
+        // Backwards compatibility: older versions of this plugin did not use XEP-0359 identifiers for one-to-one
+        // messages, but exposed the database identifier to clients instead. Such a value can still be in use by
+        // clients that interacted with an older version of this plugin.
         try {
             Log.debug( "Fallback mechanism: parse value as old database identifier: '{}'", value );
             return Long.parseLong( value );

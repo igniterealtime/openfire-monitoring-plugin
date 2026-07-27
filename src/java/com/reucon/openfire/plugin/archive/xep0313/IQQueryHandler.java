@@ -574,16 +574,32 @@ abstract public class IQQueryHandler extends AbstractIQHandler implements
         }
         final Forwarded fwd = new Forwarded(rootElement, archivedMessage.getTime(), null);
 
-        if (archivedMessage.getId() == null) {
-            // TODO The MAM XEP specifies that there _must_ be an ID value in the result element. Traditionally, this
-            // code used the database ID. That introduces a weird dependency that a message must have a database ID
-            // before it can be used in results. In practise, that will probably always be the case, but it is not a
-            // particularly nice dependency.
-            throw new IllegalStateException("Unable to use an archived message that has no database ID.");
+        // When this implementation uses XEP-0359 identifiers, the value that is used in the 'id' attribute of the
+        // result should be the stable and unique stanza ID of the message (as that is the value that clients are
+        // expected to use in, for example, subsequent RSM-based paging requests).
+        String resultId = null;
+        if (usesUniqueAndStableIDs()) {
+            final String stableId = archivedMessage.getStableId(queryRequest.getArchive().asBareJID());
+            if (stableId != null && !stableId.isEmpty()) {
+                resultId = stableId;
+            }
         }
 
-        // TODO Can/should we use a SSID instead of the database ID for the result 'ID' attribute value?
-        messagePacket.addExtension(new Result(fwd, NAMESPACE, queryRequest.getQueryid(), archivedMessage.getId().toString()));
+        if (resultId == null) {
+            // Messages that were archived by an older version of this plugin do not have a stable and unique stanza ID
+            // (and neither do messages when the corresponding functionality is disabled by configuration). For those,
+            // fall back to using the database ID, which is the value that this implementation has traditionally used.
+            if (archivedMessage.getId() == null) {
+                // TODO The MAM XEP specifies that there _must_ be an ID value in the result element. Traditionally, this
+                // code used the database ID. That introduces a weird dependency that a message must have a database ID
+                // before it can be used in results. In practise, that will probably always be the case, but it is not a
+                // particularly nice dependency.
+                throw new IllegalStateException("Unable to use an archived message that has no database ID.");
+            }
+            resultId = archivedMessage.getId().toString();
+        }
+
+        messagePacket.addExtension(new Result(fwd, NAMESPACE, queryRequest.getQueryid(), resultId));
         router.route(messagePacket);
     }
 

@@ -81,9 +81,16 @@ public class ArchiveInterceptor implements PacketInterceptor {
                             return;
                         }
                     }
+                    // Add XEP-0359 'Unique and Stable Stanza IDs' to the archived representation of the stanza (which
+                    // Openfire, unlike for messages exchanged in a chat room, does not add to one-to-one messages).
+                    // Note that this does not modify the stanza that is being routed to its addressee.
+                    final String stanza = conversationManager.isMessageArchivingEnabled()
+                            ? ArchiveStanzaIDUtil.getArchivableStanzaXml(message, message.getFrom(), message.getTo())
+                            : message.toXML();
+
                     // Process this event in the senior cluster member or local JVM when not in a cluster
                     if (ClusterManager.isSeniorClusterMember()) {
-                        conversationManager.processMessage(message.getFrom(), message.getTo(), message.getBody(), message.toXML(), new Date());
+                        conversationManager.processMessage(message.getFrom(), message.getTo(), message.getBody(), stanza, new Date());
                     }
                     else {
                         JID sender = message.getFrom();
@@ -92,7 +99,7 @@ public class ArchiveInterceptor implements PacketInterceptor {
                         eventsQueue.addChatEvent(conversationManager.getConversationKey(sender, receiver),
                                 ConversationEvent.chatMessageReceived(sender, receiver,
                                         conversationManager.isMessageArchivingEnabled() ? message.getBody() : null,
-                                        conversationManager.isMessageArchivingEnabled() ? message.toXML() : null,
+                                        conversationManager.isMessageArchivingEnabled() ? stanza : null,
                                         new Date()));
                     }
                 }
