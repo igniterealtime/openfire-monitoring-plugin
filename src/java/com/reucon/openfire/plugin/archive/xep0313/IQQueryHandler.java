@@ -9,6 +9,7 @@ import org.dom4j.Element;
 import org.dom4j.QName;
 import org.jivesoftware.openfire.PacketRouter;
 import org.jivesoftware.openfire.XMPPServer;
+import org.jivesoftware.openfire.archive.ArchiveStanzaIDUtil;
 import org.jivesoftware.openfire.archive.ConversationManager;
 import org.jivesoftware.openfire.archive.MonitoringConstants;
 import org.jivesoftware.openfire.auth.UnauthorizedException;
@@ -565,6 +566,13 @@ abstract public class IQQueryHandler extends AbstractIQHandler implements
         }
 
         final Element rootElement = stanza.getElement().createCopy();
+
+        // A one-to-one message is stored in the archive only once, even though it is part of the archive of both
+        // participants of the conversation. The archived representation therefore contains a XEP-0359 identifier for
+        // each of them. Remove the identifiers that were generated for other local users: a user should not learn the
+        // identifier that is used in the archive of another user.
+        ArchiveStanzaIDUtil.filterForArchiveOwner( rootElement, queryRequest.getArchive().asBareJID() );
+
         if ( isMuc ) {
             // XEP-0313 specifies in section 5.1.2 MUC Archives: When sending out the archives to a requesting client, the forwarded stanza MUST NOT have a 'to' attribute.
             final Attribute to = rootElement.attribute("to");

@@ -177,7 +177,9 @@ public class GroupConversationInterceptor implements MUCEventListener {
             final Date now = new Date();
             // When a private message is stored in a personal archive, it is stored as a regular 'one-on-one' message.
             // The stanza-id that was added by the MUC service uses the room as its 'by' value, which is of no use to
-            // the owners of the personal archives. Add stanza-ids for them (this does not modify the routed stanza).
+            // the owners of the personal archives. Add stanza-ids for those (local) owners. Note that, unlike regular
+            // one-to-one messages, these identifiers are added to the archived representation of the message only: at
+            // the time that the message is routed, its addressee is an occupant of a room, rather than a local user.
             final String personalArchiveStanza = ArchiveStanzaIDUtil.getArchivableStanzaXml(message, fromJID, toJID);
 
             if (ClusterManager.isSeniorClusterMember()) {
