@@ -45,6 +45,10 @@ import java.util.Date;
  * recipient of that message (if that recipient is a local user). When the message is archived, an identifier for the
  * archive of the sender is added to the archived representation of the message only.
  *
+ * Before a message is delivered to a local user, this interceptor removes the identifiers that were generated for other
+ * local users from that message (which is needed for Message Carbons copies, that are generated from the stanza that was
+ * routed to its recipient).
+ *
  * @author Matt Tucker
  * @see ArchiveStanzaIDUtil
  */
@@ -61,8 +65,15 @@ public class ArchiveInterceptor implements PacketInterceptor {
             throws PacketRejectedException
     {
         if (packet instanceof Message) {
-            // Ignore any outgoing messages (we'll catch them when they're incoming).
+            // Ignore any outgoing messages (we'll catch them when they're incoming), but do remove the XEP-0359
+            // identifiers that were generated for other users from the stanza that is about to be delivered.
             if (!incoming) {
+                if (!processed && session != null) {
+                    // A Message Carbons 'sent' copy is generated from the stanza that was routed to the recipient of
+                    // that stanza, and therefore contains the identifier that is used in the archive of that recipient.
+                    // A user should not learn the identifier that is used in the archive of another user.
+                    ArchiveStanzaIDUtil.filterForRecipient((Message) packet, session.getAddress());
+                }
                 return;
             }
             Message message = (Message) packet;
