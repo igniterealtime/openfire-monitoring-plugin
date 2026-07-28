@@ -25,17 +25,37 @@ import org.xmpp.packet.JID;
 import org.xmpp.packet.Message;
 
 import java.util.List;
+import java.util.function.Predicate;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 /**
- * Verifies the implementation of {@link ArchiveStanzaIDUtil#getArchivableStanzaXml(Message, JID...)}, which adds
- * XEP-0359 'Unique and Stable Stanza IDs' to the representation of a one-to-one message that is stored in the archive.
+ * Verifies the implementation of {@link ArchiveStanzaIDUtil}, which adds XEP-0359 'Unique and Stable Stanza IDs' to
+ * one-to-one messages that are stored in the archive.
  */
 public class ArchiveStanzaIDUtilTest {
+
+    /**
+     * The domain that, in the context of these tests, is served by the local server. Every account on this domain is
+     * assumed to be a local user (which is the only kind of entity for which this implementation generates
+     * identifiers).
+     */
+    private static final String LOCAL_DOMAIN = "local.example";
+
+    /**
+     * Substitute for the implementation that, at runtime, determines if an entity is an account that is registered
+     * with the local server (which requires a running server instance).
+     */
+    private static final Predicate<JID> IS_LOCAL_USER = jid -> jid != null && jid.getNode() != null && LOCAL_DOMAIN.equals(jid.getDomain());
+
+    private static final JID ROMEO = new JID("romeo@" + LOCAL_DOMAIN + "/orchard");
+    private static final JID JULIET = new JID("juliet@" + LOCAL_DOMAIN + "/balcony");
+    private static final JID BASTANIO = new JID("bastanio@remote.example/home");
+    private static final JID ROOM = new JID("room@conference." + LOCAL_DOMAIN);
 
     private static Message parse(final String xml) throws Exception {
         final Document document = DocumentHelper.parseText(xml);
@@ -55,45 +75,142 @@ public class ArchiveStanzaIDUtilTest {
         return message;
     }
 
-    /**
-     * Asserts that a stanza-id is added for each of the participants of a one-to-one conversation (as a one-to-one
-     * message is stored only once, but is part of the archive of both participants).
-     */
-    @Test
-    public void testAddsStanzaIdForEachArchiveOwner() throws Exception {
-        // Setup test fixture.
-        final JID from = new JID("john@example.org/laptop");
-        final JID to = new JID("jane@example.com/phone");
-        final Message input = newMessage(from, to);
-
-        // Execute system under test.
-        final Message result = parse(ArchiveStanzaIDUtil.getArchivableStanzaXml(input, from, to));
-
-        // Verify results.
-        final List<Element> stanzaIds = getStanzaIdElements(result);
-        assertEquals(2, stanzaIds.size());
-        assertNotNull(StanzaIDUtil.findFirstUniqueAndStableStanzaID(result, from.toBareJID()));
-        assertNotNull(StanzaIDUtil.findFirstUniqueAndStableStanzaID(result, to.toBareJID()));
+    private static Element addStanzaId(final Message message, final String id, final String by) {
+        final Element element = message.getElement().addElement(QName.get("stanza-id", "urn:xmpp:sid:0"));
+        element.addAttribute("id", id);
+        element.addAttribute("by", by);
+        return element;
     }
 
     /**
-     * Asserts that the same identifier value is used for each of the archive owners. This makes the value usable even
-     * by clients that do not verify the 'by' attribute of the element.
+     * Asserts that the stanza that is delivered to a local recipient contains a stanza-id for the archive of that
+     * recipient (which allows the recipient to correlate the message with the message in its archive).
      */
     @Test
-    public void testUsesSameIdForEachArchiveOwner() throws Exception {
+    public void testStampsRoutedStanzaForLocalRecipient() {
         // Setup test fixture.
-        final JID from = new JID("john@example.org/laptop");
-        final JID to = new JID("jane@example.com/phone");
-        final Message input = newMessage(from, to);
+        final Message input = newMessage(ROMEO, JULIET);
 
         // Execute system under test.
-        final Message result = parse(ArchiveStanzaIDUtil.getArchivableStanzaXml(input, from, to));
+        final String id = ArchiveStanzaIDUtil.addStanzaIDToRoutedStanza(input, JULIET, IS_LOCAL_USER);
 
         // Verify results.
-        assertEquals(
-            StanzaIDUtil.findFirstUniqueAndStableStanzaID(result, from.toBareJID()),
-            StanzaIDUtil.findFirstUniqueAndStableStanzaID(result, to.toBareJID()));
+        assertNotNull(id);
+        assertEquals(1, getStanzaIdElements(input).size());
+        assertEquals(id, StanzaIDUtil.findFirstUniqueAndStableStanzaID(input, JULIET.toBareJID()));
+    }
+
+    /**
+     * Asserts that the stanza that is delivered to a local recipient does not contain a stanza-id for the archive of
+     * the sender (a user should not learn the identifier that is used in the archive of another user).
+     */
+    @Test
+    public void testRoutedStanzaDoesNotContainIdOfSender() {
+        // Setup test fixture.
+        final Message input = newMessage(ROMEO, JULIET);
+
+        // Execute system under test.
+        ArchiveStanzaIDUtil.addStanzaIDToRoutedStanza(input, JULIET, IS_LOCAL_USER);
+
+        // Verify results.
+        assertNull(StanzaIDUtil.findFirstUniqueAndStableStanzaID(input, ROMEO.toBareJID()));
+    }
+
+    /**
+     * Asserts that no stanza-id is added to a stanza that is routed to an entity that is not a local user (this
+     * implementation has no authority to generate identifiers on behalf of such an entity).
+     */
+    @Test
+    public void testDoesNotStampRoutedStanzaForRemoteRecipient() {
+        // Setup test fixture.
+        final Message input = newMessage(ROMEO, BASTANIO);
+
+        // Execute system under test.
+        final String id = ArchiveStanzaIDUtil.addStanzaIDToRoutedStanza(input, BASTANIO, IS_LOCAL_USER);
+
+        // Verify results.
+        assertNull(id);
+        assertTrue(getStanzaIdElements(input).isEmpty());
+    }
+
+    /**
+     * Asserts that a (spoofed) stanza-id that claims to be generated by a local user is removed from a stanza that is
+     * being routed, while identifiers of other entities (such as a chat room, or a remote server) are retained.
+     */
+    @Test
+    public void testRemovesSpoofedStanzaIdsOfLocalUsersFromRoutedStanza() {
+        // Setup test fixture.
+        final Message input = newMessage(ROMEO, JULIET);
+        addStanzaId(input, "spoofed-recipient-id", JULIET.toBareJID());
+        addStanzaId(input, "spoofed-sender-id", ROMEO.toBareJID());
+        addStanzaId(input, "remote-id", "remote.example");
+
+        // Execute system under test.
+        final String id = ArchiveStanzaIDUtil.addStanzaIDToRoutedStanza(input, JULIET, IS_LOCAL_USER);
+
+        // Verify results.
+        assertEquals(2, getStanzaIdElements(input).size());
+        assertEquals(id, StanzaIDUtil.findFirstUniqueAndStableStanzaID(input, JULIET.toBareJID()));
+        assertNotEquals("spoofed-recipient-id", id);
+        assertNull(StanzaIDUtil.findFirstUniqueAndStableStanzaID(input, ROMEO.toBareJID()));
+        assertEquals("remote-id", StanzaIDUtil.findFirstUniqueAndStableStanzaID(input, "remote.example"));
+    }
+
+    /**
+     * Asserts that the archived representation of a stanza contains a stanza-id for each of the participants of a
+     * one-to-one conversation (as a one-to-one message is stored only once, but is part of the archive of both
+     * participants), reusing the identifier that was added to the stanza before it was routed.
+     */
+    @Test
+    public void testAddsStanzaIdForEachLocalArchiveOwner() throws Exception {
+        // Setup test fixture.
+        final Message input = newMessage(ROMEO, JULIET);
+        final String routedId = ArchiveStanzaIDUtil.addStanzaIDToRoutedStanza(input, JULIET, IS_LOCAL_USER);
+
+        // Execute system under test.
+        final Message result = parse(ArchiveStanzaIDUtil.getArchivableStanzaXml(input, IS_LOCAL_USER, ROMEO, JULIET));
+
+        // Verify results.
+        assertEquals(2, getStanzaIdElements(result).size());
+        assertEquals(routedId, StanzaIDUtil.findFirstUniqueAndStableStanzaID(result, JULIET.toBareJID()));
+        assertNotNull(StanzaIDUtil.findFirstUniqueAndStableStanzaID(result, ROMEO.toBareJID()));
+    }
+
+    /**
+     * Asserts that a distinct identifier value is used for each archive owner (a participant should not be able to
+     * guess the identifier that is used in the archive of the other participant).
+     */
+    @Test
+    public void testUsesDistinctIdForEachArchiveOwner() throws Exception {
+        // Setup test fixture.
+        final Message input = newMessage(ROMEO, JULIET);
+        ArchiveStanzaIDUtil.addStanzaIDToRoutedStanza(input, JULIET, IS_LOCAL_USER);
+
+        // Execute system under test.
+        final Message result = parse(ArchiveStanzaIDUtil.getArchivableStanzaXml(input, IS_LOCAL_USER, ROMEO, JULIET));
+
+        // Verify results.
+        assertNotEquals(
+            StanzaIDUtil.findFirstUniqueAndStableStanzaID(result, ROMEO.toBareJID()),
+            StanzaIDUtil.findFirstUniqueAndStableStanzaID(result, JULIET.toBareJID()));
+    }
+
+    /**
+     * Asserts that the archived representation of a stanza that is addressed to a remote entity contains a stanza-id
+     * for the local sender only.
+     */
+    @Test
+    public void testDoesNotAddStanzaIdForRemoteArchiveOwner() throws Exception {
+        // Setup test fixture.
+        final Message input = newMessage(ROMEO, BASTANIO);
+
+        // Execute system under test.
+        final Message result = parse(ArchiveStanzaIDUtil.getArchivableStanzaXml(input, IS_LOCAL_USER, ROMEO, BASTANIO));
+
+        // Verify results.
+        assertEquals(1, getStanzaIdElements(result).size());
+        assertNotNull(StanzaIDUtil.findFirstUniqueAndStableStanzaID(result, ROMEO.toBareJID()));
+        assertNull(StanzaIDUtil.findFirstUniqueAndStableStanzaID(result, BASTANIO.toBareJID()));
     }
 
     /**
@@ -103,33 +220,29 @@ public class ArchiveStanzaIDUtilTest {
     @Test
     public void testUsesBareJidsAsByValue() throws Exception {
         // Setup test fixture.
-        final JID from = new JID("john@example.org/laptop");
-        final JID to = new JID("jane@example.com/phone");
-        final Message input = newMessage(from, to);
+        final Message input = newMessage(ROMEO, JULIET);
 
         // Execute system under test.
-        final Message result = parse(ArchiveStanzaIDUtil.getArchivableStanzaXml(input, from, to));
+        final Message result = parse(ArchiveStanzaIDUtil.getArchivableStanzaXml(input, IS_LOCAL_USER, ROMEO, JULIET));
 
         // Verify results.
         for (final Element stanzaId : getStanzaIdElements(result)) {
             final String by = stanzaId.attributeValue("by");
-            assertTrue("Unexpected 'by' value: " + by, from.toBareJID().equals(by) || to.toBareJID().equals(by));
+            assertTrue("Unexpected 'by' value: " + by, ROMEO.toBareJID().equals(by) || JULIET.toBareJID().equals(by));
         }
     }
 
     /**
-     * Asserts that the stanza that is being routed is not modified (only the representation that is archived is).
+     * Asserts that the stanza that is being routed is not modified when the archived representation is created.
      */
     @Test
-    public void testDoesNotModifyOriginalStanza() throws Exception {
+    public void testDoesNotModifyOriginalStanza() {
         // Setup test fixture.
-        final JID from = new JID("john@example.org/laptop");
-        final JID to = new JID("jane@example.com/phone");
-        final Message input = newMessage(from, to);
+        final Message input = newMessage(ROMEO, JULIET);
         final String before = input.toXML();
 
         // Execute system under test.
-        ArchiveStanzaIDUtil.getArchivableStanzaXml(input, from, to);
+        ArchiveStanzaIDUtil.getArchivableStanzaXml(input, IS_LOCAL_USER, ROMEO, JULIET);
 
         // Verify results.
         assertEquals(before, input.toXML());
@@ -143,62 +256,33 @@ public class ArchiveStanzaIDUtilTest {
     @Test
     public void testDeduplicatesArchiveOwners() throws Exception {
         // Setup test fixture.
-        final JID from = new JID("john@example.org/laptop");
-        final JID to = new JID("john@example.org/phone");
-        final Message input = newMessage(from, to);
+        final JID otherResource = new JID(ROMEO.toBareJID() + "/other");
+        final Message input = newMessage(ROMEO, otherResource);
 
         // Execute system under test.
-        final Message result = parse(ArchiveStanzaIDUtil.getArchivableStanzaXml(input, from, to));
+        final Message result = parse(ArchiveStanzaIDUtil.getArchivableStanzaXml(input, IS_LOCAL_USER, ROMEO, otherResource));
 
         // Verify results.
         assertEquals(1, getStanzaIdElements(result).size());
-        assertNotNull(StanzaIDUtil.findFirstUniqueAndStableStanzaID(result, from.toBareJID()));
+        assertNotNull(StanzaIDUtil.findFirstUniqueAndStableStanzaID(result, ROMEO.toBareJID()));
     }
 
     /**
      * Asserts that a stanza-id that was provided by another entity (such as the one that a MUC service adds to a
-     * private message that is exchanged in a chat room) is retained.
+     * private message that is exchanged in a chat room) is retained in the archived representation.
      */
     @Test
     public void testRetainsStanzaIdOfOtherEntity() throws Exception {
         // Setup test fixture.
-        final JID from = new JID("john@example.org/laptop");
-        final JID to = new JID("jane@example.com/phone");
-        final Message input = newMessage(from, to);
-        final Element roomStanzaId = input.getElement().addElement(QName.get("stanza-id", "urn:xmpp:sid:0"));
-        roomStanzaId.addAttribute("id", "room-provided-id");
-        roomStanzaId.addAttribute("by", "room@conference.example.org");
+        final Message input = newMessage(ROMEO, JULIET);
+        addStanzaId(input, "room-provided-id", ROOM.toBareJID());
 
         // Execute system under test.
-        final Message result = parse(ArchiveStanzaIDUtil.getArchivableStanzaXml(input, from, to));
+        final Message result = parse(ArchiveStanzaIDUtil.getArchivableStanzaXml(input, IS_LOCAL_USER, ROMEO, JULIET));
 
         // Verify results.
         assertEquals(3, getStanzaIdElements(result).size());
-        assertEquals("room-provided-id", StanzaIDUtil.findFirstUniqueAndStableStanzaID(result, "room@conference.example.org"));
-    }
-
-    /**
-     * Asserts that a (spoofed) stanza-id that claims to be provided by one of the archive owners is replaced, as
-     * required by XEP-0359.
-     */
-    @Test
-    public void testReplacesSpoofedStanzaId() throws Exception {
-        // Setup test fixture.
-        final JID from = new JID("john@example.org/laptop");
-        final JID to = new JID("jane@example.com/phone");
-        final Message input = newMessage(from, to);
-        final Element spoofed = input.getElement().addElement(QName.get("stanza-id", "urn:xmpp:sid:0"));
-        spoofed.addAttribute("id", "spoofed-id");
-        spoofed.addAttribute("by", to.toBareJID());
-
-        // Execute system under test.
-        final Message result = parse(ArchiveStanzaIDUtil.getArchivableStanzaXml(input, from, to));
-
-        // Verify results.
-        assertEquals(2, getStanzaIdElements(result).size());
-        for (final Element stanzaId : getStanzaIdElements(result)) {
-            assertTrue("Spoofed value was not removed.", !"spoofed-id".equals(stanzaId.attributeValue("id")));
-        }
+        assertEquals("room-provided-id", StanzaIDUtil.findFirstUniqueAndStableStanzaID(result, ROOM.toBareJID()));
     }
 
     /**
@@ -207,15 +291,54 @@ public class ArchiveStanzaIDUtilTest {
     @Test
     public void testWithoutArchiveOwners() throws Exception {
         // Setup test fixture.
-        final JID from = new JID("john@example.org/laptop");
-        final JID to = new JID("jane@example.com/phone");
-        final Message input = newMessage(from, to);
+        final Message input = newMessage(ROMEO, JULIET);
 
         // Execute system under test.
-        final Message result = parse(ArchiveStanzaIDUtil.getArchivableStanzaXml(input));
+        final Message result = parse(ArchiveStanzaIDUtil.getArchivableStanzaXml(input, IS_LOCAL_USER));
 
         // Verify results.
         assertTrue(getStanzaIdElements(result).isEmpty());
-        assertNull(StanzaIDUtil.findFirstUniqueAndStableStanzaID(result, from.toBareJID()));
+        assertNull(StanzaIDUtil.findFirstUniqueAndStableStanzaID(result, ROMEO.toBareJID()));
+    }
+
+    /**
+     * Asserts that a message that is retrieved from the archive of one user does not contain the identifier that is
+     * used in the archive of the other user.
+     */
+    @Test
+    public void testFilterRemovesStanzaIdOfOtherLocalUser() throws Exception {
+        // Setup test fixture.
+        final Message input = newMessage(ROMEO, JULIET);
+        ArchiveStanzaIDUtil.addStanzaIDToRoutedStanza(input, JULIET, IS_LOCAL_USER);
+        final Message archived = parse(ArchiveStanzaIDUtil.getArchivableStanzaXml(input, IS_LOCAL_USER, ROMEO, JULIET));
+        final String romeosId = StanzaIDUtil.findFirstUniqueAndStableStanzaID(archived, ROMEO.toBareJID());
+
+        // Execute system under test.
+        ArchiveStanzaIDUtil.filterForArchiveOwner(archived.getElement(), ROMEO.asBareJID(), IS_LOCAL_USER);
+
+        // Verify results.
+        assertEquals(1, getStanzaIdElements(archived).size());
+        assertEquals(romeosId, StanzaIDUtil.findFirstUniqueAndStableStanzaID(archived, ROMEO.toBareJID()));
+        assertNull(StanzaIDUtil.findFirstUniqueAndStableStanzaID(archived, JULIET.toBareJID()));
+    }
+
+    /**
+     * Asserts that identifiers that were generated by entities that are not local users (such as a chat room, or a
+     * remote server) are retained when a message is retrieved from an archive.
+     */
+    @Test
+    public void testFilterRetainsStanzaIdsOfNonLocalUsers() {
+        // Setup test fixture.
+        final Message input = newMessage(ROMEO, JULIET);
+        addStanzaId(input, "room-provided-id", ROOM.toBareJID());
+        addStanzaId(input, "remote-id", "remote.example");
+
+        // Execute system under test.
+        ArchiveStanzaIDUtil.filterForArchiveOwner(input.getElement(), ROMEO.asBareJID(), IS_LOCAL_USER);
+
+        // Verify results.
+        assertEquals(2, getStanzaIdElements(input).size());
+        assertEquals("room-provided-id", StanzaIDUtil.findFirstUniqueAndStableStanzaID(input, ROOM.toBareJID()));
+        assertEquals("remote-id", StanzaIDUtil.findFirstUniqueAndStableStanzaID(input, "remote.example"));
     }
 }

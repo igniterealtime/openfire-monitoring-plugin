@@ -41,7 +41,12 @@ import java.util.Date;
  * </ul>
  * Therefore, messages that are sent to Publish-Subscribe or any other internal service are ignored.
  *
+ * Before a message is routed, this interceptor adds a XEP-0359 'Unique and Stable Stanza ID' for the archive of the
+ * recipient of that message (if that recipient is a local user). When the message is archived, an identifier for the
+ * archive of the sender is added to the archived representation of the message only.
+ *
  * @author Matt Tucker
+ * @see ArchiveStanzaIDUtil
  */
 public class ArchiveInterceptor implements PacketInterceptor {
 
@@ -55,10 +60,6 @@ public class ArchiveInterceptor implements PacketInterceptor {
     public void interceptPacket(Packet packet, Session session, boolean incoming, boolean processed)
             throws PacketRejectedException
     {
-        // Ignore any packets that haven't already been processed by interceptors.
-        if (!processed) {
-            return;
-        }
         if (packet instanceof Message) {
             // Ignore any outgoing messages (we'll catch them when they're incoming).
             if (!incoming) {
@@ -81,11 +82,28 @@ public class ArchiveInterceptor implements PacketInterceptor {
                             return;
                         }
                     }
-                    // Add XEP-0359 'Unique and Stable Stanza IDs' to the archived representation of the stanza (which
-                    // Openfire, unlike for messages exchanged in a chat room, does not add to one-to-one messages).
-                    // Note that this does not modify the stanza that is being routed to its addressee.
+
+                    if (!processed) {
+                        // Before the stanza is routed, add a XEP-0359 'Unique and Stable Stanza ID' for the archive of
+                        // the recipient (if that is a local user). This allows the recipient to correlate the message
+                        // that is delivered to it with the message in its archive. Openfire does this for messages that
+                        // are exchanged in a chat room, but not for one-to-one messages.
+                        //
+                        // Note that no identifier is added for the archive of the sender: that would allow the
+                        // recipient to learn the identifier that is used in the archive of the sender. The identifier
+                        // for the archive of the sender is added when the message is archived (below).
+                        if (to != null && conversationManager.isMessageArchivingEnabled()) {
+                            ArchiveStanzaIDUtil.addStanzaIDToRoutedStanza(message, to);
+                        }
+                        return;
+                    }
+
+                    // Add a XEP-0359 'Unique and Stable Stanza ID' for the archive of the sender (if that is a local
+                    // user) to the representation of the stanza that is stored in the archive. Unlike the identifier
+                    // that is generated for the recipient (above), this identifier is never transmitted: it is added to
+                    // a copy of the stanza, leaving the stanza that is being routed unmodified.
                     final String stanza = conversationManager.isMessageArchivingEnabled()
-                            ? ArchiveStanzaIDUtil.getArchivableStanzaXml(message, message.getFrom(), message.getTo())
+                            ? ArchiveStanzaIDUtil.getArchivableStanzaXml(message, message.getFrom(), to)
                             : message.toXML();
 
                     // Process this event in the senior cluster member or local JVM when not in a cluster

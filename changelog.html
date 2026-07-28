@@ -46,7 +46,8 @@ Monitoring Plugin Changelog
 
 <p><b>2.8.1</b> -- (in development)</p>
 <ul>
-    <li>Add XEP-0359 'Unique and Stable Stanza IDs' to one-to-one messages that are stored in the archive (previously, only messages exchanged in a chat room had such an identifier). For backwards compatibility, database identifiers continue to be accepted in 'before' and 'after' RSM elements, and continue to be used for messages that were archived without a stanza ID.</li>
+    <li>Add XEP-0359 'Unique and Stable Stanza IDs' to one-to-one messages that are stored in the archive (previously, only messages exchanged in a chat room had such an identifier). For backwards compatibility, database identifiers continue to be accepted in 'before' and 'after' RSM elements, and continue to be used for messages that were archived without a stanza ID. This can be disabled by setting the property 'conversation.stanzaID.enabled' to 'false'.</li>
+    <li>When a one-to-one message is delivered to a local recipient, it now includes the XEP-0359 identifier that is used in the archive of that recipient. This allows a client to correlate a message that is delivered to it with the corresponding message in its archive. The identifier that is used in the archive of the sender is not transmitted: each participant only ever sees the identifier of its own archive.</li>
 </ul>
 
 <p><b>2.8.0</b> -- June 4, 2026</p>
