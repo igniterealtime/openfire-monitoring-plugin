@@ -51,6 +51,10 @@ import java.util.Date;
  * routed to its recipient: the identifier of that recipient is attributed to the user that the copy is delivered to (as
  * both use the same value), or removed when that user is not a participant of the conversation.
  *
+ * A message that is addressed to an entity that is not a local user does not obtain an identifier before it is routed.
+ * The identifier that is used in the archive of the (local) sender of such a message is added to the copies of it that
+ * are delivered to that sender, which is possible as that identifier is derived from the message itself.
+ *
  * @author Matt Tucker
  * @see ArchiveStanzaIDUtil
  */
@@ -75,7 +79,11 @@ public class ArchiveInterceptor implements PacketInterceptor {
                     // that stanza, and therefore contains the identifier that is attributed to that recipient. As the
                     // same value is used in the archive of the sender, it is attributed to the sender here. A user
                     // should not learn an identifier that is attributed to any other user.
-                    ArchiveStanzaIDUtil.adjustForRecipient((Message) packet, session.getAddress());
+                    //
+                    // A stanza that was routed to an entity that is not a local user does not hold an identifier at
+                    // all. For such a stanza, the identifier that is used in the archive of its (local) sender is
+                    // added here, which is possible as that identifier is derived from the stanza itself.
+                    ArchiveStanzaIDUtil.adjustForRecipient((Message) packet, session.getAddress(), conversationManager != null && conversationManager.isMessageArchivingEnabled());
                 }
                 return;
             }
