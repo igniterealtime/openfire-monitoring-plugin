@@ -25,6 +25,11 @@ import org.slf4j.LoggerFactory;
 import org.xmpp.packet.JID;
 import org.xmpp.packet.Message;
 
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
+import java.nio.charset.StandardCharsets;
+import java.security.SecureRandom;
+import java.util.Base64;
 import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.Set;
@@ -56,7 +61,7 @@ import java.util.function.Predicate;
  *         stanza that was sent by another resource of that user). When the user that the stanza is delivered to is a
  *         participant of the conversation that such a (forwarded) stanza is part of, the identifier is not removed, but
  *         is attributed to that user instead: it is the identifier that is used in its own archive. See
- *         {@link #adjustForRecipient(Message, JID)}.</li>
+ *         {@link #adjustForRecipient(Message, JID, boolean)}.</li>
  * </ul>
  *
  * The same identifier <em>value</em> is used in the archive of both participants of a one-to-one conversation. Each
@@ -64,6 +69,15 @@ import java.util.function.Predicate;
  * archive. This allows the identifier that is used in the archive of the sender of a message to be included in the
  * Message Carbons copy of that message that is delivered to the other resources of that sender, without requiring the
  * server to retain state for the messages that it routes.
+ *
+ * A stanza that is addressed to an entity that is not a local user does not obtain an identifier before it is routed
+ * (as that identifier would be transmitted to an entity that has no business knowing it). The identifier that is used
+ * in the archive of the local sender of such a stanza is therefore not part of the stanza that a Message Carbons copy
+ * is generated from. To be able to provide the sender of such a message with the identifier of its own archive, that
+ * identifier is <em>derived</em> from the stanza itself (see {@link #deriveStanzaID(Element)}): both the code that
+ * generates the archived representation of the stanza and the code that prepares the Message Carbons copy calculate the
+ * same value, again without requiring the server to retain state. A server-specific secret is used in that calculation,
+ * to prevent other entities from being able to calculate the identifier.
  *
  * No identifiers are generated for entities that are not local users: this implementation has no authority to generate
  * identifiers on their behalf (and does not archive on their behalf either).
@@ -93,7 +107,61 @@ public class ArchiveStanzaIDUtil
      */
     private static final Predicate<JID> DEFAULT_LOCAL_USER_TEST = ArchiveStanzaIDUtil::isLocalUser;
 
+    /**
+     * The algorithm that is used to derive an identifier from a stanza.
+     */
+    private static final String ID_DERIVATION_ALGORITHM = "HmacSHA256";
+
+    /**
+     * Name of the property that holds the secret that is used when an identifier is derived from a stanza. The value of
+     * this property is generated when it is first needed.
+     *
+     * The secret is stored (rather than kept in memory only) as it needs to be shared by all members of an Openfire
+     * cluster: the Message Carbons copy of a stanza can be delivered by a cluster node other than the one that archives
+     * that stanza.
+     */
+    public static final String STANZA_ID_SECRET_PROPERTY = "conversation.stanzaID.secret";
+
+    /**
+     * Secret that is used when an identifier is derived from a stanza, which prevents entities other than this server
+     * from being able to calculate the identifier that is used in the archive of a local user.
+     */
+    private static byte[] idDerivationSecret;
+
     private ArchiveStanzaIDUtil() {}
+
+    /**
+     * Returns the secret that is used to derive an identifier from a stanza, generating (and storing) one if no secret
+     * is available yet.
+     *
+     * @return A secret (never null).
+     */
+    private static synchronized byte[] getIdDerivationSecret()
+    {
+        if ( idDerivationSecret == null ) {
+            String value = null;
+            try {
+                value = JiveGlobals.getProperty( STANZA_ID_SECRET_PROPERTY );
+                if ( value == null || value.isEmpty() ) {
+                    final byte[] generated = new byte[32];
+                    new SecureRandom().nextBytes( generated );
+                    value = Base64.getEncoder().encodeToString( generated );
+                    JiveGlobals.setProperty( STANZA_ID_SECRET_PROPERTY, value );
+                }
+            } catch ( Exception e ) {
+                // This is expected to occur only when no server (or database) is available, such as in unit tests.
+                Log.debug( "Unable to obtain or store the secret that is used to derive stanza IDs. Using a value that is not shared with other cluster nodes instead.", e );
+            }
+
+            if ( value == null || value.isEmpty() ) {
+                final byte[] generated = new byte[32];
+                new SecureRandom().nextBytes( generated );
+                value = Base64.getEncoder().encodeToString( generated );
+            }
+            idDerivationSecret = value.getBytes( StandardCharsets.UTF_8 );
+        }
+        return idDerivationSecret;
+    }
 
     /**
      * Returns true if this implementation should generate XEP-0359 identifiers.
@@ -258,6 +326,13 @@ public class ArchiveStanzaIDUtil
                 }
             }
             if ( id == null ) {
+                // No identifier was added before the stanza was routed, which is the case when the stanza is addressed
+                // to an entity that is not a local user. Derive the identifier from the stanza, which allows it to be
+                // included in the Message Carbons copy of the stanza that is delivered to the other resources of the
+                // sender (that copy is generated before the stanza is archived).
+                id = deriveStanzaID( parentElement );
+            }
+            if ( id == null ) {
                 id = UUID.randomUUID().toString();
             }
 
@@ -343,13 +418,21 @@ public class ArchiveStanzaIDUtil
      * retained, as are the identifiers that are already attributed to the user that the stanza is delivered to (notably
      * those in the results of a query of its own archive).
      *
+     * A stanza that is addressed to an entity that is not a local user does not hold an identifier at all (as no
+     * identifier is added to a stanza that is routed to such an entity). When such a stanza is delivered to its local
+     * sender (which is the case for a Message Carbons 'sent' copy), the identifier that is used in the archive of that
+     * sender is added, by deriving it from the stanza (see {@link #deriveStanzaID(Element)}). This is applied only when
+     * the caller indicates that the stanza is expected to be archived.
+     *
      * @param message The stanza that is about to be delivered (cannot be null).
      * @param recipient The entity that the stanza is delivered to (cannot be null).
-     * @return true if at least one element was modified or removed, otherwise false.
+     * @param addIdForNonLocalConversations Whether the identifier of a local sender is to be added to a stanza that is
+     *                                      addressed to an entity that is not a local user.
+     * @return true if at least one element was added, modified or removed, otherwise false.
      */
-    public static boolean adjustForRecipient( final Message message, final JID recipient )
+    public static boolean adjustForRecipient( final Message message, final JID recipient, final boolean addIdForNonLocalConversations )
     {
-        return adjustForRecipient( message, recipient, DEFAULT_LOCAL_USER_TEST );
+        return adjustForRecipient( message, recipient, addIdForNonLocalConversations, DEFAULT_LOCAL_USER_TEST );
     }
 
     /**
@@ -359,11 +442,13 @@ public class ArchiveStanzaIDUtil
      *
      * @param message The stanza that is about to be delivered (cannot be null).
      * @param recipient The entity that the stanza is delivered to (cannot be null).
+     * @param addIdForNonLocalConversations Whether the identifier of a local sender is to be added to a stanza that is
+     *                                      addressed to an entity that is not a local user.
      * @param localUserTest Test that determines if an entity is a local user (cannot be null).
-     * @return true if at least one element was modified or removed, otherwise false.
-     * @see #adjustForRecipient(Message, JID)
+     * @return true if at least one element was added, modified or removed, otherwise false.
+     * @see #adjustForRecipient(Message, JID, boolean)
      */
-    static boolean adjustForRecipient( final Message message, final JID recipient, final Predicate<JID> localUserTest )
+    static boolean adjustForRecipient( final Message message, final JID recipient, final boolean addIdForNonLocalConversations, final Predicate<JID> localUserTest )
     {
         if ( message == null ) {
             throw new IllegalArgumentException( "Argument 'message' cannot be null." );
@@ -379,7 +464,7 @@ public class ArchiveStanzaIDUtil
                 return false;
             }
 
-            return adjustRecursively( message.getElement(), recipient.toBareJID(), localUserTest );
+            return adjustRecursively( message.getElement(), recipient.toBareJID(), addIdForNonLocalConversations && isEnabled(), localUserTest );
         } catch ( Exception e ) {
             Log.warn( "An exception occurred while adjusting stanza IDs of a stanza that is delivered to '{}'.", recipient, e );
             return false;
@@ -392,16 +477,120 @@ public class ArchiveStanzaIDUtil
      *
      * @param stanzaElement The element that represents a stanza (cannot be null).
      * @param owner The bare JID of the entity that the stanza is delivered to (cannot be null).
+     * @param addIdForNonLocalConversations Whether the identifier of a local sender is to be added to a stanza that is
+     *                                      addressed to an entity that is not a local user.
      * @param localUserTest Test that determines if an entity is a local user (cannot be null).
-     * @return true if at least one element was modified or removed, otherwise false.
+     * @return true if at least one element was added, modified or removed, otherwise false.
      */
-    private static boolean adjustRecursively( final Element stanzaElement, final String owner, final Predicate<JID> localUserTest )
+    private static boolean adjustRecursively( final Element stanzaElement, final String owner, final boolean addIdForNonLocalConversations, final Predicate<JID> localUserTest )
     {
         boolean result = adjustStanzaIDsOfOtherLocalUsers( stanzaElement, owner, localUserTest );
+        if ( addIdForNonLocalConversations ) {
+            result |= addIdOfLocalSenderOfNonLocalConversation( stanzaElement, owner, localUserTest );
+        }
         for ( final Element forwardedStanza : findForwardedStanzas( stanzaElement ) ) {
-            result |= adjustRecursively( forwardedStanza, owner, localUserTest );
+            result |= adjustRecursively( forwardedStanza, owner, addIdForNonLocalConversations, localUserTest );
         }
         return result;
+    }
+
+    /**
+     * Adds the XEP-0359 'stanza-id' element that is used in the archive of the provided owner to the provided stanza,
+     * when that stanza was sent by that owner to an entity that is not a local user.
+     *
+     * Such a stanza does not obtain an identifier before it is routed (which would transmit the identifier to an entity
+     * that has no business knowing it). Its identifier is instead derived from the stanza itself, in the same way as it
+     * is derived when the stanza is archived, which is what allows the sender to obtain the identifier of its own
+     * archive from the Message Carbons copy of the stanza that it sent.
+     *
+     * Nothing is added when the stanza already holds an identifier for the owner, when the owner is not the sender of
+     * the stanza, when the addressee of the stanza is a local user (that case is covered by re-attribution of the
+     * identifier that was added before the stanza was routed), or when the stanza is one that is not archived by this
+     * implementation.
+     *
+     * @param stanzaElement The element that represents a stanza (cannot be null).
+     * @param owner The bare JID of the entity that the stanza is delivered to (cannot be null).
+     * @param localUserTest Test that determines if an entity is a local user (cannot be null).
+     * @return true if an element was added, otherwise false.
+     */
+    private static boolean addIdOfLocalSenderOfNonLocalConversation( final Element stanzaElement, final String owner, final Predicate<JID> localUserTest )
+    {
+        if ( findStanzaID( stanzaElement, owner ) != null ) {
+            return false;
+        }
+
+        // Only the sender of the stanza is provided with an identifier this way: the identifier of the archive of a
+        // recipient is added before the stanza is routed.
+        final String from = stanzaElement.attributeValue( "from" );
+        if ( from == null || from.isEmpty() || !owner.equals( new JID( from ).toBareJID() ) ) {
+            return false;
+        }
+
+        // When the addressee is a local user, an identifier was added before the stanza was routed, which is
+        // re-attributed to the owner elsewhere. This is only about conversations with entities that are not local users.
+        final String to = stanzaElement.attributeValue( "to" );
+        if ( to == null || to.isEmpty() || localUserTest.test( new JID( to ) ) ) {
+            return false;
+        }
+
+        // Do not suggest the existence of an archived message for a stanza that is not archived by this implementation.
+        if ( Message.Type.groupchat.toString().equals( stanzaElement.attributeValue( "type" ) ) || stanzaElement.element( "body" ) == null ) {
+            return false;
+        }
+
+        final String id = deriveStanzaID( stanzaElement );
+        if ( id == null ) {
+            return false;
+        }
+
+        addStanzaID( stanzaElement, id, owner );
+        Log.debug( "Added stanza ID '{}' (by '{}') to a stanza that is delivered to that entity, which sent it to a non-local entity.", id, owner );
+        return true;
+    }
+
+    /**
+     * Derives an identifier for the provided stanza, which is used in the archive of the local sender of a stanza that
+     * is addressed to an entity that is not a local user.
+     *
+     * Such a stanza does not obtain an identifier before it is routed, while the Message Carbons copy of that stanza is
+     * generated (from a copy of that stanza) before the stanza is archived. Deriving the identifier from the stanza
+     * itself allows both processes to arrive at the same value, without requiring the server to retain state for the
+     * stanzas that it routes.
+     *
+     * The value is calculated using a secret, which prevents other entities from being able to calculate the identifier
+     * that is used in the archive of a local user.
+     *
+     * @param stanzaElement The element that represents a stanza (cannot be null).
+     * @return An identifier, or null if no identifier could be derived from the stanza.
+     */
+    private static String deriveStanzaID( final Element stanzaElement )
+    {
+        // The 'id' attribute is what distinguishes two stanzas that are otherwise equal (such as the same text, sent
+        // twice to the same addressee). Without it, no unique identifier can be derived.
+        final String from = stanzaElement.attributeValue( "from" );
+        final String to = stanzaElement.attributeValue( "to" );
+        final String id = stanzaElement.attributeValue( "id" );
+        if ( from == null || from.isEmpty() || to == null || to.isEmpty() || id == null || id.isEmpty() ) {
+            Log.debug( "Unable to derive a stanza ID for a stanza that has no 'from', 'to' and/or 'id' attribute value." );
+            return null;
+        }
+
+        final Element body = stanzaElement.element( "body" );
+        final StringBuilder input = new StringBuilder()
+            .append( from ).append( '\u0000' )
+            .append( to ).append( '\u0000' )
+            .append( stanzaElement.attributeValue( "type" ) ).append( '\u0000' )
+            .append( id ).append( '\u0000' )
+            .append( body == null ? "" : body.getText() );
+
+        try {
+            final Mac mac = Mac.getInstance( ID_DERIVATION_ALGORITHM );
+            mac.init( new SecretKeySpec( getIdDerivationSecret(), ID_DERIVATION_ALGORITHM ) );
+            return UUID.nameUUIDFromBytes( mac.doFinal( input.toString().getBytes( StandardCharsets.UTF_8 ) ) ).toString();
+        } catch ( Exception e ) {
+            Log.warn( "An exception occurred while deriving a stanza ID from a stanza.", e );
+            return null;
+        }
     }
 
     /**
