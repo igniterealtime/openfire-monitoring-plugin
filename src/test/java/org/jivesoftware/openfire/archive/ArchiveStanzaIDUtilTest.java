@@ -178,22 +178,22 @@ public class ArchiveStanzaIDUtilTest {
     }
 
     /**
-     * Asserts that a distinct identifier value is used for each archive owner (a participant should not be able to
-     * guess the identifier that is used in the archive of the other participant).
+     * Asserts that the same identifier value is used for each archive owner (which allows the value that a participant
+     * received to be used to address the message in the archive of that participant, without any participant learning a
+     * value that is used by another participant).
      */
     @Test
-    public void testUsesDistinctIdForEachArchiveOwner() throws Exception {
+    public void testUsesSameIdForEachArchiveOwner() throws Exception {
         // Setup test fixture.
         final Message input = newMessage(ROMEO, JULIET);
-        ArchiveStanzaIDUtil.addStanzaIDToRoutedStanza(input, JULIET, IS_LOCAL_USER);
+        final String routedId = ArchiveStanzaIDUtil.addStanzaIDToRoutedStanza(input, JULIET, IS_LOCAL_USER);
 
         // Execute system under test.
         final Message result = parse(ArchiveStanzaIDUtil.getArchivableStanzaXml(input, IS_LOCAL_USER, ROMEO, JULIET));
 
         // Verify results.
-        assertNotEquals(
-            StanzaIDUtil.findFirstUniqueAndStableStanzaID(result, ROMEO.toBareJID()),
-            StanzaIDUtil.findFirstUniqueAndStableStanzaID(result, JULIET.toBareJID()));
+        assertEquals(routedId, StanzaIDUtil.findFirstUniqueAndStableStanzaID(result, ROMEO.toBareJID()));
+        assertEquals(routedId, StanzaIDUtil.findFirstUniqueAndStableStanzaID(result, JULIET.toBareJID()));
     }
 
     /**
@@ -344,24 +344,48 @@ public class ArchiveStanzaIDUtilTest {
     }
 
     /**
-     * Asserts that the identifier that is used in the archive of the recipient of a stanza is not part of the Message
-     * Carbons 'sent' copy that is delivered to the other resources of the sender of that stanza.
+     * Asserts that the Message Carbons 'sent' copy that is delivered to the other resources of the sender of a stanza
+     * contains the identifier that is used in the archive of that sender, instead of the identifier that is attributed
+     * to the recipient of that stanza.
      */
     @Test
-    public void testFilterRemovesRecipientsStanzaIdFromSentCarbon() {
+    public void testAdjustAttributesStanzaIdToSenderInSentCarbon() throws Exception {
         // Setup test fixture.
         final Message routed = newMessage(ROMEO, JULIET);
         ArchiveStanzaIDUtil.addStanzaIDToRoutedStanza(routed, JULIET, IS_LOCAL_USER);
+        final String archivedId = StanzaIDUtil.findFirstUniqueAndStableStanzaID(
+            parse(ArchiveStanzaIDUtil.getArchivableStanzaXml(routed, IS_LOCAL_USER, ROMEO, JULIET)), ROMEO.toBareJID());
         final JID otherResource = new JID(ROMEO.toBareJID() + "/other");
         final Message carbon = newSentCarbon(routed, otherResource);
 
         // Execute system under test.
-        final boolean result = ArchiveStanzaIDUtil.filterForRecipient(carbon, otherResource, IS_LOCAL_USER);
+        final boolean result = ArchiveStanzaIDUtil.adjustForRecipient(carbon, otherResource, IS_LOCAL_USER);
 
         // Verify results.
         assertTrue(result);
-        assertTrue(getForwardedStanzaIdElements(carbon).isEmpty());
+        assertEquals(1, getForwardedStanzaIdElements(carbon).size());
         assertNull(StanzaIDUtil.findFirstUniqueAndStableStanzaID(getForwardedStanza(carbon), JULIET.toBareJID()));
+        assertEquals(archivedId, StanzaIDUtil.findFirstUniqueAndStableStanzaID(getForwardedStanza(carbon), ROMEO.toBareJID()));
+    }
+
+    /**
+     * Asserts that the identifier that is attributed to a local user is removed from a stanza that is forwarded to an
+     * entity that is not a participant of the conversation that the forwarded stanza is part of.
+     */
+    @Test
+    public void testAdjustRemovesStanzaIdFromStanzaForwardedToOtherEntity() {
+        // Setup test fixture.
+        final Message routed = newMessage(ROMEO, JULIET);
+        ArchiveStanzaIDUtil.addStanzaIDToRoutedStanza(routed, JULIET, IS_LOCAL_USER);
+        final JID thirdParty = new JID("mercutio@" + LOCAL_DOMAIN + "/street");
+        final Message forwarding = newSentCarbon(routed, thirdParty);
+
+        // Execute system under test.
+        final boolean result = ArchiveStanzaIDUtil.adjustForRecipient(forwarding, thirdParty, IS_LOCAL_USER);
+
+        // Verify results.
+        assertTrue(result);
+        assertTrue(getForwardedStanzaIdElements(forwarding).isEmpty());
     }
 
     /**
@@ -369,7 +393,7 @@ public class ArchiveStanzaIDUtilTest {
      * remote server) are part of a Message Carbons 'sent' copy.
      */
     @Test
-    public void testFilterRetainsNonLocalStanzaIdsInSentCarbon() {
+    public void testAdjustRetainsNonLocalStanzaIdsInSentCarbon() {
         // Setup test fixture.
         final Message routed = newMessage(ROMEO, JULIET);
         addStanzaId(routed, "room-provided-id", ROOM.toBareJID());
@@ -379,10 +403,10 @@ public class ArchiveStanzaIDUtilTest {
         final Message carbon = newSentCarbon(routed, otherResource);
 
         // Execute system under test.
-        ArchiveStanzaIDUtil.filterForRecipient(carbon, otherResource, IS_LOCAL_USER);
+        ArchiveStanzaIDUtil.adjustForRecipient(carbon, otherResource, IS_LOCAL_USER);
 
         // Verify results.
-        assertEquals(2, getForwardedStanzaIdElements(carbon).size());
+        assertEquals(3, getForwardedStanzaIdElements(carbon).size());
         assertEquals("room-provided-id", StanzaIDUtil.findFirstUniqueAndStableStanzaID(getForwardedStanza(carbon), ROOM.toBareJID()));
         assertEquals("remote-id", StanzaIDUtil.findFirstUniqueAndStableStanzaID(getForwardedStanza(carbon), "remote.example"));
     }
@@ -392,7 +416,7 @@ public class ArchiveStanzaIDUtilTest {
      * is forwarded to that very recipient (as is the case for a Message Carbons 'received' copy).
      */
     @Test
-    public void testFilterRetainsOwnStanzaIdInForwardedStanza() {
+    public void testAdjustRetainsOwnStanzaIdInForwardedStanza() {
         // Setup test fixture.
         final Message routed = newMessage(JULIET, ROMEO);
         final String id = ArchiveStanzaIDUtil.addStanzaIDToRoutedStanza(routed, ROMEO, IS_LOCAL_USER);
@@ -400,7 +424,7 @@ public class ArchiveStanzaIDUtilTest {
         final Message carbon = newSentCarbon(routed, otherResource);
 
         // Execute system under test.
-        final boolean result = ArchiveStanzaIDUtil.filterForRecipient(carbon, otherResource, IS_LOCAL_USER);
+        final boolean result = ArchiveStanzaIDUtil.adjustForRecipient(carbon, otherResource, IS_LOCAL_USER);
 
         // Verify results.
         assertFalse(result);
@@ -413,13 +437,13 @@ public class ArchiveStanzaIDUtilTest {
      * of that recipient.
      */
     @Test
-    public void testFilterRetainsStanzaIdOfRecipient() {
+    public void testAdjustRetainsStanzaIdOfRecipient() {
         // Setup test fixture.
         final Message routed = newMessage(ROMEO, JULIET);
         final String id = ArchiveStanzaIDUtil.addStanzaIDToRoutedStanza(routed, JULIET, IS_LOCAL_USER);
 
         // Execute system under test.
-        final boolean result = ArchiveStanzaIDUtil.filterForRecipient(routed, JULIET, IS_LOCAL_USER);
+        final boolean result = ArchiveStanzaIDUtil.adjustForRecipient(routed, JULIET, IS_LOCAL_USER);
 
         // Verify results.
         assertFalse(result);
@@ -432,14 +456,14 @@ public class ArchiveStanzaIDUtilTest {
      * implementation does not add identifiers of local users to such stanzas in the first place).
      */
     @Test
-    public void testFilterDoesNotModifyStanzaDeliveredToNonLocalEntity() {
+    public void testAdjustDoesNotModifyStanzaDeliveredToNonLocalEntity() {
         // Setup test fixture.
         final Message routed = newMessage(ROMEO, BASTANIO);
         addStanzaId(routed, "juliets-id", JULIET.toBareJID());
         final String before = routed.toXML();
 
         // Execute system under test.
-        final boolean result = ArchiveStanzaIDUtil.filterForRecipient(routed, BASTANIO, IS_LOCAL_USER);
+        final boolean result = ArchiveStanzaIDUtil.adjustForRecipient(routed, BASTANIO, IS_LOCAL_USER);
 
         // Verify results.
         assertFalse(result);

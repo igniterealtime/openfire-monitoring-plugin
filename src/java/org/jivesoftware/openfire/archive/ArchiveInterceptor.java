@@ -43,11 +43,13 @@ import java.util.Date;
  *
  * Before a message is routed, this interceptor adds a XEP-0359 'Unique and Stable Stanza ID' for the archive of the
  * recipient of that message (if that recipient is a local user). When the message is archived, an identifier for the
- * archive of the sender is added to the archived representation of the message only.
+ * archive of the sender is added to the archived representation of the message only. The same identifier value is used
+ * in both archives.
  *
- * Before a message is delivered to a local user, this interceptor removes the identifiers that were generated for other
- * local users from that message (which is needed for Message Carbons copies, that are generated from the stanza that was
- * routed to its recipient).
+ * Before a message is delivered to a local user, this interceptor adjusts the identifiers that were generated for other
+ * local users in that message. This is needed for Message Carbons copies, that are generated from the stanza that was
+ * routed to its recipient: the identifier of that recipient is attributed to the user that the copy is delivered to (as
+ * both use the same value), or removed when that user is not a participant of the conversation.
  *
  * @author Matt Tucker
  * @see ArchiveStanzaIDUtil
@@ -65,14 +67,15 @@ public class ArchiveInterceptor implements PacketInterceptor {
             throws PacketRejectedException
     {
         if (packet instanceof Message) {
-            // Ignore any outgoing messages (we'll catch them when they're incoming), but do remove the XEP-0359
-            // identifiers that were generated for other users from the stanza that is about to be delivered.
+            // Ignore any outgoing messages (we'll catch them when they're incoming), but do adjust the XEP-0359
+            // identifiers that were generated for other users in the stanza that is about to be delivered.
             if (!incoming) {
                 if (!processed && session != null) {
                     // A Message Carbons 'sent' copy is generated from the stanza that was routed to the recipient of
-                    // that stanza, and therefore contains the identifier that is used in the archive of that recipient.
-                    // A user should not learn the identifier that is used in the archive of another user.
-                    ArchiveStanzaIDUtil.filterForRecipient((Message) packet, session.getAddress());
+                    // that stanza, and therefore contains the identifier that is attributed to that recipient. As the
+                    // same value is used in the archive of the sender, it is attributed to the sender here. A user
+                    // should not learn an identifier that is attributed to any other user.
+                    ArchiveStanzaIDUtil.adjustForRecipient((Message) packet, session.getAddress());
                 }
                 return;
             }
@@ -111,8 +114,8 @@ public class ArchiveInterceptor implements PacketInterceptor {
 
                     // Add a XEP-0359 'Unique and Stable Stanza ID' for the archive of the sender (if that is a local
                     // user) to the representation of the stanza that is stored in the archive. Unlike the identifier
-                    // that is generated for the recipient (above), this identifier is never transmitted: it is added to
-                    // a copy of the stanza, leaving the stanza that is being routed unmodified.
+                    // that is generated for the recipient (above), this identifier is not added to the stanza that is
+                    // being routed: it is added to a copy of that stanza, leaving the original unmodified.
                     final String stanza = conversationManager.isMessageArchivingEnabled()
                             ? ArchiveStanzaIDUtil.getArchivableStanzaXml(message, message.getFrom(), to)
                             : message.toXML();
