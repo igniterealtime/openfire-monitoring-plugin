@@ -51,10 +51,19 @@ import java.util.function.Predicate;
  *         is stored in the archive only. It is never transmitted with the routed stanza.</li>
  *     <li>When a message is retrieved from an archive, all identifiers that were generated for other local users are
  *         removed from the stanza (see {@link #filterForArchiveOwner(Element, JID)}).</li>
- *     <li>When a stanza is delivered to a local user, all identifiers that were generated for other local users are
- *         removed from it, including from stanzas that it forwards (as is the case for a Message Carbons copy of a
- *         stanza that was sent by another resource of that user). See {@link #filterForRecipient(Message, JID)}.</li>
+ *     <li>When a stanza is delivered to a local user, the identifiers that were generated for other local users are
+ *         removed from it, including from the stanzas that it forwards (as is the case for a Message Carbons copy of a
+ *         stanza that was sent by another resource of that user). When the user that the stanza is delivered to is a
+ *         participant of the conversation that such a (forwarded) stanza is part of, the identifier is not removed, but
+ *         is attributed to that user instead: it is the identifier that is used in its own archive. See
+ *         {@link #adjustForRecipient(Message, JID)}.</li>
  * </ul>
+ *
+ * The same identifier <em>value</em> is used in the archive of both participants of a one-to-one conversation. Each
+ * participant only ever sees that value attributed to its own archive, and can use it to address the message in its own
+ * archive. This allows the identifier that is used in the archive of the sender of a message to be included in the
+ * Message Carbons copy of that message that is delivered to the other resources of that sender, without requiring the
+ * server to retain state for the messages that it routes.
  *
  * No identifiers are generated for entities that are not local users: this implementation has no authority to generate
  * identifiers on their behalf (and does not archive on their behalf either).
@@ -181,11 +190,12 @@ public class ArchiveStanzaIDUtil
      *
      * A one-to-one message is stored only once, but is part of the archive of both participants of the conversation.
      * As XEP-0359 identifiers are scoped by the entity that generated them, a 'stanza-id' element is present for each
-     * of the provided archive owners (that is a local user). A distinct identifier value is used for each of them.
+     * of the provided archive owners (that is a local user). The same identifier value is used for each of them, as
+     * each participant only ever sees the element that is attributed to itself.
      *
-     * When the stanza already contains an identifier for an archive owner (which is the case for the recipient of the
-     * stanza, for which the identifier was added before the stanza was routed, by
-     * {@link #addStanzaIDToRoutedStanza(Message, JID)}), that identifier is reused.
+     * When the stanza already contains an identifier for one of the archive owners (which is the case for the recipient
+     * of the stanza, for which the identifier was added before the stanza was routed, by
+     * {@link #addStanzaIDToRoutedStanza(Message, JID)}), the value of that identifier is reused.
      *
      * The stanza that is provided in the argument is not modified: the identifiers are added to a copy of that stanza.
      *
@@ -236,12 +246,27 @@ public class ArchiveStanzaIDUtil
             final Message copy = message.createCopy();
             final Element parentElement = copy.getElement();
 
+            // The same value is used for all archive owners. When the stanza already holds an identifier for one of
+            // them (typically the recipient, for which an identifier was added before the stanza was routed), that
+            // value is reused. This allows every party to address the message in its own archive using the value that
+            // it received, without any party having to learn a value that is used by another party.
+            String id = null;
+            for ( final String owner : owners ) {
+                id = findStanzaID( parentElement, owner );
+                if ( id != null ) {
+                    break;
+                }
+            }
+            if ( id == null ) {
+                id = UUID.randomUUID().toString();
+            }
+
             for ( final String owner : owners ) {
                 if ( findStanzaID( parentElement, owner ) != null ) {
                     // An identifier for this archive owner was already added (before the stanza was routed).
                     continue;
                 }
-                addStanzaID( parentElement, UUID.randomUUID().toString(), owner );
+                addStanzaID( parentElement, id, owner );
             }
 
             return copy.toXML();
@@ -297,39 +322,48 @@ public class ArchiveStanzaIDUtil
     }
 
     /**
-     * Removes all XEP-0359 'stanza-id' elements that were generated for local users other than the provided recipient
-     * from a stanza that is about to be delivered to that recipient.
+     * Prepares a stanza that is about to be delivered to a local user, by adjusting the XEP-0359 'stanza-id' elements
+     * that were generated for other local users.
      *
      * Stanzas that are forwarded by the stanza that is being delivered are processed too. This is needed for Message
      * Carbons: the 'sent' copy that is delivered to the other resources of a sender is generated from the stanza that
-     * was routed to the recipient, which contains the identifier that is used in the archive of that recipient. A user
-     * should not learn the identifier that is used in the archive of another user.
+     * was routed to the recipient of that stanza, and therefore holds an identifier that is attributed to that
+     * recipient.
+     *
+     * When the user that the stanza is delivered to is a participant of the conversation that a (forwarded) stanza is
+     * part of, then the identifier that is attributed to the other participant is re-attributed to that user: the same
+     * value is used in the archives of both participants (see {@link #getArchivableStanzaXml(Message, JID...)}). This
+     * is what allows the sender of a message to obtain the identifier of its own archive from the Message Carbons copy
+     * of that message.
+     *
+     * Identifiers that are attributed to any other local user are removed: a user should not learn the identifier that
+     * is used in the archive of another user.
      *
      * Identifiers that were generated by entities that are not local users (such as chat rooms, or remote servers) are
-     * retained, as are the identifiers that were generated for the recipient itself (notably those in the results of a
-     * query of its own archive).
+     * retained, as are the identifiers that are already attributed to the user that the stanza is delivered to (notably
+     * those in the results of a query of its own archive).
      *
      * @param message The stanza that is about to be delivered (cannot be null).
      * @param recipient The entity that the stanza is delivered to (cannot be null).
-     * @return true if at least one element was removed, otherwise false.
+     * @return true if at least one element was modified or removed, otherwise false.
      */
-    public static boolean filterForRecipient( final Message message, final JID recipient )
+    public static boolean adjustForRecipient( final Message message, final JID recipient )
     {
-        return filterForRecipient( message, recipient, DEFAULT_LOCAL_USER_TEST );
+        return adjustForRecipient( message, recipient, DEFAULT_LOCAL_USER_TEST );
     }
 
     /**
-     * Removes all XEP-0359 'stanza-id' elements that were generated for local users other than the provided recipient
-     * from a stanza that is about to be delivered to that recipient, using the provided test to determine if an entity
-     * is an account that is registered with this server.
+     * Prepares a stanza that is about to be delivered to a local user, by adjusting the XEP-0359 'stanza-id' elements
+     * that were generated for other local users, using the provided test to determine if an entity is an account that
+     * is registered with this server.
      *
      * @param message The stanza that is about to be delivered (cannot be null).
      * @param recipient The entity that the stanza is delivered to (cannot be null).
      * @param localUserTest Test that determines if an entity is a local user (cannot be null).
-     * @return true if at least one element was removed, otherwise false.
-     * @see #filterForRecipient(Message, JID)
+     * @return true if at least one element was modified or removed, otherwise false.
+     * @see #adjustForRecipient(Message, JID)
      */
-    static boolean filterForRecipient( final Message message, final JID recipient, final Predicate<JID> localUserTest )
+    static boolean adjustForRecipient( final Message message, final JID recipient, final Predicate<JID> localUserTest )
     {
         if ( message == null ) {
             throw new IllegalArgumentException( "Argument 'message' cannot be null." );
@@ -345,29 +379,96 @@ public class ArchiveStanzaIDUtil
                 return false;
             }
 
-            return filterRecursively( message.getElement(), recipient.toBareJID(), localUserTest );
+            return adjustRecursively( message.getElement(), recipient.toBareJID(), localUserTest );
         } catch ( Exception e ) {
-            Log.warn( "An exception occurred while removing stanza IDs of other users from a stanza that is delivered to '{}'.", recipient, e );
+            Log.warn( "An exception occurred while adjusting stanza IDs of a stanza that is delivered to '{}'.", recipient, e );
             return false;
         }
     }
 
     /**
-     * Removes all XEP-0359 'stanza-id' elements that were generated for local users other than the provided owner from
-     * the provided element, as well as from every stanza that is forwarded by it.
+     * Adjusts the XEP-0359 'stanza-id' elements that were generated for local users other than the provided owner in
+     * the provided element, as well as in every stanza that is forwarded by it.
      *
      * @param stanzaElement The element that represents a stanza (cannot be null).
-     * @param owner The bare JID of the entity for which identifiers are to be retained (cannot be null).
+     * @param owner The bare JID of the entity that the stanza is delivered to (cannot be null).
      * @param localUserTest Test that determines if an entity is a local user (cannot be null).
-     * @return true if at least one element was removed, otherwise false.
+     * @return true if at least one element was modified or removed, otherwise false.
      */
-    private static boolean filterRecursively( final Element stanzaElement, final String owner, final Predicate<JID> localUserTest )
+    private static boolean adjustRecursively( final Element stanzaElement, final String owner, final Predicate<JID> localUserTest )
     {
-        boolean result = removeStanzaIDsOfOtherLocalUsers( stanzaElement, owner, localUserTest );
+        boolean result = adjustStanzaIDsOfOtherLocalUsers( stanzaElement, owner, localUserTest );
         for ( final Element forwardedStanza : findForwardedStanzas( stanzaElement ) ) {
-            result |= filterRecursively( forwardedStanza, owner, localUserTest );
+            result |= adjustRecursively( forwardedStanza, owner, localUserTest );
         }
         return result;
+    }
+
+    /**
+     * Re-attributes the XEP-0359 'stanza-id' element of the other participant of the conversation that the provided
+     * stanza is part of to the provided owner, and removes the elements that are attributed to any other local user.
+     *
+     * @param stanzaElement The element that holds the 'stanza-id' elements (cannot be null).
+     * @param owner The bare JID of the entity that the stanza is delivered to (cannot be null).
+     * @param localUserTest Test that determines if an entity is a local user (cannot be null).
+     * @return true if at least one element was modified or removed, otherwise false.
+     */
+    private static boolean adjustStanzaIDsOfOtherLocalUsers( final Element stanzaElement, final String owner, final Predicate<JID> localUserTest )
+    {
+        final boolean isParticipant = isParticipant( stanzaElement, owner );
+        boolean hasIdForOwner = findStanzaID( stanzaElement, owner ) != null;
+
+        boolean result = false;
+        final Iterator<Element> iterator = stanzaElement.elementIterator( STANZA_ID );
+        while ( iterator.hasNext() ) {
+            final Element element = iterator.next();
+            final String by = element.attributeValue( "by" );
+            if ( by == null || owner.equals( by ) ) {
+                continue;
+            }
+            if ( !localUserTest.test( new JID( by ) ) ) {
+                continue;
+            }
+
+            final String id = element.attributeValue( "id" );
+            if ( isParticipant && !hasIdForOwner && id != null && !id.isEmpty() ) {
+                // The same value is used in the archive of both participants of the conversation. Attribute it to the
+                // entity that the stanza is delivered to, which is the archive that it can use the value in.
+                element.addAttribute( "by", owner );
+                hasIdForOwner = true;
+                Log.debug( "Attributed stanza ID '{}' to '{}' in a stanza that is delivered to it.", id, owner );
+            } else {
+                iterator.remove();
+            }
+            result = true;
+        }
+        return result;
+    }
+
+    /**
+     * Returns true if the provided entity is the sender or the addressee of the stanza that is represented by the
+     * provided element.
+     *
+     * @param stanzaElement The element that represents a stanza (cannot be null).
+     * @param bareJid The bare JID of the entity to evaluate (cannot be null).
+     * @return true if the entity is a participant of the conversation that the stanza is part of, otherwise false.
+     */
+    private static boolean isParticipant( final Element stanzaElement, final String bareJid )
+    {
+        for ( final String attributeName : new String[] { "from", "to" } ) {
+            final String value = stanzaElement.attributeValue( attributeName );
+            if ( value == null || value.isEmpty() ) {
+                continue;
+            }
+            try {
+                if ( bareJid.equals( new JID( value ).toBareJID() ) ) {
+                    return true;
+                }
+            } catch ( IllegalArgumentException e ) {
+                Log.debug( "Unable to parse the '{}' attribute value '{}' of a stanza as a JID.", attributeName, value, e );
+            }
+        }
+        return false;
     }
 
     /**
