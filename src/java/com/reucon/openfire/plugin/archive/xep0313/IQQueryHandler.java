@@ -9,6 +9,7 @@ import org.dom4j.Element;
 import org.dom4j.QName;
 import org.jivesoftware.openfire.PacketRouter;
 import org.jivesoftware.openfire.XMPPServer;
+import org.jivesoftware.openfire.archive.ArchiveStanzaIDUtil;
 import org.jivesoftware.openfire.archive.ConversationManager;
 import org.jivesoftware.openfire.archive.MonitoringConstants;
 import org.jivesoftware.openfire.auth.UnauthorizedException;
@@ -565,6 +566,13 @@ abstract public class IQQueryHandler extends AbstractIQHandler implements
         }
 
         final Element rootElement = stanza.getElement().createCopy();
+
+        // A one-to-one message is stored in the archive only once, even though it is part of the archive of both
+        // participants of the conversation. The archived representation therefore contains a XEP-0359 identifier for
+        // each of them. Remove the identifiers that were generated for other local users: a user should not learn the
+        // identifier that is used in the archive of another user.
+        ArchiveStanzaIDUtil.filterForArchiveOwner( rootElement, queryRequest.getArchive().asBareJID() );
+
         if ( isMuc ) {
             // XEP-0313 specifies in section 5.1.2 MUC Archives: When sending out the archives to a requesting client, the forwarded stanza MUST NOT have a 'to' attribute.
             final Attribute to = rootElement.attribute("to");
@@ -574,16 +582,32 @@ abstract public class IQQueryHandler extends AbstractIQHandler implements
         }
         final Forwarded fwd = new Forwarded(rootElement, archivedMessage.getTime(), null);
 
-        if (archivedMessage.getId() == null) {
-            // TODO The MAM XEP specifies that there _must_ be an ID value in the result element. Traditionally, this
-            // code used the database ID. That introduces a weird dependency that a message must have a database ID
-            // before it can be used in results. In practise, that will probably always be the case, but it is not a
-            // particularly nice dependency.
-            throw new IllegalStateException("Unable to use an archived message that has no database ID.");
+        // When this implementation uses XEP-0359 identifiers, the value that is used in the 'id' attribute of the
+        // result should be the stable and unique stanza ID of the message (as that is the value that clients are
+        // expected to use in, for example, subsequent RSM-based paging requests).
+        String resultId = null;
+        if (usesUniqueAndStableIDs()) {
+            final String stableId = archivedMessage.getStableId(queryRequest.getArchive().asBareJID());
+            if (stableId != null && !stableId.isEmpty()) {
+                resultId = stableId;
+            }
         }
 
-        // TODO Can/should we use a SSID instead of the database ID for the result 'ID' attribute value?
-        messagePacket.addExtension(new Result(fwd, NAMESPACE, queryRequest.getQueryid(), archivedMessage.getId().toString()));
+        if (resultId == null) {
+            // Messages that were archived by an older version of this plugin do not have a stable and unique stanza ID
+            // (and neither do messages when the corresponding functionality is disabled by configuration). For those,
+            // fall back to using the database ID, which is the value that this implementation has traditionally used.
+            if (archivedMessage.getId() == null) {
+                // TODO The MAM XEP specifies that there _must_ be an ID value in the result element. Traditionally, this
+                // code used the database ID. That introduces a weird dependency that a message must have a database ID
+                // before it can be used in results. In practise, that will probably always be the case, but it is not a
+                // particularly nice dependency.
+                throw new IllegalStateException("Unable to use an archived message that has no database ID.");
+            }
+            resultId = archivedMessage.getId().toString();
+        }
+
+        messagePacket.addExtension(new Result(fwd, NAMESPACE, queryRequest.getQueryid(), resultId));
         router.route(messagePacket);
     }
 

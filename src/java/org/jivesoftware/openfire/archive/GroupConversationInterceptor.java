@@ -175,10 +175,17 @@ public class GroupConversationInterceptor implements MUCEventListener {
             final JID roomJID = message.getFrom().asBareJID();
             final String senderNickname = message.getFrom().getResource();
             final Date now = new Date();
+            // When a private message is stored in a personal archive, it is stored as a regular 'one-on-one' message.
+            // The stanza-id that was added by the MUC service uses the room as its 'by' value, which is of no use to
+            // the owners of the personal archives. Add stanza-ids for those (local) owners. Note that, unlike regular
+            // one-to-one messages, these identifiers are added to the archived representation of the message only: at
+            // the time that the message is routed, its addressee is an occupant of a room, rather than a local user.
+            final String personalArchiveStanza = ArchiveStanzaIDUtil.getArchivableStanzaXml(message, fromJID, toJID);
+
             if (ClusterManager.isSeniorClusterMember()) {
                 if (PM_IN_PERSONAL_ARCHIVE.getValue()) {
                     // Historically, private messages are saved as regular 'one-on-one' messages.
-                    conversationManager.processMessage(fromJID, toJID, message.getBody(), message.toXML(), now);
+                    conversationManager.processMessage(fromJID, toJID, message.getBody(), personalArchiveStanza, now);
                 }
 
                 if (PM_IN_ROOM_ARCHIVE.getValue()) {
@@ -194,7 +201,7 @@ public class GroupConversationInterceptor implements MUCEventListener {
                         conversationManager.getConversationKey(fromJID, toJID),
                         ConversationEvent.chatMessageReceived(toJID, fromJID,
                             conversationManager.isMessageArchivingEnabled() ? message.getBody() : null,
-                            conversationManager.isMessageArchivingEnabled() ? message.toXML() : null,
+                            conversationManager.isMessageArchivingEnabled() ? personalArchiveStanza : null,
                             now));
                 }
 
