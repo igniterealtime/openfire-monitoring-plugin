@@ -88,42 +88,7 @@ public class PaginatedMessageDatabaseQuery extends AbstractPaginatedMamQuery
             final String query = buildQueryForMessages(after, before, maxResults, isPagingBackwards);
             pstmt = connection.prepareStatement( query );
 
-            int pos = 0;
-
-            // For the date filters.
-            pstmt.setLong( ++pos, dateToMillis( startDate ) );
-            pstmt.setLong( ++pos, dateToMillis( endDate ) );
-
-            // For the one-on-one where-clause
-            if (with == null) {
-                pstmt.setString( ++pos, archiveOwner.toBareJID() );
-                pstmt.setString( ++pos, archiveOwner.toBareJID() );
-            } else if (with.getResource() == null) {
-                pstmt.setString( ++pos, archiveOwner.toBareJID() );
-                pstmt.setString( ++pos, with.toBareJID() );
-                pstmt.setString( ++pos, with.toBareJID() );
-                pstmt.setString( ++pos, archiveOwner.toBareJID() );
-            } else {
-                pstmt.setString( ++pos, archiveOwner.toBareJID() );
-                pstmt.setString( ++pos, with.toBareJID() );
-                pstmt.setString( ++pos, with.getResource() );
-                pstmt.setString( ++pos, with.toBareJID() );
-                pstmt.setString( ++pos, with.getResource() );
-                pstmt.setString( ++pos, archiveOwner.toBareJID() );
-            }
-
-            // For the private-messages where-clause
-            pstmt.setString(++pos, archiveOwner.toBareJID());
-            pstmt.setString(++pos, archiveOwner.toBareJID());
-            if (with != null) {
-                pstmt.setString( ++pos, with.toBareJID() );
-                if (with.getResource() != null) {
-                    pstmt.setString( ++pos, archiveOwner.toBareJID() );
-                    pstmt.setString( ++pos, with.getResource() );
-                    pstmt.setString( ++pos, archiveOwner.toBareJID() );
-                    pstmt.setString( ++pos, with.getResource() );
-                }
-            }
+            int pos = bindCommonParameters(pstmt);
 
             if ( after != null ) {
                 pstmt.setLong( ++pos, after );
@@ -172,42 +137,7 @@ public class PaginatedMessageDatabaseQuery extends AbstractPaginatedMamQuery
             connection = DbConnectionManager.getConnection();
             pstmt = connection.prepareStatement( buildQueryForTotalCount() );
 
-            int pos = 0;
-
-            // For the date filters.
-            pstmt.setLong( ++pos, dateToMillis( startDate ) );
-            pstmt.setLong( ++pos, dateToMillis( endDate ) );
-
-            // For the one-on-one where-clause
-            if (with == null) {
-                pstmt.setString( ++pos, archiveOwner.toBareJID() );
-                pstmt.setString( ++pos, archiveOwner.toBareJID() );
-            } else if (with.getResource() == null) {
-                pstmt.setString( ++pos, archiveOwner.toBareJID() );
-                pstmt.setString( ++pos, with.toBareJID() );
-                pstmt.setString( ++pos, with.toBareJID() );
-                pstmt.setString( ++pos, archiveOwner.toBareJID() );
-            } else {
-                pstmt.setString( ++pos, archiveOwner.toBareJID() );
-                pstmt.setString( ++pos, with.toBareJID() );
-                pstmt.setString( ++pos, with.getResource() );
-                pstmt.setString( ++pos, with.toBareJID() );
-                pstmt.setString( ++pos, with.getResource() );
-                pstmt.setString( ++pos, archiveOwner.toBareJID() );
-            }
-
-            // For the private-messages where-clause
-            pstmt.setString(++pos, archiveOwner.toBareJID());
-            pstmt.setString(++pos, archiveOwner.toBareJID());
-            if (with != null) {
-                pstmt.setString( ++pos, with.toBareJID() );
-                if (with.getResource() != null) {
-                    pstmt.setString( ++pos, archiveOwner.toBareJID() );
-                    pstmt.setString( ++pos, with.getResource() );
-                    pstmt.setString( ++pos, archiveOwner.toBareJID() );
-                    pstmt.setString( ++pos, with.getResource() );
-                }
-            }
+            bindCommonParameters(pstmt);
 
             Log.trace( "Constructed query: {}", pstmt );
             rs = pstmt.executeQuery();
@@ -222,7 +152,59 @@ public class PaginatedMessageDatabaseQuery extends AbstractPaginatedMamQuery
         return totalCount;
     }
 
-    private String buildQueryForMessages( @Nullable final Long after, @Nullable final Long before, final int maxResults, final boolean isPagingBackwards )
+    /**
+     * Binds the parameters shared by the date filter, the one-on-one where-clause, and the private-messages
+     * where-clause. {@link #getPage(Long, Long, int, boolean)} has two further parameters (the after/before
+     * navigation cursor) that this does not bind; the returned index is the last one this method used, so that
+     * caller can continue from there.
+     *
+     * @param pstmt the prepared statement to bind parameters on. Its SQL must have been built by
+     *              {@link #buildQueryForMessages(Long, Long, int, boolean)} or {@link #buildQueryForTotalCount()}.
+     * @return the index of the last parameter that this method bound.
+     */
+    int bindCommonParameters(final PreparedStatement pstmt) throws SQLException
+    {
+        int pos = 0;
+
+        // For the date filters.
+        pstmt.setLong( ++pos, dateToMillis( startDate ) );
+        pstmt.setLong( ++pos, dateToMillis( endDate ) );
+
+        // For the one-on-one where-clause
+        if (with == null) {
+            pstmt.setString( ++pos, archiveOwner.toBareJID() );
+            pstmt.setString( ++pos, archiveOwner.toBareJID() );
+        } else if (with.getResource() == null) {
+            pstmt.setString( ++pos, archiveOwner.toBareJID() );
+            pstmt.setString( ++pos, with.toBareJID() );
+            pstmt.setString( ++pos, with.toBareJID() );
+            pstmt.setString( ++pos, archiveOwner.toBareJID() );
+        } else {
+            pstmt.setString( ++pos, archiveOwner.toBareJID() );
+            pstmt.setString( ++pos, with.toBareJID() );
+            pstmt.setString( ++pos, with.getResource() );
+            pstmt.setString( ++pos, with.toBareJID() );
+            pstmt.setString( ++pos, with.getResource() );
+            pstmt.setString( ++pos, archiveOwner.toBareJID() );
+        }
+
+        // For the private-messages where-clause
+        pstmt.setString(++pos, archiveOwner.toBareJID());
+        pstmt.setString(++pos, archiveOwner.toBareJID());
+        if (with != null) {
+            pstmt.setString( ++pos, with.toBareJID() );
+            if (with.getResource() != null) {
+                pstmt.setString( ++pos, archiveOwner.toBareJID() );
+                pstmt.setString( ++pos, with.getResource() );
+                pstmt.setString( ++pos, archiveOwner.toBareJID() );
+                pstmt.setString( ++pos, with.getResource() );
+            }
+        }
+
+        return pos;
+    }
+
+    String buildQueryForMessages( @Nullable final Long after, @Nullable final Long before, final int maxResults, final boolean isPagingBackwards )
     {
         /* Database table 'ofMessageArchive' content examples:
          *
@@ -252,18 +234,6 @@ public class PaginatedMessageDatabaseQuery extends AbstractPaginatedMamQuery
             FROM ofMessageArchive a
             LEFT JOIN ofConversation c ON a.conversationID = c.conversationID
             """;
-
-        // An additional join is required to be able to answer queries that attempt to filter for private messages for a particular participant.
-        if (with != null && with.getResource() != null) {
-            sql += """
-                LEFT JOIN ofConParticipant senderP
-                       ON a.conversationID = senderP.conversationID
-                      AND a.fromJID = senderP.bareJID
-                LEFT JOIN ofConParticipant targetP
-                       ON a.conversationID = targetP.conversationID
-                      AND a.isPMforJID = targetP.bareJID
-                """;
-        }
 
         // Ignoring 'messageID IS NULL' as they are legacy messages.
         sql += """
@@ -305,7 +275,7 @@ public class PaginatedMessageDatabaseQuery extends AbstractPaginatedMamQuery
         return sql;
     }
 
-    private String buildQueryForTotalCount()
+    String buildQueryForTotalCount()
     {
         String sql = """
             SELECT COUNT(DISTINCT a.messageID)
@@ -315,18 +285,6 @@ public class PaginatedMessageDatabaseQuery extends AbstractPaginatedMamQuery
             FROM ofMessageArchive a
             LEFT JOIN ofConversation c ON a.conversationID = c.conversationID
             """;
-
-        // An additional join is required to be able to answer queries that attempt to filter for private messages for a particular participant.
-        if (with != null && with.getResource() != null) {
-            sql += """
-                LEFT JOIN ofConParticipant senderP
-                       ON a.conversationID = senderP.conversationID
-                      AND a.fromJID = senderP.bareJID
-                LEFT JOIN ofConParticipant targetP
-                       ON a.conversationID = targetP.conversationID
-                      AND a.isPMforJID = targetP.bareJID
-                """;
-        }
 
         // Ignoring 'messageID IS NULL' as they are legacy messages.
         sql += """
@@ -429,10 +387,26 @@ public class PaginatedMessageDatabaseQuery extends AbstractPaginatedMamQuery
             if (with.getResource() != null) {
                 // When the 'with' filter value is a full JID, it is an occupant JID that further filters for a specific
                 // nickname. This nickname is either the sender or recipient of the messages that are of interest.
+                //
+                // A participant can rejoin a room while a conversation is ongoing, adding a new row to
+                // ofConParticipant for the same (conversationID, bareJID) pair each time. Joining that table
+                // directly (as this used to) matches every such row, multiplying each archived message once per
+                // extra rejoin. EXISTS only tests for a match without adding rows to the result, so a participant
+                // with multiple rows for this conversation still contributes each underlying message exactly once.
                 sql += """
                       AND (
-                             (a.fromJID = ? AND targetP.nickname = ?)
-                          OR (a.isPMforJID = ? AND senderP.nickname = ?)
+                             (a.fromJID = ? AND EXISTS (
+                                 SELECT 1 FROM ofConParticipant
+                                  WHERE conversationID = a.conversationID
+                                    AND bareJID = a.isPMforJID
+                                    AND nickname = ?
+                             ))
+                          OR (a.isPMforJID = ? AND EXISTS (
+                                 SELECT 1 FROM ofConParticipant
+                                  WHERE conversationID = a.conversationID
+                                    AND bareJID = a.fromJID
+                                    AND nickname = ?
+                             ))
                           )
                 """;
             }

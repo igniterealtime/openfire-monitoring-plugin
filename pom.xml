@@ -129,6 +129,13 @@
             <scope>test</scope>
         </dependency>
         <dependency>
+            <!-- Same version Openfire itself bundles; used here for an in-memory schema in tests, not at runtime. -->
+            <groupId>org.hsqldb</groupId>
+            <artifactId>hsqldb</artifactId>
+            <version>2.7.4</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
             <groupId>org.igniterealtime.smack</groupId>
             <artifactId>smack-integration-test</artifactId>
             <version>4.5.0-beta9</version>
