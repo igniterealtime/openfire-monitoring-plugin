@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008 Jive Software, 2024 Ignite Realtime Foundation. All rights reserved.
+ * Copyright (C) 2008 Jive Software, 2024-2025 Ignite Realtime Foundation. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -197,7 +197,13 @@ public abstract class LuceneIndexer
             }
         };
         final Duration updateInterval = UPDATE_INTERVAL.getValue();
-        taskEngine.schedule(indexUpdater, Duration.ofMinutes(1), updateInterval);
+        if (updateInterval.isZero()) {
+            // Continuous indexing.
+            taskEngine.schedule(indexUpdater, Duration.ofMillis(50), Duration.ofMillis(50));
+        } else {
+            // Periodic indexing.
+            taskEngine.schedule(indexUpdater, Duration.ofMinutes(1), updateInterval);
+        }
     }
 
     private void removeAndRebuildSearchDir() throws IOException {
