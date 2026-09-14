@@ -182,12 +182,16 @@ public class ArchiveStanzaIDUtil
         }
 
         try {
-            if ( !isEnabled() || !localUserTest.test( archiveOwner ) ) {
+            if ( !isEnabled() ) {
                 return null;
             }
 
             final Element parentElement = message.getElement();
             removeStanzaIDsOfLocalUsers( parentElement, message, localUserTest );
+
+            if ( !localUserTest.test( archiveOwner ) ) {
+                return null;
+            }
 
             final String id = UUID.randomUUID().toString();
             addStanzaID( parentElement, id, archiveOwner.toBareJID() );
