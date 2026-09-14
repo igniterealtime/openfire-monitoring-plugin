@@ -627,6 +627,12 @@ abstract public class IQQueryHandler extends AbstractIQHandler implements
         form.addField("with", "Author of message", FormField.Type.jid_single);
         form.addField("start", "Message sent on or after timestamp.", FormField.Type.text_single);
         form.addField("end", "Message sent on or before timestamp.", FormField.Type.text_single);
+        if (usesUniqueAndStableIDs()) {
+            // XEP-0313 § mam:2#extended: before-id, after-id and ids query fields.
+            form.addField(MamQueryFormFields.BEFORE_ID, "Message ID of last message to return.", FormField.Type.text_single);
+            form.addField(MamQueryFormFields.AFTER_ID, "Message ID of first message to return.", FormField.Type.text_single);
+            form.addField(MamQueryFormFields.IDS, "IDs of specific messages to return.", FormField.Type.list_multi);
+        }
         if (LuceneIndexer.ENABLED.getValue()) {
             form.addField("{urn:xmpp:fulltext:0}fulltext", "Free text search", FormField.Type.text_single);
         }
@@ -643,25 +649,26 @@ abstract public class IQQueryHandler extends AbstractIQHandler implements
      *
      * @return A list of fields. Never null.
      */
-    private List<String> getSupportedFieldVariables() {
-        List<String> results = Arrays.asList("FORM_TYPE", "with", "start", "end");
-        if (LuceneIndexer.ENABLED.getValue()) {
-            results = new ArrayList<String>(results);
-            results.add("{urn:xmpp:fulltext:0}fulltext");
-            results.add("withtext");
-            results.add("search");
-        }
-        return results;
+    List<String> getSupportedFieldVariables() {
+        return MamQueryFormFields.getSupportedFieldVariables(usesUniqueAndStableIDs(), LuceneIndexer.ENABLED.getValue());
+    }
+
+    /**
+     * Whether this handler advertises {@code urn:xmpp:mam:2#extended}. Overridden by mam:2 once the extended
+     * capabilities are implemented.
+     */
+    boolean advertisesExtended() {
+        return false;
     }
 
     @Override
     public Iterator<String> getFeatures() {
-        final List<String> result = new ArrayList<>();
-        result.add(NAMESPACE);
-        if (LuceneIndexer.ENABLED.getValue()) {
-            result.add("urn:xmpp:fulltext:0");
-        }
-        return result.iterator();
+        return MamQueryFormFields.getFeatures(
+            NAMESPACE,
+            usesUniqueAndStableIDs(),
+            LuceneIndexer.ENABLED.getValue(),
+            advertisesExtended()
+        ).iterator();
     }
 
     void completeFinElement(QueryRequest queryRequest, Element fin) {
