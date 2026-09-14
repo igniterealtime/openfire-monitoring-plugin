@@ -32,6 +32,7 @@ import org.jivesoftware.openfire.archive.ArchiveSearcher;
 import org.jivesoftware.openfire.archive.ConversationManager;
 import org.jivesoftware.openfire.archive.GroupConversationInterceptor;
 import org.jivesoftware.openfire.archive.MonitoringConstants;
+import org.jivesoftware.openfire.archive.StanzaIDUserFeatureProvider;
 import org.jivesoftware.openfire.container.Plugin;
 import org.jivesoftware.openfire.container.PluginListener;
 import org.jivesoftware.openfire.container.PluginManager;
@@ -99,6 +100,8 @@ public class MonitoringPlugin implements Plugin, PluginListener
     private ArchiveSearcher archiveSearcher;
     private MucIndexer mucIndexer;
     private MessageIndexer messageIndexer;
+
+    private final StanzaIDUserFeatureProvider stanzaIDUserFeatureProvider = new StanzaIDUserFeatureProvider();
 
     public MonitoringPlugin() {
         instance = this;
@@ -190,6 +193,8 @@ public class MonitoringPlugin implements Plugin, PluginListener
         archiveSearcher.start();
         mucIndexer.start();
         messageIndexer.start();
+
+        XMPPServer.getInstance().getIQDiscoInfoHandler().addUserFeaturesProvider(stanzaIDUserFeatureProvider);
     }
 
     public void destroyPlugin() {
@@ -198,6 +203,8 @@ public class MonitoringPlugin implements Plugin, PluginListener
         TaskEngine.getInstance().dispose();
 
         unloadPublicWeb();
+
+        XMPPServer.getInstance().getIQDiscoInfoHandler().removeUserFeaturesProvider(stanzaIDUserFeatureProvider);
 
         XMPPServer.getInstance().getPluginManager().removePluginListener(this);
 
