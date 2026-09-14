@@ -20,6 +20,7 @@ import org.dom4j.Element;
 import org.dom4j.QName;
 import org.jivesoftware.openfire.XMPPServer;
 import org.jivesoftware.util.JiveGlobals;
+import org.jivesoftware.util.SystemProperty;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.xmpp.packet.JID;
@@ -90,13 +91,16 @@ public class ArchiveStanzaIDUtil
     private static final QName FORWARDED = QName.get( "forwarded", "urn:xmpp:forward:0" );
 
     /**
-     * Name of the property that controls if this plugin generates XEP-0359 'Unique and Stable Stanza IDs' for
-     * one-to-one messages that it archives.
+     * Controls if this plugin generates XEP-0359 'Unique and Stable Stanza IDs' for one-to-one messages that it archives.
      *
      * When disabled, the archive falls back to using database identifiers, which is the behavior of versions of this
      * plugin that predate the introduction of this functionality.
      */
-    public static final String STANZA_ID_ENABLED_PROPERTY = "conversation.stanzaID.enabled";
+    public static final SystemProperty<Boolean> STANZA_ID_ENABLED = SystemProperty.Builder.ofType(Boolean.class)
+        .setKey("conversation.stanzaID.enabled")
+        .setDefaultValue(true)
+        .setDynamic(true)
+        .build();
 
     /**
      * The test that is used to determine if an entity is an account that is registered with this server. Package
@@ -116,7 +120,7 @@ public class ArchiveStanzaIDUtil
      */
     public static boolean isEnabled()
     {
-        return JiveGlobals.getBooleanProperty( STANZA_ID_ENABLED_PROPERTY, true )
+        return STANZA_ID_ENABLED.getValue()
             && JiveGlobals.getBooleanProperty( "xmpp.sid.enabled", true )
             && JiveGlobals.getBooleanProperty( "xmpp.sid.message.enabled", true );
     }
