@@ -1,6 +1,7 @@
 package com.reucon.openfire.plugin.archive.impl;
 
 import com.reucon.openfire.plugin.archive.PersistenceManager;
+import com.reucon.openfire.plugin.archive.model.ArchiveMetadata;
 import com.reucon.openfire.plugin.archive.model.ArchivedMessage;
 import com.reucon.openfire.plugin.archive.model.Conversation;
 import com.reucon.openfire.plugin.archive.xep0059.XmppResultSet;
@@ -591,4 +592,41 @@ public class MucMamPersistenceManager implements PersistenceManager {
         }
         return false;
     }
+    @Override
+    public ArchiveMetadata getArchiveMetadata(JID archiveOwner) throws DataRetrievalException
+    {
+        final MultiUserChatManager manager = XMPPServer.getInstance().getMultiUserChatManager();
+        final MultiUserChatService service = manager.getMultiUserChatService(archiveOwner);
+        if (service == null) {
+            return ArchiveMetadata.empty();
+        }
+        final MUCRoom room = service.getChatRoom(archiveOwner.getNode());
+        if (room == null || !room.isLogEnabled()) {
+            return ArchiveMetadata.empty();
+        }
+
+        final Date startDate = new Date(0L);
+        final Date endDate = new Date();
+        final List<ArchivedMessage> oldest;
+        final List<ArchivedMessage> newest;
+        if (USE_OPENFIRE_TABLES.getValue()) {
+            final PaginatedMucMessageFromOpenfireDatabaseQuery q = new PaginatedMucMessageFromOpenfireDatabaseQuery(startDate, endDate, room, null);
+            if (q.getTotalCount() == 0) {
+                return ArchiveMetadata.empty();
+            }
+            oldest = q.getPage(null, null, 1, false);
+            newest = q.getPage(null, null, 1, true);
+        } else {
+            final PaginatedMucMessageDatabaseQuery q = new PaginatedMucMessageDatabaseQuery(startDate, endDate, room, null);
+            if (q.getTotalCount() == 0) {
+                return ArchiveMetadata.empty();
+            }
+            oldest = q.getPage(null, null, 1, false);
+            newest = q.getPage(null, null, 1, true);
+        }
+        final ArchivedMessage start = oldest.isEmpty() ? null : oldest.get(0);
+        final ArchivedMessage end = newest.isEmpty() ? null : newest.get(0);
+        return new ArchiveMetadata(start, end);
+    }
+
 }

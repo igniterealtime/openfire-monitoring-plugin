@@ -18,6 +18,7 @@ public class Xep0313Support2 extends AbstractXepSupport {
 
         this.iqHandlers = new ArrayList<>();
         iqHandlers.add(new IQQueryHandler2());
+        iqHandlers.add(new IQMetadataHandler());
     }
 
 }

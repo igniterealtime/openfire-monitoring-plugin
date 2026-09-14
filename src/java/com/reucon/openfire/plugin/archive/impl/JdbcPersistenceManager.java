@@ -1,6 +1,7 @@
 package com.reucon.openfire.plugin.archive.impl;
 
 import com.reucon.openfire.plugin.archive.PersistenceManager;
+import com.reucon.openfire.plugin.archive.model.ArchiveMetadata;
 import com.reucon.openfire.plugin.archive.model.ArchivedMessage;
 import com.reucon.openfire.plugin.archive.model.ArchivedMessage.Direction;
 import com.reucon.openfire.plugin.archive.model.Conversation;
@@ -733,4 +734,20 @@ public class JdbcPersistenceManager implements PersistenceManager {
     private static Date millisToDate(Long millis) {
         return millis == null ? null : new Date(millis);
     }
+    @Override
+    public ArchiveMetadata getArchiveMetadata(JID archiveOwner) throws DataRetrievalException
+    {
+        final Date startDate = new Date(0L);
+        final Date endDate = new Date();
+        final PaginatedMessageDatabaseQuery query = new PaginatedMessageDatabaseQuery(startDate, endDate, archiveOwner, null);
+        if (query.getTotalCount() == 0) {
+            return ArchiveMetadata.empty();
+        }
+        final List<ArchivedMessage> oldest = query.getPage(null, null, 1, false);
+        final List<ArchivedMessage> newest = query.getPage(null, null, 1, true);
+        final ArchivedMessage start = oldest.isEmpty() ? null : oldest.get(0);
+        final ArchivedMessage end = newest.isEmpty() ? null : newest.get(0);
+        return new ArchiveMetadata(start, end);
+    }
+
 }

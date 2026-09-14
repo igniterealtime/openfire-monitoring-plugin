@@ -1,6 +1,7 @@
 package com.reucon.openfire.plugin.archive;
 
 import com.reucon.openfire.plugin.archive.impl.DataRetrievalException;
+import com.reucon.openfire.plugin.archive.model.ArchiveMetadata;
 import com.reucon.openfire.plugin.archive.model.ArchivedMessage;
 import com.reucon.openfire.plugin.archive.model.Conversation;
 import com.reucon.openfire.plugin.archive.xep0059.XmppResultSet;
@@ -52,4 +53,12 @@ public interface PersistenceManager
      * @return the matching conversation or <code>null</code> if none matches.
      */
     Conversation getConversation(JID owner, JID with, Date start); // TODO move to ConversationManager?
+
+    /**
+     * Returns metadata for an archive: the oldest and newest archived messages (if any).
+     *
+     * @param archiveOwner bare JID of the archive owner (user or MUC room).
+     * @return metadata (never null; start/end may be null when the archive is empty).
+     */
+    ArchiveMetadata getArchiveMetadata(JID archiveOwner) throws DataRetrievalException;
 }
