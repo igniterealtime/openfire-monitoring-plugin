@@ -4,6 +4,7 @@ import com.reucon.openfire.plugin.archive.PersistenceManager;
 import com.reucon.openfire.plugin.archive.model.ArchivedMessage;
 import com.reucon.openfire.plugin.archive.model.Conversation;
 import com.reucon.openfire.plugin.archive.xep0059.XmppResultSet;
+import com.reucon.openfire.plugin.archive.xep0313.MamExtendedQuery;
 import org.dom4j.Document;
 import org.dom4j.DocumentException;
 import org.dom4j.DocumentHelper;
@@ -27,7 +28,9 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.Collections;
 import java.util.Date;
 import java.util.List;
@@ -53,8 +56,11 @@ public class MucMamPersistenceManager implements PersistenceManager {
     }
 
     @Override
-    public Collection<ArchivedMessage> findMessages(Date startDate, Date endDate, JID archiveOwner, JID with, String query, XmppResultSet xmppResultSet, boolean useStableID ) throws NotFoundException, DataRetrievalException {
-        Log.debug( "Finding messages in archive '{}' with start date '{}', end date '{}' with '{}', query: '{}' and resultset '{}', useStableId '{}'.", archiveOwner, startDate, endDate, with, query, xmppResultSet, useStableID );
+    public Collection<ArchivedMessage> findMessages(Date startDate, Date endDate, JID archiveOwner, JID with, String query, XmppResultSet xmppResultSet, boolean useStableID, MamExtendedQuery extendedQuery) throws NotFoundException, DataRetrievalException {
+        if (extendedQuery == null) {
+            extendedQuery = MamExtendedQuery.none();
+        }
+        Log.debug( "Finding messages in archive '{}' with start date '{}', end date '{}' with '{}', query: '{}' and resultset '{}', useStableId '{}', extended '{}'.", archiveOwner, startDate, endDate, with, query, xmppResultSet, useStableID, extendedQuery );
         final MultiUserChatManager manager = XMPPServer.getInstance().getMultiUserChatManager();
         final MultiUserChatService service = manager.getMultiUserChatService(archiveOwner);
         final MUCRoom room = service.getChatRoom(archiveOwner.getNode());
@@ -73,10 +79,25 @@ public class MucMamPersistenceManager implements PersistenceManager {
             endDate = new Date();
         }
 
-        final Long after = parseAndValidate( xmppResultSet.getAfter(), room, useStableID, "after" );
-        final Long before = parseAndValidate( xmppResultSet.getBefore(), room, useStableID, "before" );
-        final int maxResults = xmppResultSet.getMax() != null ? xmppResultSet.getMax() : DEFAULT_MAX;
-        final boolean isPagingBackwards = xmppResultSet.isPagingBackwards();
+        if (extendedQuery.hasIds()) {
+            return findMessagesByIds(startDate, endDate, room, with, xmppResultSet, useStableID, extendedQuery);
+        }
+
+        Long after = parseAndValidate( xmppResultSet != null ? xmppResultSet.getAfter() : null, room, useStableID, "after" );
+        Long before = parseAndValidate( xmppResultSet != null ? xmppResultSet.getBefore() : null, room, useStableID, "before" );
+        if (extendedQuery.getAfterId() != null) {
+            final Long afterId = parseAndValidate(extendedQuery.getAfterId(), room, useStableID, "after-id");
+            after = after == null ? afterId : Math.max(after, afterId);
+        }
+        if (extendedQuery.getBeforeId() != null) {
+            final Long beforeId = parseAndValidate(extendedQuery.getBeforeId(), room, useStableID, "before-id");
+            before = before == null ? beforeId : Math.min(before, beforeId);
+        }
+        final int maxResults = (xmppResultSet != null && xmppResultSet.getMax() != null) ? xmppResultSet.getMax() : DEFAULT_MAX;
+        boolean isPagingBackwards = xmppResultSet != null && xmppResultSet.isPagingBackwards();
+        if (extendedQuery.isPagingBackwardsViaBeforeId() && (xmppResultSet == null || xmppResultSet.getAfter() == null)) {
+            isPagingBackwards = true;
+        }
 
         final List<ArchivedMessage> msgs;
         final int totalCount;
@@ -189,6 +210,72 @@ public class MucMamPersistenceManager implements PersistenceManager {
             xmppResultSet.setComplete(nextPage.isEmpty());
         } else {
             // Issue #112: When there are no results, then the request is definitely 'complete'.
+            xmppResultSet.setComplete(true);
+        }
+        return msgs;
+    }
+
+
+    private Collection<ArchivedMessage> findMessagesByIds(Date startDate, Date endDate, MUCRoom room, JID with, XmppResultSet xmppResultSet, boolean useStableID, MamExtendedQuery extendedQuery) throws NotFoundException
+    {
+        final List<ArchivedMessage> msgs = new ArrayList<>();
+        for (final String id : extendedQuery.getIds()) {
+            final Long messageId = parseAndValidate(id, room, useStableID, "ids");
+            final ArchivedMessage message = getArchivedMessage(messageId, room);
+            if (message == null) {
+                throw new NotFoundException("The reference '" + id + "' used in the 'ids' element is not recognized.");
+            }
+            if (message.getTime() != null) {
+                if (startDate != null && message.getTime().before(startDate)) {
+                    continue;
+                }
+                if (endDate != null && message.getTime().after(endDate)) {
+                    continue;
+                }
+            }
+            if (with != null) {
+                final JID messageWith = message.getWith();
+                if (messageWith == null) {
+                    continue;
+                }
+                if (with.getResource() == null) {
+                    if (!with.toBareJID().equals(messageWith.toBareJID())) {
+                        continue;
+                    }
+                } else if (!with.equals(messageWith)) {
+                    continue;
+                }
+            }
+            if (extendedQuery.getAfterId() != null) {
+                final Long afterId = parseAndValidate(extendedQuery.getAfterId(), room, useStableID, "after-id");
+                if (message.getId() != null && message.getId() <= afterId) {
+                    continue;
+                }
+            }
+            if (extendedQuery.getBeforeId() != null) {
+                final Long beforeId = parseAndValidate(extendedQuery.getBeforeId(), room, useStableID, "before-id");
+                if (message.getId() != null && message.getId() >= beforeId) {
+                    continue;
+                }
+            }
+            msgs.add(message);
+        }
+
+        msgs.sort(Comparator.comparing(ArchivedMessage::getTime, Comparator.nullsLast(Comparator.naturalOrder()))
+            .thenComparing(ArchivedMessage::getId, Comparator.nullsLast(Comparator.naturalOrder())));
+
+        if (xmppResultSet != null) {
+            xmppResultSet.setCount(msgs.size());
+            if (!msgs.isEmpty()) {
+                final ArchivedMessage firstMessage = msgs.get(0);
+                final ArchivedMessage lastMessage = msgs.get(msgs.size() - 1);
+                final String first = firstMessage.getStableId(room.getJID()) != null && !firstMessage.getStableId(room.getJID()).isEmpty()
+                    ? firstMessage.getStableId(room.getJID()) : String.valueOf(firstMessage.getId());
+                final String last = lastMessage.getStableId(room.getJID()) != null && !lastMessage.getStableId(room.getJID()).isEmpty()
+                    ? lastMessage.getStableId(room.getJID()) : String.valueOf(lastMessage.getId());
+                xmppResultSet.setFirst(first);
+                xmppResultSet.setLast(last);
+            }
             xmppResultSet.setComplete(true);
         }
         return msgs;

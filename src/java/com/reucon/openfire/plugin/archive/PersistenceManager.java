@@ -4,6 +4,7 @@ import com.reucon.openfire.plugin.archive.impl.DataRetrievalException;
 import com.reucon.openfire.plugin.archive.model.ArchivedMessage;
 import com.reucon.openfire.plugin.archive.model.Conversation;
 import com.reucon.openfire.plugin.archive.xep0059.XmppResultSet;
+import com.reucon.openfire.plugin.archive.xep0313.MamExtendedQuery;
 import org.jivesoftware.util.NotFoundException;
 import org.xmpp.packet.JID;
 
@@ -37,9 +38,10 @@ public interface PersistenceManager
      *                      the jid of another XMPP user or the jid of a group chat.
      * @param query         A query string, typically representing keywords or a partial text, or <code>null</code>.
      * @param useStableID   true if MAM2 or another protocol is used that depends on XEP-0359.
+     * @param extendedQuery optional mam:2#extended criteria (before-id/after-id/ids/flip-page), or null.
      * @return the messages that matched search criteria (possibly empty, never null).
      */
-    Collection<ArchivedMessage> findMessages( Date startDate, Date endDate, JID archiveOwner, JID with, String query, XmppResultSet xmppResultSet, boolean useStableID) throws NotFoundException, DataRetrievalException;
+    Collection<ArchivedMessage> findMessages( Date startDate, Date endDate, JID archiveOwner, JID with, String query, XmppResultSet xmppResultSet, boolean useStableID, MamExtendedQuery extendedQuery) throws NotFoundException, DataRetrievalException;
 
     /**
      * Returns the conversation with the given owner, with and start time including participants and messages.

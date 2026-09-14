@@ -362,6 +362,10 @@ abstract public class IQQueryHandler extends AbstractIQHandler implements
         }
         final ConversationManager conversationManager = ((MonitoringPlugin)plugin.get()).getConversationManager();
         
+        String beforeIdField = null;
+        String afterIdField = null;
+        List<String> idsField = null;
+
         DataForm dataForm = queryRequest.getDataForm();
         if(dataForm != null) {
             if(dataForm.getField("with") != null) {
@@ -388,7 +392,27 @@ abstract public class IQQueryHandler extends AbstractIQHandler implements
                     textField = String.join(" ", dataForm.getField("search").getValues() );
                 }
             }
+
+            // mam:2#extended fields (only meaningful when unique/stable IDs are used).
+            if (usesUniqueAndStableIDs()) {
+                if (dataForm.getField(MamQueryFormFields.BEFORE_ID) != null) {
+                    beforeIdField = dataForm.getField(MamQueryFormFields.BEFORE_ID).getFirstValue();
+                }
+                if (dataForm.getField(MamQueryFormFields.AFTER_ID) != null) {
+                    afterIdField = dataForm.getField(MamQueryFormFields.AFTER_ID).getFirstValue();
+                }
+                if (dataForm.getField(MamQueryFormFields.IDS) != null) {
+                    idsField = dataForm.getField(MamQueryFormFields.IDS).getValues();
+                }
+            }
         }
+
+        final MamExtendedQuery extendedQuery = new MamExtendedQuery(
+            beforeIdField,
+            afterIdField,
+            idsField,
+            queryRequest.isFlipPage()
+        );
 
         try
         {
@@ -471,7 +495,8 @@ abstract public class IQQueryHandler extends AbstractIQHandler implements
 	                withField,
 	                textField,
 	                queryRequest.getResultSet(),
-                	this.usesUniqueAndStableIDs());
+                	this.usesUniqueAndStableIDs(),
+                    extendedQuery);
 	        
 	        Log.debug("MAM: found: "+(result!=null?String.valueOf(result.size()):"0 (result==null)")+" items");
 	        
