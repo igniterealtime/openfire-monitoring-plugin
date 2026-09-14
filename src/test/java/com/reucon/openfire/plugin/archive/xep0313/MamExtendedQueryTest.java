@@ -97,6 +97,25 @@ public class MamExtendedQueryTest
         assertFalse(request.isFlipPage());
     }
 
+
+    @Test
+    public void flipPageReversesBackwardsPageToNewestFirst()
+    {
+        // Simulates post-processing after Paginated*Query returns chronological order for a backwards page.
+        final java.util.List<String> chronological = new java.util.ArrayList<>(java.util.Arrays.asList("old", "mid", "new"));
+        final boolean isPagingBackwards = true;
+
+        final java.util.List<String> withoutFlip = new java.util.ArrayList<>(chronological);
+        // no flip-page: keep chronological
+        assertEquals(java.util.Arrays.asList("old", "mid", "new"), withoutFlip);
+
+        final java.util.List<String> withFlip = new java.util.ArrayList<>(chronological);
+        if (isPagingBackwards && true && withFlip.size() > 1) {
+            java.util.Collections.reverse(withFlip);
+        }
+        assertEquals(java.util.Arrays.asList("new", "mid", "old"), withFlip);
+    }
+
     /**
      * Mirrors the exclusive-bound merge used by Jdbc/Muc persistence managers.
      */

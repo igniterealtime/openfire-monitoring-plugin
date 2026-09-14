@@ -355,6 +355,11 @@ public class JdbcPersistenceManager implements PersistenceManager {
             }
         }
 
+        // mam:2#extended flip-page: when paging backwards, deliver the page newest-first instead of chronological.
+        if (isPagingBackwards && extendedQuery.isFlipPage() && msgs.size() > 1) {
+            Collections.reverse(msgs);
+        }
+
         Log.debug( "Found {} messages from a total of {} messages matching the request for archive of owner '{}'.", msgs.size(), totalCount, owner );
 
         if (xmppResultSet != null) {

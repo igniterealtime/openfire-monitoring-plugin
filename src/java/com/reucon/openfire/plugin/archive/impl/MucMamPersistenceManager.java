@@ -152,6 +152,12 @@ public class MucMamPersistenceManager implements PersistenceManager {
             }
         }
 
+
+        // mam:2#extended flip-page: when paging backwards, deliver the page newest-first instead of chronological.
+        if (isPagingBackwards && extendedQuery.isFlipPage() && msgs.size() > 1) {
+            Collections.reverse(msgs);
+        }
+
         Log.debug( "Request for message archive of room '{}' found a total of {} applicable messages. Of these, {} were actually retrieved from the database.", room.getJID(), totalCount, msgs.size() );
 
         xmppResultSet.setCount(totalCount);
