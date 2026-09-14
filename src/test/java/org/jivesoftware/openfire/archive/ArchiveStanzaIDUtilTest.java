@@ -820,6 +820,44 @@ public class ArchiveStanzaIDUtilTest {
         assertEquals("romeos-id", StanzaIDUtil.findFirstUniqueAndStableStanzaID(forwardedStanza, ROMEO.toBareJID()));
     }
 
+    /**
+     * Asserts that a stanza that holds no identifier at all is not modified when it is delivered.
+     */
+    @Test
+    public void testAdjustWithoutStanzaIds() {
+        // Setup test fixture.
+        final Message routed = newMessage(JULIET, ROMEO);
+        final String before = routed.toXML();
+
+        // Execute system under test.
+        final boolean result = ArchiveStanzaIDUtil.adjustForRecipient(routed, ROMEO, IS_LOCAL_USER);
+
+        // Verify results.
+        assertFalse(result);
+        assertEquals(before, routed.toXML());
+    }
+
+    /**
+     * Asserts that a stanza of which the forwarded stanzas are nested deeper than the maximum that is processed does
+     * not cause an error.
+     */
+    @Test
+    public void testAdjustToleratesDeeplyNestedStanzas() {
+        // Setup test fixture.
+        final Message innermost = newMessage(ROMEO, JULIET);
+        addStanzaId(innermost, "some-id", JULIET.toBareJID());
+        Message input = innermost;
+        for (int i = 0; i < 50; i++) {
+            input = newCarbonEnvelope(input, ROMEO.asBareJID(), ROMEO);
+        }
+
+        // Execute system under test.
+        final boolean result = ArchiveStanzaIDUtil.adjustForRecipient(input, ROMEO, IS_LOCAL_USER);
+
+        // Verify results.
+        assertFalse(result);
+    }
+
     private static Message newSentCarbon(final Message original, final JID to) {
         // XEP-0280: a carbon copy is addressed from the bare JID of the account to each of its full JIDs.
         return newCarbonEnvelope(original, to.asBareJID(), to);
