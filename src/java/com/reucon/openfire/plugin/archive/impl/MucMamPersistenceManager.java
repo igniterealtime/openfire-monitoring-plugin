@@ -70,6 +70,19 @@ public class MucMamPersistenceManager implements PersistenceManager {
             return Collections.emptyList();
         }
 
+        if (extendedQuery.hasIds()) {
+            final boolean idsOnly = extendedQuery.isIdsOnly(with != null, startDate != null, endDate != null, query != null && !query.isEmpty());
+            if (!idsOnly) {
+                if (startDate == null) {
+                    startDate = new Date(0L);
+                }
+                if (endDate == null) {
+                    endDate = new Date();
+                }
+            }
+            return findMessagesByIds(startDate, endDate, room, with, xmppResultSet, useStableID, extendedQuery);
+        }
+
         if (startDate == null) {
             Log.debug( "Request for message archive of room '{}' did not specify a start date. Using EPOCH.", room.getJID() );
             startDate = new Date(0L);
@@ -77,10 +90,6 @@ public class MucMamPersistenceManager implements PersistenceManager {
         if (endDate == null) {
             Log.debug( "Request for message archive of room '{}' did not specify an end date. Using the current timestamp.", room.getJID() );
             endDate = new Date();
-        }
-
-        if (extendedQuery.hasIds()) {
-            return findMessagesByIds(startDate, endDate, room, with, xmppResultSet, useStableID, extendedQuery);
         }
 
         Long after = parseAndValidate( xmppResultSet != null ? xmppResultSet.getAfter() : null, room, useStableID, "after" );

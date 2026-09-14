@@ -287,6 +287,22 @@ public class JdbcPersistenceManager implements PersistenceManager {
         }
         Log.debug( "Finding messages of owner '{}' with start date '{}', end date '{}' with '{}' and resultset '{}', useStableId '{}', extended '{}'.", owner, startDate, endDate, with, xmppResultSet, useStableID, extendedQuery );
 
+        // When only specific message IDs are requested, look those up directly (optionally unrestricted by date).
+        if (extendedQuery.hasIds()) {
+            final boolean idsOnly = extendedQuery.isIdsOnly(with != null, startDate != null, endDate != null, query != null && !query.isEmpty());
+            if (!idsOnly) {
+                if (startDate == null) {
+                    startDate = new Date(0L);
+                }
+                if (endDate == null) {
+                    endDate = new Date();
+                }
+                startDate = getAuditedStartDate(startDate);
+            }
+            // ids-only: pass through null dates so findMessagesByIds skips date filtering entirely.
+            return findMessagesByIds(startDate, endDate, owner, with, xmppResultSet, useStableID, extendedQuery);
+        }
+
         if (startDate == null) {
             Log.debug( "Request for message archive of user '{}' did not specify a start date. Using EPOCH.", owner );
             startDate = new Date(0L);
@@ -298,11 +314,6 @@ public class JdbcPersistenceManager implements PersistenceManager {
 
         // Limit history, if so configured.
         startDate = getAuditedStartDate(startDate);
-
-        // When only specific message IDs are requested, look those up directly.
-        if (extendedQuery.hasIds()) {
-            return findMessagesByIds(startDate, endDate, owner, with, xmppResultSet, useStableID, extendedQuery);
-        }
 
         Long after = null;
         Long before = null;

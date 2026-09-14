@@ -98,6 +98,21 @@ public class MamExtendedQueryTest
     }
 
 
+
+    @Test
+    public void idsOnlyIgnoresDateLimitsDecision()
+    {
+        final MamExtendedQuery idsOnly = new MamExtendedQuery(null, null, java.util.Collections.singletonList("abc"), false);
+        assertTrue(idsOnly.isIdsOnly(false, false, false, false));
+        assertFalse(idsOnly.isIdsOnly(true, false, false, false));
+        assertFalse(idsOnly.isIdsOnly(false, true, false, false));
+        assertFalse(idsOnly.isIdsOnly(false, false, true, false));
+        assertFalse(idsOnly.isIdsOnly(false, false, false, true));
+
+        final MamExtendedQuery withBefore = new MamExtendedQuery("b1", null, java.util.Collections.singletonList("abc"), false);
+        assertFalse(withBefore.isIdsOnly(false, false, false, false));
+    }
+
     @Test
     public void flipPageReversesBackwardsPageToNewestFirst()
     {

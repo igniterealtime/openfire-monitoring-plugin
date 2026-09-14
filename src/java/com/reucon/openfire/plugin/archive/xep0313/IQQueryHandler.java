@@ -416,11 +416,23 @@ abstract public class IQQueryHandler extends AbstractIQHandler implements
 
         try
         {
-	        ZonedDateTime nowDate = ZonedDateTime.now();
-	        ZonedDateTime newDate = nowDate.minusDays(conversationManager.getMaxRetrievable().toDays());
-   
 	        Date startDate = null;
 	        Date endDate = null;
+
+            final boolean idsOnly = extendedQuery.isIdsOnly(
+                withField != null,
+                startField != null && !startField.isEmpty(),
+                endField != null && !endField.isEmpty(),
+                textField != null && !textField.isEmpty()
+            );
+
+            if (idsOnly) {
+                // XEP-0313 mam:2#extended: ids-only retrieval must ignore default/history date limits.
+                startDate = null;
+                endDate = null;
+            } else {
+	        ZonedDateTime nowDate = ZonedDateTime.now();
+	        ZonedDateTime newDate = nowDate.minusDays(conversationManager.getMaxRetrievable().toDays());
 	        try {
 	        	
 	        	/*
@@ -487,6 +499,7 @@ abstract public class IQQueryHandler extends AbstractIQHandler implements
 	        } catch (ParseException e) {
 	            Log.error("An exception has occurred while parsing one of the date fields: ", e);
 	        }
+            } // end !idsOnly
 	       
 	        Collection <ArchivedMessage> result = getPersistenceManager(queryRequest.getArchive()).findMessages(
 	                startDate,

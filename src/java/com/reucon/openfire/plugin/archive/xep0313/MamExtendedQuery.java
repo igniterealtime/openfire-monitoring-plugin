@@ -91,6 +91,21 @@ public final class MamExtendedQuery
         return beforeId != null && afterId == null;
     }
 
+    /**
+     * True when the client requested only specific message IDs (no with/start/end/text/before-id/after-id filters).
+     * In that case XEP-0313 requires returning those messages regardless of default date-range limits.
+     */
+    public boolean isIdsOnly(final boolean hasWith, final boolean hasStart, final boolean hasEnd, final boolean hasText)
+    {
+        return hasIds()
+            && !hasWith
+            && !hasStart
+            && !hasEnd
+            && !hasText
+            && beforeId == null
+            && afterId == null;
+    }
+
     private static String emptyToNull(final String value)
     {
         if (value == null) {
