@@ -559,7 +559,7 @@ public class ArchiveStanzaIDUtil
                 continue;
             }
             if ( localUserTest.test( new JID( by ) ) ) {
-                Log.warn( "Removing a 'stanza-id' element from an inbound stanza, as its 'by' attribute value refers to a local user. Offending stanza: {}", message );
+                Log.debug( "Removing a 'stanza-id' element (by='{}', id='{}') from a stanza that is to be archived, as its 'by' attribute value matches the value that we would set (from='{}', to='{}').", element.attributeValue( "by" ), element.attributeValue( "id" ), message.getFrom(), message.getTo() );
                 iterator.remove();
             }
         }
