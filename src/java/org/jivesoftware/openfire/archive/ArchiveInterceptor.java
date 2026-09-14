@@ -84,6 +84,16 @@ public class ArchiveInterceptor implements PacketInterceptor {
                 return;
             }
             Message message = (Message) packet;
+
+            if (incoming && !processed) {
+                // XEP-0359 requires an element of which the 'by' attribute matches the value that we would set to be
+                // removed, even when no identifier of our own is added. This applies to every message, including the
+                // ones that this plugin does not archive (such as messages that are addressed to a chat room, which
+                // are stored and served by the MUC service), and irrespective of the configuration that controls the
+                // generation of identifiers.
+                ArchiveStanzaIDUtil.removeSpoofedStanzaIDs(message);
+            }
+
             // Ignore any messages that don't have a body so that we skip events.
             // Note: XHTML messages should always include a body so we should be ok. It's
             // possible that we may need special XHTML filtering in the future, however.
