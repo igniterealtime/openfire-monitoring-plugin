@@ -225,7 +225,7 @@ public class ArchiveStanzaIDUtil
      *
      * @param message The stanza to be archived (cannot be null).
      * @param localUserTest Test that determines if an entity is a local user (cannot be null).
-     * @param archiveOwners The owners of the archives that the stanza will be stored in (cannot be null).
+     * @param archiveOwners The owners of the archives that the stanza will be stored in.
      * @return The XML representation of the stanza to be stored in the archive.
      * @see #getArchivableStanzaXml(Message, JID...)
      */
@@ -243,9 +243,11 @@ public class ArchiveStanzaIDUtil
             // Deduplicate (a user can send a message to itself) while maintaining a predictable order. Only local users
             // have an archive that is maintained by this implementation.
             final Set<String> owners = new LinkedHashSet<>();
-            for ( final JID archiveOwner : archiveOwners ) {
-                if ( localUserTest.test( archiveOwner ) ) {
-                    owners.add( archiveOwner.toBareJID() );
+            if (archiveOwners != null) {
+                for ( final JID archiveOwner : archiveOwners ) {
+                    if ( localUserTest.test( archiveOwner ) ) {
+                        owners.add( archiveOwner.toBareJID() );
+                    }
                 }
             }
 
