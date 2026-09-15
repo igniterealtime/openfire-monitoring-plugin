@@ -173,64 +173,66 @@ public class MucMamPersistenceManager implements PersistenceManager {
 
         Log.debug( "Request for message archive of room '{}' found a total of {} applicable messages. Of these, {} were actually retrieved from the database.", room.getJID(), totalCount, msgs.size() );
 
-        xmppResultSet.setCount(totalCount);
+        if (xmppResultSet != null) {
+            xmppResultSet.setCount(totalCount);
 
-        if ( !msgs.isEmpty() ) {
-            final ArchivedMessage firstMessage = msgs.get(0);
-            final ArchivedMessage lastMessage = msgs.get(msgs.size()-1);
-            final String first;
-            final String last;
-            if ( useStableID ) {
-                final String firstSid = firstMessage.getStableId(archiveOwner);
-                if ( firstSid != null && !firstSid.isEmpty() ) {
-                    first = firstSid;
+            if ( !msgs.isEmpty() ) {
+                final ArchivedMessage firstMessage = msgs.get(0);
+                final ArchivedMessage lastMessage = msgs.get(msgs.size()-1);
+                final String first;
+                final String last;
+                if ( useStableID ) {
+                    final String firstSid = firstMessage.getStableId(archiveOwner);
+                    if ( firstSid != null && !firstSid.isEmpty() ) {
+                        first = firstSid;
+                    } else {
+                        // Issue #98: Fall-back to using the database-identifier. Although not a stable-id, it at least gives the client the option to paginate.
+                        first = firstMessage.getId().toString();
+                    }
+                    final String lastSid = lastMessage.getStableId(archiveOwner);
+                    if ( lastSid != null && !lastSid.isEmpty()) {
+                        last = lastSid;
+                    } else {
+                        last = lastMessage.getId().toString();
+                    }
                 } else {
-                    // Issue #98: Fall-back to using the database-identifier. Although not a stable-id, it at least gives the client the option to paginate.
-                    first = firstMessage.getId().toString();
+                    first = String.valueOf(firstMessage.getId() );
+                    last = String.valueOf(lastMessage.getId() );
                 }
-                final String lastSid = lastMessage.getStableId(archiveOwner);
-                if ( lastSid != null && !lastSid.isEmpty()) {
-                    last = lastSid;
-                } else {
-                    last = lastMessage.getId().toString();
+                xmppResultSet.setFirst(first);
+                xmppResultSet.setLast(last);
+
+                // Check to see if there are more pages, by simulating a request for the next page.
+                // When paging backwards, we need to find out if there are results 'before' the first result.
+                // When paging forward, we need to find out if there are results 'after' the last result.
+                // Use the chronological boundaries (unaffected by any flip-page reversal above) here.
+                final Long afterForNextPage = isPagingBackwards ? null : chronologicallyLast.getId();
+                final Long beforeForNextPage = isPagingBackwards ? chronologicallyFirst.getId() : null;
+                final List<ArchivedMessage> nextPage;
+                if ( query != null && !query.isEmpty() )
+                {
+                    if (!LuceneIndexer.ENABLED.getValue()) {
+                        throw new DataRetrievalException("Unable to process a search request that contains a text-based query, as the full-text index functionality has been disabled by configuration.");
+                    }
+                    final PaginatedMucMessageFromOpenfireLuceneQuery paginatedMucMessageLuceneQuery = new PaginatedMucMessageFromOpenfireLuceneQuery(startDate, endDate, room, with, query);
+                    nextPage = paginatedMucMessageLuceneQuery.getPage(afterForNextPage, beforeForNextPage, 1, isPagingBackwards);
                 }
+                else
+                {
+                    if (USE_OPENFIRE_TABLES.getValue()) {
+                        final PaginatedMucMessageFromOpenfireDatabaseQuery paginatedMucMessageFromOpenfireDatabaseQuery = new PaginatedMucMessageFromOpenfireDatabaseQuery(startDate, endDate, room, with);
+                        nextPage = paginatedMucMessageFromOpenfireDatabaseQuery.getPage(afterForNextPage, beforeForNextPage, 1, isPagingBackwards);
+                    } else {
+                        final PaginatedMucMessageDatabaseQuery paginatedMessageDatabaseQuery = new PaginatedMucMessageDatabaseQuery(startDate, endDate, room, with);
+                        nextPage = paginatedMessageDatabaseQuery.getPage(afterForNextPage, beforeForNextPage, 1, isPagingBackwards);
+                    }
+                }
+                Log.debug("Found results for 'next page': {} (based on after: {} before: {} isPagingBackwards: {})", !nextPage.isEmpty(), afterForNextPage, beforeForNextPage, isPagingBackwards);
+                xmppResultSet.setComplete(nextPage.isEmpty());
             } else {
-                first = String.valueOf(firstMessage.getId() );
-                last = String.valueOf(lastMessage.getId() );
+                // Issue #112: When there are no results, then the request is definitely 'complete'.
+                xmppResultSet.setComplete(true);
             }
-            xmppResultSet.setFirst(first);
-            xmppResultSet.setLast(last);
-
-            // Check to see if there are more pages, by simulating a request for the next page.
-            // When paging backwards, we need to find out if there are results 'before' the first result.
-            // When paging forward, we need to find out if there are results 'after' the last result.
-            // Use the chronological boundaries (unaffected by any flip-page reversal above) here.
-            final Long afterForNextPage = isPagingBackwards ? null : chronologicallyLast.getId();
-            final Long beforeForNextPage = isPagingBackwards ? chronologicallyFirst.getId() : null;
-            final List<ArchivedMessage> nextPage;
-            if ( query != null && !query.isEmpty() )
-            {
-                if (!LuceneIndexer.ENABLED.getValue()) {
-                    throw new DataRetrievalException("Unable to process a search request that contains a text-based query, as the full-text index functionality has been disabled by configuration.");
-                }
-                final PaginatedMucMessageFromOpenfireLuceneQuery paginatedMucMessageLuceneQuery = new PaginatedMucMessageFromOpenfireLuceneQuery(startDate, endDate, room, with, query);
-                nextPage = paginatedMucMessageLuceneQuery.getPage(afterForNextPage, beforeForNextPage, 1, isPagingBackwards);
-            }
-            else
-            {
-                if (USE_OPENFIRE_TABLES.getValue()) {
-                    final PaginatedMucMessageFromOpenfireDatabaseQuery paginatedMucMessageFromOpenfireDatabaseQuery = new PaginatedMucMessageFromOpenfireDatabaseQuery(startDate, endDate, room, with);
-                    nextPage = paginatedMucMessageFromOpenfireDatabaseQuery.getPage(afterForNextPage, beforeForNextPage, 1, isPagingBackwards);
-                } else {
-                    final PaginatedMucMessageDatabaseQuery paginatedMessageDatabaseQuery = new PaginatedMucMessageDatabaseQuery(startDate, endDate, room, with);
-                    nextPage = paginatedMessageDatabaseQuery.getPage(afterForNextPage, beforeForNextPage, 1, isPagingBackwards);
-                }
-            }
-            Log.debug("Found results for 'next page': {} (based on after: {} before: {} isPagingBackwards: {})", !nextPage.isEmpty(), afterForNextPage, beforeForNextPage, isPagingBackwards);
-            xmppResultSet.setComplete(nextPage.isEmpty());
-        } else {
-            // Issue #112: When there are no results, then the request is definitely 'complete'.
-            xmppResultSet.setComplete(true);
         }
         return msgs;
     }
