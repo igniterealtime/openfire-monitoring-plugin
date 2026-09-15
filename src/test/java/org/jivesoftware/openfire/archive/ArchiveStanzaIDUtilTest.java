@@ -674,8 +674,8 @@ public class ArchiveStanzaIDUtilTest {
     }
 
     /**
-     * Asserts that an element that has no 'by' attribute, or one that cannot be parsed as a JID, does not prevent the
-     * removal of the other elements.
+     * Asserts that an element that has no 'by' attribute is left as-is, while an element of which the 'by' attribute
+     * cannot be parsed as a JID is removed, as are the elements that refer to a local user.
      */
     @Test
     public void testToleratesMalformedElements() {
@@ -690,7 +690,8 @@ public class ArchiveStanzaIDUtilTest {
 
         // Verify results.
         assertTrue(result);
-        assertEquals(2, getStanzaIdElements(input).size());
+        assertEquals(1, getStanzaIdElements(input).size());
+        assertEquals("no-by-attribute", getStanzaIdElements(input).get(0).attributeValue("id"));
         assertNull(StanzaIDUtil.findFirstUniqueAndStableStanzaID(input, JULIET.toBareJID()));
     }
 
@@ -878,6 +879,28 @@ public class ArchiveStanzaIDUtilTest {
         // Verify results.
         assertTrue(result);
         assertTrue(input.getElement().selectNodes("//*[local-name()='stanza-id']").isEmpty());
+    }
+
+    /**
+     * Asserts that an element of which the 'by' attribute cannot be parsed as a JID does not prevent the adjustment of
+     * the elements that follow it.
+     */
+    @Test
+    public void testAdjustToleratesMalformedByBeforeValidId() {
+        // Setup test fixture.
+        final Message routed = newMessage(ROMEO, JULIET);
+        addStanzaId(routed, "unparsable-by", "not a jid@@@");
+        addStanzaId(routed, "juliets-id", JULIET.toBareJID());
+        final JID otherResource = new JID(ROMEO.toBareJID() + "/other");
+        final Message carbon = newSentCarbon(routed, otherResource);
+
+        // Execute system under test.
+        final boolean result = ArchiveStanzaIDUtil.adjustForRecipient(carbon, otherResource, IS_LOCAL_USER);
+
+        // Verify results.
+        assertTrue(result);
+        assertNull(StanzaIDUtil.findFirstUniqueAndStableStanzaID(getForwardedStanza(carbon), JULIET.toBareJID()));
+        assertEquals("juliets-id", StanzaIDUtil.findFirstUniqueAndStableStanzaID(getForwardedStanza(carbon), ROMEO.toBareJID()));
     }
 
     private static Message newSentCarbon(final Message original, final JID to) {
