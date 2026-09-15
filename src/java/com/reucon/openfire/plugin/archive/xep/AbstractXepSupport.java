@@ -19,8 +19,10 @@ import org.xmpp.packet.PacketError;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.Set;
 
 public abstract class AbstractXepSupport implements UserFeaturesProvider {
 
@@ -32,6 +34,14 @@ public abstract class AbstractXepSupport implements UserFeaturesProvider {
     protected final String namespace;
     protected boolean muc;
     protected Collection<IQHandler> iqHandlers;
+
+    /**
+     * All features (namespace plus any additional features, such as {@code urn:xmpp:mam:2#extended}) that are
+     * advertised by the IQ handlers of this instance. Populated by {@link #start()}, and used for both the
+     * user-scoped ({@link #getFeatures()}) and MUC-scoped (extra feature) disco responses, so that archive-scoped
+     * discovery is consistent with the global server disco response.
+     */
+    private final Set<String> features = new HashSet<>();
 
     public AbstractXepSupport(XMPPServer server, String namespace,String iqDispatcherNamespace, String iqDispatcherName, boolean muc) {
 
@@ -79,14 +89,20 @@ public abstract class AbstractXepSupport implements UserFeaturesProvider {
             if (iqHandler instanceof ServerFeaturesProvider) {
                 for (Iterator<String> i = ((ServerFeaturesProvider) iqHandler)
                         .getFeatures(); i.hasNext();) {
-                    server.getIQDiscoInfoHandler().addServerFeature(i.next());
+                    final String feature = i.next();
+                    server.getIQDiscoInfoHandler().addServerFeature(feature);
+                    features.add(feature);
                 }
+            } else {
+                features.add(namespace);
             }
             if (muc) {
                 MultiUserChatManager manager = server.getMultiUserChatManager();
                 for (MultiUserChatService mucService : manager.getMultiUserChatServices()) {
                     mucService.addIQHandler(iqHandler);
-                    mucService.addExtraFeature(namespace);
+                    for (final String feature : features) {
+                        mucService.addExtraFeature(feature);
+                    }
                 }
             }
         }
@@ -127,7 +143,9 @@ public abstract class AbstractXepSupport implements UserFeaturesProvider {
                 MultiUserChatManager manager = server.getMultiUserChatManager();
                 for (MultiUserChatService mucService : manager.getMultiUserChatServices()) {
                     mucService.removeIQHandler(iqHandler);
-                    mucService.removeExtraFeature(namespace);
+                    for (final String feature : features) {
+                        mucService.removeExtraFeature(feature);
+                    }
                 }
             }
         }
@@ -139,6 +157,9 @@ public abstract class AbstractXepSupport implements UserFeaturesProvider {
     @Override
     public Iterator<String> getFeatures()
     {
-        return Collections.singleton( namespace ).iterator();
+        if (features.isEmpty()) {
+            return Collections.singleton( namespace ).iterator();
+        }
+        return new HashSet<>(features).iterator();
     }
 }

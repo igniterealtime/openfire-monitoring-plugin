@@ -301,7 +301,7 @@ public class JdbcPersistenceManager implements PersistenceManager {
                 startDate = getAuditedStartDate(startDate);
             }
             // ids-only: pass through null dates so findMessagesByIds skips date filtering entirely.
-            return findMessagesByIds(startDate, endDate, owner, with, xmppResultSet, useStableID, extendedQuery);
+            return findMessagesByIds(startDate, endDate, owner, with, query, xmppResultSet, useStableID, extendedQuery);
         }
 
         if (startDate == null) {
@@ -446,8 +446,16 @@ public class JdbcPersistenceManager implements PersistenceManager {
     /**
      * Retrieves specific archived messages by stable/database ID list (mam:2#extended 'ids' field).
      */
-    private Collection<ArchivedMessage> findMessagesByIds(Date startDate, Date endDate, JID owner, JID with, XmppResultSet xmppResultSet, boolean useStableID, MamExtendedQuery extendedQuery) throws NotFoundException
+    private Collection<ArchivedMessage> findMessagesByIds(Date startDate, Date endDate, JID owner, JID with, String query, XmppResultSet xmppResultSet, boolean useStableID, MamExtendedQuery extendedQuery) throws NotFoundException, DataRetrievalException
     {
+        final boolean hasQuery = query != null && !query.isEmpty();
+        if (hasQuery && !LuceneIndexer.ENABLED.getValue()) {
+            throw new DataRetrievalException("Unable to process a search request that contains a text-based query, as the full-text index functionality has been disabled by configuration.");
+        }
+        // When a full-text query is combined with 'ids', apply the same full-text filtering semantics as an
+        // ordinary archive query, so that only messages matching the search term are returned.
+        final PaginatedMessageLuceneQuery textQuery = hasQuery ? new PaginatedMessageLuceneQuery(startDate, endDate, owner, with, query) : null;
+
         final List<ArchivedMessage> msgs = new ArrayList<>();
         for (final String id : extendedQuery.getIds()) {
             final Long messageId = resolveMessageReference(owner, id, useStableID, "ids");
@@ -486,6 +494,12 @@ public class JdbcPersistenceManager implements PersistenceManager {
             if (extendedQuery.getBeforeId() != null) {
                 final Long beforeId = resolveMessageReference(owner, extendedQuery.getBeforeId(), useStableID, "before-id");
                 if (message.getId() != null && message.getId() >= beforeId) {
+                    continue;
+                }
+            }
+            if (textQuery != null && messageId != null) {
+                final List<ArchivedMessage> matches = textQuery.getPage(messageId - 1, messageId + 1, 1, false);
+                if (matches.isEmpty()) {
                     continue;
                 }
             }

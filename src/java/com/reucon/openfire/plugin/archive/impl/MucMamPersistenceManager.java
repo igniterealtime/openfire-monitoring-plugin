@@ -81,7 +81,7 @@ public class MucMamPersistenceManager implements PersistenceManager {
                     endDate = new Date();
                 }
             }
-            return findMessagesByIds(startDate, endDate, room, with, xmppResultSet, useStableID, extendedQuery);
+            return findMessagesByIds(startDate, endDate, room, with, query, xmppResultSet, useStableID, extendedQuery);
         }
 
         if (startDate == null) {
@@ -214,8 +214,13 @@ public class MucMamPersistenceManager implements PersistenceManager {
                     if (!LuceneIndexer.ENABLED.getValue()) {
                         throw new DataRetrievalException("Unable to process a search request that contains a text-based query, as the full-text index functionality has been disabled by configuration.");
                     }
-                    final PaginatedMucMessageFromOpenfireLuceneQuery paginatedMucMessageLuceneQuery = new PaginatedMucMessageFromOpenfireLuceneQuery(startDate, endDate, room, with, query);
-                    nextPage = paginatedMucMessageLuceneQuery.getPage(afterForNextPage, beforeForNextPage, 1, isPagingBackwards);
+                    if (USE_OPENFIRE_TABLES.getValue()) {
+                        final PaginatedMucMessageFromOpenfireLuceneQuery paginatedMucMessageLuceneQuery = new PaginatedMucMessageFromOpenfireLuceneQuery(startDate, endDate, room, with, query);
+                        nextPage = paginatedMucMessageLuceneQuery.getPage(afterForNextPage, beforeForNextPage, 1, isPagingBackwards);
+                    } else {
+                        final PaginatedMucMessageLuceneQuery paginatedMucMessageLuceneQuery = new PaginatedMucMessageLuceneQuery(startDate, endDate, room, with, query);
+                        nextPage = paginatedMucMessageLuceneQuery.getPage(afterForNextPage, beforeForNextPage, 1, isPagingBackwards);
+                    }
                 }
                 else
                 {
@@ -238,8 +243,24 @@ public class MucMamPersistenceManager implements PersistenceManager {
     }
 
 
-    private Collection<ArchivedMessage> findMessagesByIds(Date startDate, Date endDate, MUCRoom room, JID with, XmppResultSet xmppResultSet, boolean useStableID, MamExtendedQuery extendedQuery) throws NotFoundException
+    private Collection<ArchivedMessage> findMessagesByIds(Date startDate, Date endDate, MUCRoom room, JID with, String query, XmppResultSet xmppResultSet, boolean useStableID, MamExtendedQuery extendedQuery) throws NotFoundException, DataRetrievalException
     {
+        final boolean hasQuery = query != null && !query.isEmpty();
+        if (hasQuery && !LuceneIndexer.ENABLED.getValue()) {
+            throw new DataRetrievalException("Unable to process a search request that contains a text-based query, as the full-text index functionality has been disabled by configuration.");
+        }
+        // When a full-text query is combined with 'ids', apply the same full-text filtering semantics (and the same
+        // configured Lucene data source) as an ordinary archive query, so that only messages matching the search
+        // term are returned.
+        final AbstractPaginatedMamMucQuery textQuery;
+        if (hasQuery) {
+            textQuery = USE_OPENFIRE_TABLES.getValue()
+                ? new PaginatedMucMessageFromOpenfireLuceneQuery(startDate, endDate, room, with, query)
+                : new PaginatedMucMessageLuceneQuery(startDate, endDate, room, with, query);
+        } else {
+            textQuery = null;
+        }
+
         final List<ArchivedMessage> msgs = new ArrayList<>();
         for (final String id : extendedQuery.getIds()) {
             final Long messageId = parseAndValidate(id, room, useStableID, "ids");
@@ -277,6 +298,12 @@ public class MucMamPersistenceManager implements PersistenceManager {
             if (extendedQuery.getBeforeId() != null) {
                 final Long beforeId = parseAndValidate(extendedQuery.getBeforeId(), room, useStableID, "before-id");
                 if (message.getId() != null && message.getId() >= beforeId) {
+                    continue;
+                }
+            }
+            if (textQuery != null && messageId != null) {
+                final List<ArchivedMessage> matches = textQuery.getPage(messageId - 1, messageId + 1, 1, false);
+                if (matches.isEmpty()) {
                     continue;
                 }
             }
