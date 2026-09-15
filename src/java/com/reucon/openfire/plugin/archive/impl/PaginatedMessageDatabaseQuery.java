@@ -294,7 +294,12 @@ public class PaginatedMessageDatabaseQuery extends AbstractPaginatedMamQuery
               """;
         }
 
-        sql += "ORDER BY a.sentDate " + (isPagingBackwards ? "DESC" : "ASC");
+        // XEP-0313 3: "implementors should take care not to rely on timestamps alone for ordering messages, as
+        // multiple messages may share the same timestamp." Break ties using messageID (assigned in insertion
+        // order), so that ordering (and, in particular, the single-row 'oldest'/'newest' queries used by archive
+        // metadata) is deterministic even when messages share a millisecond-resolution sentDate.
+        final String direction = isPagingBackwards ? "DESC" : "ASC";
+        sql += "ORDER BY a.sentDate " + direction + ", a.messageID " + direction;
 
         if (DbConnectionManager.getDatabaseType().getResultSetLimitKeyword() == DbConnectionManager.ResultSetLimitKeyword.LIMIT) {
             sql += " LIMIT " + maxResults;

@@ -100,7 +100,6 @@ jobs:
           adminAccountPassword: 'admin'
           enabledSpecifications: 'XEP-0136,XEP-0313'
           extensionJar: ${{ needs.build.outputs.id }}-integration-tests.jar
-          javaVersion: ${{ matrix.java }}
 
   deploy:
     runs-on: ubuntu-latest

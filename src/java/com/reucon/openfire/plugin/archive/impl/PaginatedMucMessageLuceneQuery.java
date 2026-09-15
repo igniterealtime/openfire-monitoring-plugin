@@ -178,8 +178,13 @@ public class PaginatedMucMessageLuceneQuery extends AbstractPaginatedMamMucQuery
     }
 
     public Sort getSort( final boolean isPagingBackwards ) {
-        // Always sort based on date.
-        return new Sort(new SortField("sentDate", SortField.Type.LONG, isPagingBackwards));
+        // Always sort based on date. Break ties using messageIDRange (assigned in insertion order), per XEP-0313 3:
+        // "implementors should take care not to rely on timestamps alone for ordering messages, as multiple
+        // messages may share the same timestamp."
+        return new Sort(
+            new SortField("sentDate", SortField.Type.LONG, isPagingBackwards),
+            new SortField("messageIDRange", SortField.Type.LONG, isPagingBackwards)
+        );
     }
 
     @Override

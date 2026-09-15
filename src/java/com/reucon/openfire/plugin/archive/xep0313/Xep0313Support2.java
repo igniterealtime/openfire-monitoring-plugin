@@ -17,6 +17,10 @@ public class Xep0313Support2 extends AbstractXepSupport {
         super(server, NAMESPACE,NAMESPACE, "XEP-0313 IQ Dispatcher", true);
 
         this.iqHandlers = new ArrayList<>();
+        // IQQueryHandler2 handles both 'query' and 'metadata' elements directly (see its
+        // getAdditionalElementNames()). It must not be paired with a separate metadata handler here: Openfire
+        // core's MultiUserChatServiceImpl registers IQ handlers by namespace only, so a second handler for the
+        // same 'urn:xmpp:mam:2' namespace would silently overwrite this one for MUC rooms.
         iqHandlers.add(new IQQueryHandler2());
     }
 

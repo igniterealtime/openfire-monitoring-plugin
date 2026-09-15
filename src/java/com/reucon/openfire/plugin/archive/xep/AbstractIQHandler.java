@@ -10,6 +10,9 @@ import org.xmpp.packet.PacketError;
 
 import com.reucon.openfire.plugin.archive.PersistenceManager;
 
+import java.util.Collections;
+import java.util.List;
+
 /**
  * Abstract base class for XEP-specific IQ Handlers.
  */
@@ -24,6 +27,18 @@ public abstract class AbstractIQHandler extends IQHandler {
 
     public final IQHandlerInfo getInfo() {
         return info;
+    }
+
+    /**
+     * Additional element names (besides {@link #getInfo()}'s element name) that this handler handles within its
+     * namespace. Used by {@link AbstractXepSupport} to route IQs of multiple element names in the same namespace to
+     * a single handler instance, which is needed for MUC dispatch: {@code MultiUserChatServiceImpl} registers IQ
+     * handlers by namespace only, so a namespace can only ever be served by a single handler instance.
+     *
+     * @return A list of additional element names (possibly empty, never null).
+     */
+    public List<String> getAdditionalElementNames() {
+        return Collections.emptyList();
     }
 
     protected PersistenceManager getPersistenceManager(JID jid) {

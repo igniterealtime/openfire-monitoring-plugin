@@ -362,6 +362,10 @@ abstract public class IQQueryHandler extends AbstractIQHandler implements
         }
         final ConversationManager conversationManager = ((MonitoringPlugin)plugin.get()).getConversationManager();
         
+        String beforeIdField = null;
+        String afterIdField = null;
+        List<String> idsField = null;
+
         DataForm dataForm = queryRequest.getDataForm();
         if(dataForm != null) {
             if(dataForm.getField("with") != null) {
@@ -388,15 +392,47 @@ abstract public class IQQueryHandler extends AbstractIQHandler implements
                     textField = String.join(" ", dataForm.getField("search").getValues() );
                 }
             }
+
+            // mam:2#extended fields (only meaningful when unique/stable IDs are used).
+            if (usesUniqueAndStableIDs()) {
+                if (dataForm.getField(MamQueryFormFields.BEFORE_ID) != null) {
+                    beforeIdField = dataForm.getField(MamQueryFormFields.BEFORE_ID).getFirstValue();
+                }
+                if (dataForm.getField(MamQueryFormFields.AFTER_ID) != null) {
+                    afterIdField = dataForm.getField(MamQueryFormFields.AFTER_ID).getFirstValue();
+                }
+                if (dataForm.getField(MamQueryFormFields.IDS) != null) {
+                    idsField = dataForm.getField(MamQueryFormFields.IDS).getValues();
+                }
+            }
         }
+
+        final MamExtendedQuery extendedQuery = new MamExtendedQuery(
+            beforeIdField,
+            afterIdField,
+            idsField,
+            queryRequest.isFlipPage()
+        );
 
         try
         {
-	        ZonedDateTime nowDate = ZonedDateTime.now();
-	        ZonedDateTime newDate = nowDate.minusDays(conversationManager.getMaxRetrievable().toDays());
-   
 	        Date startDate = null;
 	        Date endDate = null;
+
+            final boolean idsOnly = extendedQuery.isIdsOnly(
+                withField != null,
+                startField != null && !startField.isEmpty(),
+                endField != null && !endField.isEmpty(),
+                textField != null && !textField.isEmpty()
+            );
+
+            if (idsOnly) {
+                // XEP-0313 mam:2#extended: ids-only retrieval must ignore default/history date limits.
+                startDate = null;
+                endDate = null;
+            } else {
+	        ZonedDateTime nowDate = ZonedDateTime.now();
+	        ZonedDateTime newDate = nowDate.minusDays(conversationManager.getMaxRetrievable().toDays());
 	        try {
 	        	
 	        	/*
@@ -463,6 +499,7 @@ abstract public class IQQueryHandler extends AbstractIQHandler implements
 	        } catch (ParseException e) {
 	            Log.error("An exception has occurred while parsing one of the date fields: ", e);
 	        }
+            } // end !idsOnly
 	       
 	        Collection <ArchivedMessage> result = getPersistenceManager(queryRequest.getArchive()).findMessages(
 	                startDate,
@@ -471,7 +508,8 @@ abstract public class IQQueryHandler extends AbstractIQHandler implements
 	                withField,
 	                textField,
 	                queryRequest.getResultSet(),
-                	this.usesUniqueAndStableIDs());
+                	this.usesUniqueAndStableIDs(),
+                    extendedQuery);
 	        
 	        Log.debug("MAM: found: "+(result!=null?String.valueOf(result.size()):"0 (result==null)")+" items");
 	        
@@ -627,6 +665,12 @@ abstract public class IQQueryHandler extends AbstractIQHandler implements
         form.addField("with", "Author of message", FormField.Type.jid_single);
         form.addField("start", "Message sent on or after timestamp.", FormField.Type.text_single);
         form.addField("end", "Message sent on or before timestamp.", FormField.Type.text_single);
+        if (usesUniqueAndStableIDs()) {
+            // XEP-0313 § mam:2#extended: before-id, after-id and ids query fields.
+            form.addField(MamQueryFormFields.BEFORE_ID, "Message ID of last message to return.", FormField.Type.text_single);
+            form.addField(MamQueryFormFields.AFTER_ID, "Message ID of first message to return.", FormField.Type.text_single);
+            form.addField(MamQueryFormFields.IDS, "IDs of specific messages to return.", FormField.Type.list_multi);
+        }
         if (LuceneIndexer.ENABLED.getValue()) {
             form.addField("{urn:xmpp:fulltext:0}fulltext", "Free text search", FormField.Type.text_single);
         }
@@ -643,25 +687,26 @@ abstract public class IQQueryHandler extends AbstractIQHandler implements
      *
      * @return A list of fields. Never null.
      */
-    private List<String> getSupportedFieldVariables() {
-        List<String> results = Arrays.asList("FORM_TYPE", "with", "start", "end");
-        if (LuceneIndexer.ENABLED.getValue()) {
-            results = new ArrayList<String>(results);
-            results.add("{urn:xmpp:fulltext:0}fulltext");
-            results.add("withtext");
-            results.add("search");
-        }
-        return results;
+    List<String> getSupportedFieldVariables() {
+        return MamQueryFormFields.getSupportedFieldVariables(usesUniqueAndStableIDs(), LuceneIndexer.ENABLED.getValue());
+    }
+
+    /**
+     * Whether this handler advertises {@code urn:xmpp:mam:2#extended}. Overridden by mam:2 once the extended
+     * capabilities are implemented.
+     */
+    boolean advertisesExtended() {
+        return false;
     }
 
     @Override
     public Iterator<String> getFeatures() {
-        final List<String> result = new ArrayList<>();
-        result.add(NAMESPACE);
-        if (LuceneIndexer.ENABLED.getValue()) {
-            result.add("urn:xmpp:fulltext:0");
-        }
-        return result.iterator();
+        return MamQueryFormFields.getFeatures(
+            NAMESPACE,
+            usesUniqueAndStableIDs(),
+            LuceneIndexer.ENABLED.getValue(),
+            advertisesExtended()
+        ).iterator();
     }
 
     void completeFinElement(QueryRequest queryRequest, Element fin) {

@@ -16,6 +16,7 @@ public class QueryRequest {
     private DataForm dataForm;
     private XmppResultSet resultSet;
     private final JID archive;
+    private boolean flipPage;
 
     public QueryRequest(Element queryElement, JID archive) {
 
@@ -37,6 +38,8 @@ public class QueryRequest {
             resultSet = new XmppResultSet(setElement);
         }
 
+        // <flip-page/> is an empty child of <query/> (mam:2#extended); parsing only for now.
+        this.flipPage = queryElement.element("flip-page") != null;
     }
 
     public String getQueryid() {
@@ -53,5 +56,14 @@ public class QueryRequest {
 
     public JID getArchive() {
         return archive;
+    }
+
+    /**
+     * Whether the query requested {@code <flip-page/>} (mam:2#extended).
+     *
+     * @return true if flip-page was present on the query element.
+     */
+    public boolean isFlipPage() {
+        return flipPage;
     }
 }

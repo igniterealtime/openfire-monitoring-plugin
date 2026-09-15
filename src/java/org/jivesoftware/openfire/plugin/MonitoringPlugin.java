@@ -22,6 +22,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 
 import com.reucon.openfire.plugin.archive.impl.*;
+import com.reucon.openfire.plugin.archive.xep0313.MamBind2Support;
 import com.reucon.openfire.plugin.archive.xep0313.Xep0313Support1;
 import com.reucon.openfire.plugin.archive.xep0313.Xep0313Support2;
 import org.eclipse.jetty.ee8.webapp.WebAppContext;
@@ -171,6 +172,10 @@ public class MonitoringPlugin implements Plugin, PluginListener
         xep0313Support2 = new Xep0313Support2(XMPPServer.getInstance());
         xep0313Support2.start();
 
+        // Advertise mam:2 archive metadata as part of Bind 2 (XEP-0386) resource binding, when the
+        // running Openfire server supports it (Bind2InlineHandler SPI, added in Openfire 5.2.0).
+        MamBind2Support.register();
+
         // Make sure that the monitoring folder exists under the home directory
         final Path monitoringFolder = JiveGlobals.getHomePath().resolve(MonitoringConstants.NAME);
         if (!Files.exists(monitoringFolder))
@@ -271,7 +276,8 @@ public class MonitoringPlugin implements Plugin, PluginListener
         xep0313Support.stop();
         xep0313Support1.stop();
         xep0313Support2.stop();
-        
+        MamBind2Support.unregister();
+
         instance = null;
     }
 
