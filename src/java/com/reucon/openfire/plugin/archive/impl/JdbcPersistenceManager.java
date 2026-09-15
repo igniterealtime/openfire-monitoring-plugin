@@ -336,11 +336,7 @@ public class JdbcPersistenceManager implements PersistenceManager {
         }
 
         final int maxResults = (xmppResultSet != null && xmppResultSet.getMax() != null) ? xmppResultSet.getMax() : DEFAULT_MAX;
-        boolean isPagingBackwards = xmppResultSet != null && xmppResultSet.isPagingBackwards();
-        // before-id without after-id is treated like RSM 'before' (backwards paging).
-        if (extendedQuery.isPagingBackwardsViaBeforeId() && (xmppResultSet == null || xmppResultSet.getAfter() == null)) {
-            isPagingBackwards = true;
-        }
+        final boolean isPagingBackwards = xmppResultSet != null && xmppResultSet.isPagingBackwards();
 
         List<ArchivedMessage> msgs = Collections.emptyList();
         int totalCount = 0;

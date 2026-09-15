@@ -104,10 +104,7 @@ public class MucMamPersistenceManager implements PersistenceManager {
             before = before == null ? beforeId : Math.min(before, beforeId);
         }
         final int maxResults = (xmppResultSet != null && xmppResultSet.getMax() != null) ? xmppResultSet.getMax() : DEFAULT_MAX;
-        boolean isPagingBackwards = xmppResultSet != null && xmppResultSet.isPagingBackwards();
-        if (extendedQuery.isPagingBackwardsViaBeforeId() && (xmppResultSet == null || xmppResultSet.getAfter() == null)) {
-            isPagingBackwards = true;
-        }
+        final boolean isPagingBackwards = xmppResultSet != null && xmppResultSet.isPagingBackwards();
 
         final List<ArchivedMessage> msgs;
         final int totalCount;
