@@ -17,7 +17,6 @@ package com.reucon.openfire.plugin.archive.xep0313;
 
 import com.reucon.openfire.plugin.archive.impl.DataRetrievalException;
 import com.reucon.openfire.plugin.archive.model.ArchiveMetadata;
-import com.reucon.openfire.plugin.archive.model.ArchivedMessage;
 import com.reucon.openfire.plugin.archive.xep.AbstractIQHandler;
 import org.dom4j.Element;
 import org.jivesoftware.openfire.XMPPServer;
@@ -25,7 +24,6 @@ import org.jivesoftware.openfire.auth.UnauthorizedException;
 import org.jivesoftware.openfire.muc.Affiliation;
 import org.jivesoftware.openfire.muc.MUCRoom;
 import org.jivesoftware.openfire.muc.MultiUserChatService;
-import org.jivesoftware.util.XMPPDateTimeFormat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.xmpp.packet.IQ;
@@ -112,31 +110,8 @@ class IQMetadataHandler extends AbstractIQHandler
 
         final IQ result = IQ.createResultIQ(packet);
         final Element metadataElement = result.setChildElement("metadata", NAMESPACE);
-        if (metadata != null && !metadata.isEmpty()) {
-            addBoundary(metadataElement, "start", metadata.getStart(), archiveJid.asBareJID());
-            addBoundary(metadataElement, "end", metadata.getEnd(), archiveJid.asBareJID());
-        }
+        ArchiveMetadataElement.populate(metadataElement, metadata, archiveJid.asBareJID());
         return result;
-    }
-
-    private void addBoundary(final Element metadataElement, final String name, final ArchivedMessage message, final JID archiveOwner)
-    {
-        if (message == null) {
-            return;
-        }
-        final Element boundary = metadataElement.addElement(name);
-        String id = message.getStableId(archiveOwner);
-        if (id == null || id.isEmpty()) {
-            if (message.getId() != null) {
-                id = String.valueOf(message.getId());
-            }
-        }
-        if (id != null) {
-            boundary.addAttribute("id", id);
-        }
-        if (message.getTime() != null) {
-            boundary.addAttribute("timestamp", XMPPDateTimeFormat.format(message.getTime()));
-        }
     }
 
     private IQ buildErrorResponse(final IQ packet, final PacketError.Condition condition, final String message)
