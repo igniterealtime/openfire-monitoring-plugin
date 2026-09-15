@@ -1,4 +1,4 @@
-package org.jivesoftware.smackx.muc;
+package org.jivesoftware.smackx.mam.extended;
 
 import org.jivesoftware.smack.packet.IQ;
 import org.jivesoftware.smack.packet.SimpleIQ;
@@ -10,12 +10,12 @@ import org.jivesoftware.smack.packet.SimpleIQ;
  * Not (yet) supported by Smack's own MAM implementation, so this test-only element is used to construct the request
  * directly.
  */
-final class MamMetadataRequest extends SimpleIQ
+public final class MamMetadataRequest extends SimpleIQ
 {
-    static final String ELEMENT = "metadata";
-    static final String NAMESPACE = "urn:xmpp:mam:2";
+    public static final String ELEMENT = "metadata";
+    public static final String NAMESPACE = "urn:xmpp:mam:2";
 
-    MamMetadataRequest()
+    public MamMetadataRequest()
     {
         super(ELEMENT, NAMESPACE);
         setType(IQ.Type.get);

@@ -1,26 +1,27 @@
-package org.jivesoftware.smackx.muc;
+package org.jivesoftware.smackx.mam.extended;
 
+import org.igniterealtime.smack.inttest.AbstractSmackSpecificLowLevelIntegrationTest;
 import org.igniterealtime.smack.inttest.SmackIntegrationTestEnvironment;
 import org.igniterealtime.smack.inttest.TestNotPossibleException;
 import org.igniterealtime.smack.inttest.annotations.AfterClass;
 import org.igniterealtime.smack.inttest.annotations.SmackIntegrationTest;
 import org.igniterealtime.smack.inttest.annotations.SpecificationReference;
+import org.jivesoftware.smack.AbstractXMPPConnection;
 import org.jivesoftware.smack.SmackException.NoResponseException;
 import org.jivesoftware.smack.SmackException.NotConnectedException;
 import org.jivesoftware.smack.StanzaCollector;
+import org.jivesoftware.smack.c2s.ModularXmppClientToServerConnection;
 import org.jivesoftware.smack.XMPPException.XMPPErrorException;
 import org.jivesoftware.smack.filter.IQReplyFilter;
 import org.jivesoftware.smack.packet.IQ;
 import org.jivesoftware.smack.packet.Message;
+import org.jivesoftware.smack.packet.MessageBuilder;
 import org.jivesoftware.smack.packet.Stanza;
+import org.jivesoftware.smack.provider.ProviderManager;
 import org.jivesoftware.smackx.disco.ServiceDiscoveryManager;
 import org.jivesoftware.smackx.disco.packet.DiscoverInfo;
 import org.jivesoftware.smackx.formtypes.FormFieldRegistry;
 import org.jivesoftware.smackx.mam.MamManager;
-import org.jivesoftware.smackx.mam.extended.FlipPageElement;
-import org.jivesoftware.smackx.mam.extended.MamMetadataRequest;
-import org.jivesoftware.smackx.mam.extended.MamMetadataResult;
-import org.jivesoftware.smackx.mam.extended.MamMetadataResultProvider;
 import org.jivesoftware.smackx.mam.element.MamElementFactory;
 import org.jivesoftware.smackx.mam.element.MamElements.MamResultExtension;
 import org.jivesoftware.smackx.mam.element.MamQueryIQ;
@@ -29,8 +30,6 @@ import org.jivesoftware.smackx.mam.filter.MamResultFilter;
 import org.jivesoftware.smackx.rsm.packet.RSMSet;
 import org.jivesoftware.smackx.xdata.FormField;
 import org.jivesoftware.smackx.xdata.packet.DataForm;
-import org.jxmpp.jid.EntityBareJid;
-import org.jxmpp.jid.parts.Resourcepart;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -44,35 +43,41 @@ import static org.junit.Assert.assertTrue;
 
 /**
  * Integration tests for the 'urn:xmpp:mam:2#extended' features of XEP-0313 (before-id, after-id, ids,
- * flipped pages, and archive metadata), as applied to a MUC archive.
+ * flipped pages, and archive metadata), as applied to a <em>personal</em> archive.
  * <p>
- * These features are orthogonal to room anonymity configuration, so (unlike {@link AbstractMamTest} and its
- * subclasses) this test uses a single (open, non-anonymous) room configuration rather than being repeated for
- * every anonymity variant.
+ * This is the personal-archive analogue of {@code org.jivesoftware.smackx.muc.MamExtendedFeaturesTest}. The two
+ * archive types (personal vs. MUC) are implemented by entirely separate classes in the plugin under test
+ * ({@code JdbcPersistenceManager} vs. {@code MucMamPersistenceManager}), so behavior verified for one is not
+ * guaranteed to hold for the other.
+ * <p>
+ * Uses freshly-provisioned, isolated accounts (rather than the shared {@code conOne}/{@code conTwo}/{@code conThree})
+ * so that assertions about exact archive contents aren't affected by other test classes sharing the same test run.
  */
 @SpecificationReference(document = "XEP-0313", version = "1.1.3")
-public class MamExtendedFeaturesTest extends AbstractMultiUserChatIntegrationTest
+public class MamExtendedFeaturesPersonalArchiveTest extends AbstractSmackSpecificLowLevelIntegrationTest<ModularXmppClientToServerConnection>
 {
     static {
-        // Smack does not (yet) know about the mam:2#extended query fields (see FlipPageElement/MamMetadataRequest
-        // javadoc). Without this, Smack's DataFormProvider falls back to assuming 'text-single' for these fields,
-        // which fails to parse when the server (correctly) echoes the original query - including a multi-value
-        // 'ids' field - back inside an item-not-found error response.
-        FormFieldRegistry.register(MamVersion.MAM2.getNamespace(), "before-id", org.jivesoftware.smackx.xdata.FormField.Type.text_single);
-        FormFieldRegistry.register(MamVersion.MAM2.getNamespace(), "after-id", org.jivesoftware.smackx.xdata.FormField.Type.text_single);
-        FormFieldRegistry.register(MamVersion.MAM2.getNamespace(), "ids", org.jivesoftware.smackx.xdata.FormField.Type.list_multi);
+        // Smack does not (yet) know about the mam:2#extended query fields. Without this, Smack's DataFormProvider
+        // falls back to assuming 'text-single' for these fields, which fails to parse when the server (correctly)
+        // echoes the original query - including a multi-value 'ids' field - back inside an item-not-found error
+        // response.
+        FormFieldRegistry.register(MamVersion.MAM2.getNamespace(), "before-id", FormField.Type.text_single);
+        FormFieldRegistry.register(MamVersion.MAM2.getNamespace(), "after-id", FormField.Type.text_single);
+        FormFieldRegistry.register(MamVersion.MAM2.getNamespace(), "ids", FormField.Type.list_multi);
 
-        org.jivesoftware.smack.provider.ProviderManager.addIQProvider(MamMetadataResult.ELEMENT, MamMetadataResult.NAMESPACE, new MamMetadataResultProvider());
+        ProviderManager.addIQProvider(MamMetadataResult.ELEMENT, MamMetadataResult.NAMESPACE, new MamMetadataResultProvider());
     }
 
-    private static final String MSG_1 = "mam-extended message 1";
-    private static final String MSG_2 = "mam-extended message 2";
-    private static final String MSG_3 = "mam-extended message 3";
-    private static final String MSG_4 = "mam-extended message 4";
-    private static final String MSG_5 = "mam-extended message 5";
+    private static final String EXTENDED_NAMESPACE = "urn:xmpp:mam:2#extended";
 
-    private final EntityBareJid mucAddress;
-    private final MultiUserChat mucAsSeenByOwner;
+    private static final String MSG_1 = "mam-extended-personal message 1";
+    private static final String MSG_2 = "mam-extended-personal message 2";
+    private static final String MSG_3 = "mam-extended-personal message 3";
+    private static final String MSG_4 = "mam-extended-personal message 4";
+    private static final String MSG_5 = "mam-extended-personal message 5";
+
+    private final AbstractXMPPConnection owner;
+    private final AbstractXMPPConnection peer;
     private final MamManager mamManager;
 
     /**
@@ -80,31 +85,30 @@ public class MamExtendedFeaturesTest extends AbstractMultiUserChatIntegrationTes
      */
     private final List<String> ids = new ArrayList<>();
 
-    public MamExtendedFeaturesTest(final SmackIntegrationTestEnvironment environment) throws Exception
+    public MamExtendedFeaturesPersonalArchiveTest(final SmackIntegrationTestEnvironment environment) throws Exception
     {
-        super(environment);
+        super(environment, ModularXmppClientToServerConnection.class);
 
-        mucAddress = getRandomRoom("mam-extended");
-        mucAsSeenByOwner = mucManagerOne.getMultiUserChat(mucAddress);
-        createMucNonAnonymous(mucAsSeenByOwner, nicknameOne);
+        owner = getConnectedConnection();
+        peer = getConnectedConnection();
 
-        mamManager = MamManager.getInstanceFor(mucAsSeenByOwner);
+        mamManager = MamManager.getInstanceFor(owner);
         final String mamNamespace = mamManager.getMamNamespace(); // Required to be able to query the archive without explicitly setting preferences.
 
         if (!MamVersion.MAM2.getNamespace().equals(mamNamespace)) {
-            throw new TestNotPossibleException("Server does not support MAM v2 for MUC archives.");
+            throw new TestNotPossibleException("Server does not support MAM v2 for personal archives.");
         }
 
-        // Note: deliberately NOT gating test execution on the server advertising 'urn:xmpp:mam:2#extended' for the
-        // room here (unlike the MAM v2 check above). Whether that's advertised is itself under test - see
-        // testExtendedImpliesMam2() - and the functional behavior of the extended query fields is tested
-        // independently of what's advertised in disco#info.
+        // Note: deliberately NOT gating test execution on the server advertising 'urn:xmpp:mam:2#extended' here.
+        // Whether that's advertised is itself under test - see testPersonalArchiveAdvertisesExtended() - and the
+        // functional behavior of the extended query fields is tested independently of what's advertised in
+        // disco#info.
 
-        mucAsSeenByOwner.sendMessage(MSG_1);
-        mucAsSeenByOwner.sendMessage(MSG_2);
-        mucAsSeenByOwner.sendMessage(MSG_3);
-        mucAsSeenByOwner.sendMessage(MSG_4);
-        mucAsSeenByOwner.sendMessage(MSG_5);
+        peer.sendStanza(MessageBuilder.buildMessage().to(owner.getUser().asEntityBareJid()).setBody(MSG_1).build());
+        peer.sendStanza(MessageBuilder.buildMessage().to(owner.getUser().asEntityBareJid()).setBody(MSG_2).build());
+        peer.sendStanza(MessageBuilder.buildMessage().to(owner.getUser().asEntityBareJid()).setBody(MSG_3).build());
+        peer.sendStanza(MessageBuilder.buildMessage().to(owner.getUser().asEntityBareJid()).setBody(MSG_4).build());
+        peer.sendStanza(MessageBuilder.buildMessage().to(owner.getUser().asEntityBareJid()).setBody(MSG_5).build());
 
         // Wait for messages to be archived - without this, CI will frequently fail as the query below might race the archiving.
         Thread.sleep(500);
@@ -116,37 +120,40 @@ public class MamExtendedFeaturesTest extends AbstractMultiUserChatIntegrationTes
     }
 
     @AfterClass
-    public void tearDown() throws Exception
+    public void tearDown()
     {
-        if (mucAsSeenByOwner != null) {
-            tryDestroy(mucAsSeenByOwner);
+        if (owner != null) {
+            recycle(owner);
+        }
+        if (peer != null) {
+            recycle(peer);
         }
     }
 
     /**
-     * Verifies that a MUC archive advertises 'urn:xmpp:mam:2#extended' in its disco#info, as required for any
+     * Verifies that a personal archive advertises 'urn:xmpp:mam:2#extended' in its disco#info, as required for any
      * archiving entity that supports the extended query fields, flipped pages and archive metadata that are
      * exercised by the other tests in this class.
      */
     @SmackIntegrationTest(section = "7", quote = "If a server or other entity hosts archives and supports MAM queries, it MUST advertise the 'urn:xmpp:mam:2' and 'urn:xmpp:mam:2#extended' features in response to Service Discovery requests made to archiving JIDs")
-    public void testMucArchiveAdvertisesExtended() throws Exception
+    public void testPersonalArchiveAdvertisesExtended() throws Exception
     {
-        final DiscoverInfo discoverInfo = ServiceDiscoveryManager.getInstanceFor(conOne).discoverInfo(mucAddress);
-        assertTrue("Expected room '" + mucAddress + "' to advertise 'urn:xmpp:mam:2#extended'", discoverInfo.containsFeature(EXTENDED_NAMESPACE));
+        final DiscoverInfo discoverInfo = ServiceDiscoveryManager.getInstanceFor(owner).discoverInfo(owner.getUser().asEntityBareJid());
+        assertTrue("Expected personal archive of '" + owner.getUser() + "' to advertise 'urn:xmpp:mam:2#extended'", discoverInfo.containsFeature(EXTENDED_NAMESPACE));
     }
 
     /**
-     * Verifies that a MUC archive that advertises 'urn:xmpp:mam:2#extended' also advertises 'urn:xmpp:mam:2', as
-     * required by the specification.
+     * Verifies that a personal archive that advertises 'urn:xmpp:mam:2#extended' also advertises 'urn:xmpp:mam:2',
+     * as required by the specification.
      */
     @SmackIntegrationTest(section = "7", quote = "The 'urn:xmpp:mam:2#extended' feature MUST NOT be advertised by a server without also advertising 'urn:xmpp:mam:2'.")
     public void testExtendedImpliesMam2() throws Exception
     {
-        final DiscoverInfo discoverInfo = ServiceDiscoveryManager.getInstanceFor(conOne).discoverInfo(mucAddress);
+        final DiscoverInfo discoverInfo = ServiceDiscoveryManager.getInstanceFor(owner).discoverInfo(owner.getUser().asEntityBareJid());
         if (!discoverInfo.containsFeature(EXTENDED_NAMESPACE)) {
-            return; // Nothing to verify: covered (and reported) by testMucArchiveAdvertisesExtended() instead.
+            return; // Nothing to verify: covered (and reported) by testPersonalArchiveAdvertisesExtended() instead.
         }
-        assertTrue("Expected room '" + mucAddress + "' to advertise 'urn:xmpp:mam:2' (given that it advertises 'urn:xmpp:mam:2#extended')", discoverInfo.containsFeature(MamVersion.MAM2.getNamespace()));
+        assertTrue("Expected personal archive to advertise 'urn:xmpp:mam:2' (given that it advertises 'urn:xmpp:mam:2#extended')", discoverInfo.containsFeature(MamVersion.MAM2.getNamespace()));
     }
 
     /**
@@ -233,7 +240,7 @@ public class MamExtendedFeaturesTest extends AbstractMultiUserChatIntegrationTes
     public void testBeforeIdNotFound() throws Exception
     {
         final XMPPErrorException e = assertThrows(XMPPErrorException.class, () -> mamManager.queryArchive(MamManager.MamQueryArgs.builder()
-            .withAdditionalFormField(FormField.textSingleBuilder("before-id").setValue("this-id-does-not-exist-" + randomString).build())
+            .withAdditionalFormField(FormField.textSingleBuilder("before-id").setValue("this-id-does-not-exist-" + testRunId).build())
             .build()));
         assertEquals(org.jivesoftware.smack.packet.StanzaError.Condition.item_not_found, e.getStanzaError().getCondition());
     }
@@ -246,7 +253,7 @@ public class MamExtendedFeaturesTest extends AbstractMultiUserChatIntegrationTes
     public void testAfterIdNotFound() throws Exception
     {
         final XMPPErrorException e = assertThrows(XMPPErrorException.class, () -> mamManager.queryArchive(MamManager.MamQueryArgs.builder()
-            .withAdditionalFormField(FormField.textSingleBuilder("after-id").setValue("this-id-does-not-exist-" + randomString).build())
+            .withAdditionalFormField(FormField.textSingleBuilder("after-id").setValue("this-id-does-not-exist-" + testRunId).build())
             .build()));
         assertEquals(org.jivesoftware.smack.packet.StanzaError.Condition.item_not_found, e.getStanzaError().getCondition());
     }
@@ -259,7 +266,7 @@ public class MamExtendedFeaturesTest extends AbstractMultiUserChatIntegrationTes
     public void testIdsNotFound() throws Exception
     {
         final XMPPErrorException e = assertThrows(XMPPErrorException.class, () -> mamManager.queryArchive(MamManager.MamQueryArgs.builder()
-            .withAdditionalFormField(FormField.listMultiBuilder("ids").addValue(ids.get(0)).addValue("this-id-does-not-exist-" + randomString).build())
+            .withAdditionalFormField(FormField.listMultiBuilder("ids").addValue(ids.get(0)).addValue("this-id-does-not-exist-" + testRunId).build())
             .build()));
         assertEquals(org.jivesoftware.smack.packet.StanzaError.Condition.item_not_found, e.getStanzaError().getCondition());
     }
@@ -291,16 +298,17 @@ public class MamExtendedFeaturesTest extends AbstractMultiUserChatIntegrationTes
     }
 
     /**
-     * Verifies that an archive metadata query against a non-empty MUC archive returns 'start' and 'end' elements
-     * describing the first and last message in the archive, using the same ids that are used in MAM query results.
+     * Verifies that an archive metadata query against a non-empty personal archive returns 'start' and 'end'
+     * elements describing the first and last message in the archive, using the same ids that are used in MAM query
+     * results.
      */
     @SmackIntegrationTest(section = "5", quote = "The server response includes a <metadata/> element containing information about the archive. If the archive is not empty, this element MUST include <start/> and <end/> elements, which each have an 'id' and XEP-0082 formatted 'timestamp' of the first and last messages in the archive respectively.")
     public void testArchiveMetadataNonEmpty() throws Exception
     {
         final MamMetadataRequest request = new MamMetadataRequest();
-        request.setTo(mucAddress);
+        // No 'to': defaults to the requestor's own (personal) archive.
 
-        final MamMetadataResult result = conOne.sendIqRequestAndWaitForResponse(request);
+        final MamMetadataResult result = owner.sendIqRequestAndWaitForResponse(request);
 
         assertFalse("Expected metadata for a non-empty archive to contain 'start' and 'end' boundaries", result.isEmpty());
         assertNotNull("Expected a 'start' boundary", result.getStart());
@@ -312,35 +320,30 @@ public class MamExtendedFeaturesTest extends AbstractMultiUserChatIntegrationTes
     }
 
     /**
-     * Verifies that an archive metadata query against an empty MUC archive returns an empty {@code <metadata/>}
+     * Verifies that an archive metadata query against an empty personal archive returns an empty {@code <metadata/>}
      * element (no 'start' or 'end' boundaries).
      */
     @SmackIntegrationTest(section = "5", quote = "If the archive is empty, the server MUST instead send an empty <metadata/> element.")
     public void testArchiveMetadataEmpty() throws Exception
     {
-        // Setup test fixture: a freshly created room, to which no messages have been sent.
-        final EntityBareJid emptyRoomAddress = getRandomRoom("mam-extended-empty");
-        final MultiUserChat emptyRoom = mucManagerOne.getMultiUserChat(emptyRoomAddress);
-        createMucNonAnonymous(emptyRoom, Resourcepart.from("owner-" + randomString));
+        // Setup test fixture: a freshly created account, to which no messages have ever been sent.
+        final AbstractXMPPConnection emptyOwner = getConnectedConnection();
         try {
             final MamMetadataRequest request = new MamMetadataRequest();
-            request.setTo(emptyRoomAddress);
 
             // Execute system under test.
-            final MamMetadataResult result = conOne.sendIqRequestAndWaitForResponse(request);
+            final MamMetadataResult result = emptyOwner.sendIqRequestAndWaitForResponse(request);
 
             // Verify.
             assertTrue("Expected metadata for an empty archive to be an empty <metadata/> element", result.isEmpty());
             assertNull(result.getStart());
             assertNull(result.getEnd());
         } finally {
-            tryDestroy(emptyRoom);
+            recycle(emptyOwner);
         }
     }
 
     // ===== Helper methods =====
-
-    private static final String EXTENDED_NAMESPACE = "urn:xmpp:mam:2#extended";
 
     /**
      * Finds the MAM result id (as used in before-id/after-id/ids and in {@code <result id='.../>}) of the archived
@@ -393,18 +396,18 @@ public class MamExtendedFeaturesTest extends AbstractMultiUserChatIntegrationTes
         final MamElementFactory factory = MamVersion.MAM2.newElementFactory();
         final MamQueryIQ mamQueryIQ = factory.newQueryIQ(org.jivesoftware.smack.util.StringUtils.secureUniqueRandomString(), null, dataForm);
         mamQueryIQ.setType(IQ.Type.set);
-        mamQueryIQ.setTo(mucAddress);
+        // No 'to': defaults to the requestor's own (personal) archive.
         mamQueryIQ.addExtension(new FlipPageElement());
         mamQueryIQ.addExtension(afterId == null ? new RSMSet(max) : new RSMSet(max, afterId, RSMSet.PageDirection.after));
 
-        final StanzaCollector finCollector = conOne.createStanzaCollector(new IQReplyFilter(mamQueryIQ, conOne));
+        final StanzaCollector finCollector = owner.createStanzaCollector(new IQReplyFilter(mamQueryIQ, owner));
         final StanzaCollector.Configuration resultCollectorConfig = StanzaCollector.newConfiguration()
             .setStanzaFilter(new MamResultFilter(mamQueryIQ))
             .setCollectorToReset(finCollector);
 
         final StanzaCollector cancelledResultCollector;
-        try (StanzaCollector resultCollector = conOne.createStanzaCollector(resultCollectorConfig)) {
-            conOne.sendStanza(mamQueryIQ);
+        try (StanzaCollector resultCollector = owner.createStanzaCollector(resultCollectorConfig)) {
+            owner.sendStanza(mamQueryIQ);
             finCollector.nextResultOrThrow(); // Throws XMPPErrorException on an IQ error response.
             cancelledResultCollector = resultCollector;
         }

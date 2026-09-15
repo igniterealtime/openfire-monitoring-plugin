@@ -1,4 +1,4 @@
-package org.jivesoftware.smackx.muc;
+package org.jivesoftware.smackx.mam.extended;
 
 import org.jivesoftware.smack.packet.ExtensionElement;
 import org.jivesoftware.smack.packet.XmlEnvironment;
@@ -13,10 +13,10 @@ import org.jivesoftware.smack.util.XmlStringBuilder;
  * Not (yet) supported by Smack's own MAM implementation, so this test-only element is used to construct queries
  * directly rather than through {@code MamManager}.
  */
-final class FlipPageElement implements ExtensionElement
+public final class FlipPageElement implements ExtensionElement
 {
-    static final String ELEMENT = "flip-page";
-    static final String NAMESPACE = "urn:xmpp:mam:2";
+    public static final String ELEMENT = "flip-page";
+    public static final String NAMESPACE = "urn:xmpp:mam:2";
 
     @Override
     public String getElementName()
