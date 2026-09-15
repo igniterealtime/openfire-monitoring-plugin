@@ -29,16 +29,24 @@ import java.util.Iterator;
  * verify that the business rules of the specification are enforced before it uses an identifier for deduplication or
  * for catching up with an archive.
  *
- * The feature is advertised only while this implementation actually generates identifiers.
+ * The feature is advertised only while this implementation actually generates identifiers, which requires both the
+ * generation of identifiers and the archiving of one-to-one messages to be enabled.
  *
  * @see <a href="https://xmpp.org/extensions/xep-0359.html">XEP-0359</a>
  */
 public class StanzaIDUserFeatureProvider implements UserFeaturesProvider
 {
+    private final ConversationManager conversationManager;
+
+    public StanzaIDUserFeatureProvider( final ConversationManager conversationManager )
+    {
+        this.conversationManager = conversationManager;
+    }
+
     @Override
     public Iterator<String> getFeatures()
     {
-        if (!ArchiveStanzaIDUtil.isEnabled()) {
+        if ( !ArchiveStanzaIDUtil.isEnabled() || !conversationManager.isMessageArchivingEnabled() ) {
             return Collections.emptyIterator();
         }
         return Collections.singleton("urn:xmpp:sid:0").iterator();
