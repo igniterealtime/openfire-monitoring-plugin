@@ -369,8 +369,10 @@ public class JdbcPersistenceManager implements PersistenceManager {
         final ArchivedMessage chronologicallyFirst = !msgs.isEmpty() ? msgs.get(0) : null;
         final ArchivedMessage chronologicallyLast = !msgs.isEmpty() ? msgs.get(msgs.size()-1) : null;
 
-        // mam:2#extended flip-page: when paging backwards, deliver the page newest-first instead of chronological.
-        if (isPagingBackwards && extendedQuery.isFlipPage() && msgs.size() > 1) {
+        // mam:2#extended flip-page: deliver the page newest-first instead of chronological. Per XEP-0313 4.1.4,
+        // this only affects transmission order, not which messages are selected, and applies regardless of paging
+        // direction (the spec's own example combines flip-page with a forward/'after' page).
+        if (extendedQuery.isFlipPage() && msgs.size() > 1) {
             Collections.reverse(msgs);
         }
 

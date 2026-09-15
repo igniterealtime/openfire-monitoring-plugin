@@ -195,10 +195,14 @@ public class PaginatedMucMessageFromOpenfireDatabaseQuery extends AbstractPagina
             sql += " AND messageId < ? ";
         }
 
-        sql += "ORDER BY logTime " + (isPagingBackwards ? "DESC" : "ASC");
+        // XEP-0313 3: "implementors should take care not to rely on timestamps alone for ordering messages, as
+        // multiple messages may share the same timestamp." Break ties using messageId (assigned in insertion
+        // order), so that ordering (and, in particular, the single-row 'oldest'/'newest' queries used by archive
+        // metadata) is deterministic even when messages share a millisecond-resolution logTime.
+        sql += "ORDER BY logTime " + (isPagingBackwards ? "DESC" : "ASC") + ", messageId " + (isPagingBackwards ? "DESC" : "ASC");
         sql += " LIMIT " + maxResults;
         sql += " ) AS part ";
-        sql += " ORDER BY logTime ASC";   
+        sql += " ORDER BY logTime ASC, messageId ASC";
         return sql;
     }
 
@@ -222,10 +226,14 @@ public class PaginatedMucMessageFromOpenfireDatabaseQuery extends AbstractPagina
             sql += " AND messageId < ? ";
         }
 
-        sql += "ORDER BY logTime " + (isPagingBackwards ? "DESC" : "ASC");
+        // XEP-0313 3: "implementors should take care not to rely on timestamps alone for ordering messages, as
+        // multiple messages may share the same timestamp." Break ties using messageId (assigned in insertion
+        // order), so that ordering (and, in particular, the single-row 'oldest'/'newest' queries used by archive
+        // metadata) is deterministic even when messages share a millisecond-resolution logTime.
+        sql += "ORDER BY logTime " + (isPagingBackwards ? "DESC" : "ASC") + ", messageId " + (isPagingBackwards ? "DESC" : "ASC");
         sql += " FETCH FIRST " + maxResults + " ROWS ONLY";
         sql += " ) AS part ";
-        sql += " ORDER BY logTime ASC";
+        sql += " ORDER BY logTime ASC, messageId ASC";
         return sql;
     }
 
@@ -252,9 +260,13 @@ public class PaginatedMucMessageFromOpenfireDatabaseQuery extends AbstractPagina
             sql += " AND messageId < ? ";
         }
 
-        sql += "ORDER BY logTime " + (isPagingBackwards ? "DESC" : "ASC");    		        
+        // XEP-0313 3: "implementors should take care not to rely on timestamps alone for ordering messages, as
+        // multiple messages may share the same timestamp." Break ties using messageId (assigned in insertion
+        // order), so that ordering (and, in particular, the single-row 'oldest'/'newest' queries used by archive
+        // metadata) is deterministic even when messages share a millisecond-resolution logTime.
+        sql += "ORDER BY logTime " + (isPagingBackwards ? "DESC" : "ASC") + ", messageId " + (isPagingBackwards ? "DESC" : "ASC");
         sql += " ) AS part ";
-        sql += " ORDER BY logTime ASC";   
+        sql += " ORDER BY logTime ASC, messageId ASC";
         return sql;
     }
 
