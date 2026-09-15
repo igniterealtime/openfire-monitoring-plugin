@@ -113,6 +113,13 @@ class IQQueryHandler2 extends IQQueryHandler {
                 return buildMetadataErrorResponse(packet, PacketError.Condition.forbidden,
                     "You are currently not allowed to access the archive of room '" + room.getJID() + "'.");
             }
+
+            // Password protected room
+            if (room.isPasswordProtected() && room.getOccupantByFullJID(packet.getFrom()) == null) {
+                // no occupant so currently not authenticated to query archive
+                return buildMetadataErrorResponse(packet, PacketError.Condition.forbidden,
+                    "You are currently not allowed to access the archive of room '" + room.getJID() + "'.");
+            }
         } else if (!archiveJid.asBareJID().equals(requestor)) {
             if (!XMPPServer.getInstance().getAdmins().contains(requestor)) {
                 return buildMetadataErrorResponse(packet, PacketError.Condition.forbidden,
