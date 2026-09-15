@@ -46,18 +46,6 @@ public class MamExtendedQueryTest
     }
 
     @Test
-    public void beforeIdWithoutAfterIdIsBackwardsPaging()
-    {
-        final MamExtendedQuery onlyBefore = new MamExtendedQuery("b1", null, null, false);
-        final MamExtendedQuery both = new MamExtendedQuery("b1", "a1", null, false);
-        final MamExtendedQuery onlyAfter = new MamExtendedQuery(null, "a1", null, false);
-
-        assertTrue(onlyBefore.isPagingBackwardsViaBeforeId());
-        assertFalse(both.isPagingBackwardsViaBeforeId());
-        assertFalse(onlyAfter.isPagingBackwardsViaBeforeId());
-    }
-
-    @Test
     public void combinedBeforeIdAndAfterIdUseExclusiveRangeMerge()
     {
         // Simultaneous before-id + after-id must keep messages strictly between both IDs.

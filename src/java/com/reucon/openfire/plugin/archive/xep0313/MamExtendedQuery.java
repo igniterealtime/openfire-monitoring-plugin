@@ -84,14 +84,6 @@ public final class MamExtendedQuery
     }
 
     /**
-     * Whether this query is effectively paging backwards via before-id (without after-id).
-     */
-    public boolean isPagingBackwardsViaBeforeId()
-    {
-        return beforeId != null && afterId == null;
-    }
-
-    /**
      * True when the client requested only specific message IDs (no with/start/end/text/before-id/after-id filters).
      * In that case XEP-0313 requires returning those messages regardless of default date-range limits.
      */
