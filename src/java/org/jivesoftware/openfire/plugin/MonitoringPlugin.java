@@ -101,7 +101,7 @@ public class MonitoringPlugin implements Plugin, PluginListener
     private MucIndexer mucIndexer;
     private MessageIndexer messageIndexer;
 
-    private final StanzaIDUserFeatureProvider stanzaIDUserFeatureProvider = new StanzaIDUserFeatureProvider();
+    private final StanzaIDUserFeatureProvider stanzaIDUserFeatureProvider;
 
     public MonitoringPlugin() {
         instance = this;
@@ -128,6 +128,8 @@ public class MonitoringPlugin implements Plugin, PluginListener
         archiveSearcher = new ArchiveSearcher(conversationManager, archiveIndexer);
         mucIndexer = new MucIndexer(taskEngine, conversationManager);
         messageIndexer = new MessageIndexer(taskEngine, conversationManager);
+
+        stanzaIDUserFeatureProvider = new StanzaIDUserFeatureProvider(conversationManager);
     }
 
     public static MonitoringPlugin getInstance() {
