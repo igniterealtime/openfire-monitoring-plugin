@@ -778,8 +778,8 @@ public class ArchiveStanzaIDUtil
         if ( depth >= MAX_FORWARDING_DEPTH ) {
             return false;
         }
-        for ( final Element child : element.elements() ) {
-            if ( hasStanzaID( child, depth + 1 ) ) {
+        for ( final Element forwardedStanza : findForwardedStanzas( element ) ) {
+            if ( hasStanzaID( forwardedStanza, depth + 1 ) ) {
                 return true;
             }
         }

@@ -858,6 +858,28 @@ public class ArchiveStanzaIDUtilTest {
         assertFalse(result);
     }
 
+    /**
+     * Tests the functionality of adjusting and ensuring that the stanza ID  in deeply nested carbon-copy message
+     * envelopes is applied correctly and reaches its intended recipient.
+     */
+    @Test
+    public void testAdjustReachesStanzaIdInNestedEnvelopes() {
+        // Setup test fixture.
+        final Message forged = newMessage(ROMEO, JULIET);
+        addStanzaId(forged, "forged-id", JULIET.toBareJID());
+        Message input = forged;
+        for (int i = 0; i < 4; i++) {
+            input = newCarbonEnvelope(input, new JID("mercutio@" + LOCAL_DOMAIN + "/street"), ROMEO);
+        }
+
+        // Execute system under test.
+        final boolean result = ArchiveStanzaIDUtil.adjustForRecipient(input, ROMEO, IS_LOCAL_USER);
+
+        // Verify results.
+        assertTrue(result);
+        assertTrue(input.getElement().selectNodes("//*[local-name()='stanza-id']").isEmpty());
+    }
+
     private static Message newSentCarbon(final Message original, final JID to) {
         // XEP-0280: a carbon copy is addressed from the bare JID of the account to each of its full JIDs.
         return newCarbonEnvelope(original, to.asBareJID(), to);
