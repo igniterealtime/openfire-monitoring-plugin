@@ -18,18 +18,16 @@ package com.reucon.openfire.plugin.archive.xep0313;
 import org.junit.Test;
 
 /**
- * Verifies that {@link MamBind2Support} degrades gracefully when the running Openfire server does not
- * provide the {@code Bind2InlineHandler} SPI (added in Openfire 5.2.0), which is the case in this test
- * environment (built against an older xmppserver artifact that lacks these classes).
+ * Verifies that {@link MamBind2Support} registers and unregisters its {@code Bind2InlineHandler}
+ * (added to Openfire in 5.2.0) idempotently and without error.
  */
 public class MamBind2SupportTest
 {
     @Test
-    public void registerDoesNotThrowWhenSpiIsAbsent()
+    public void registerDoesNotThrow()
     {
-        // Must not throw NoClassDefFoundError/ClassNotFoundException, and must not require the Bind2
-        // SPI classes to be present on the classpath.
         MamBind2Support.register();
+        MamBind2Support.unregister();
     }
 
     @Test
@@ -46,4 +44,5 @@ public class MamBind2SupportTest
         MamBind2Support.unregister();
         MamBind2Support.unregister();
     }
+
 }
