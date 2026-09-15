@@ -71,6 +71,11 @@ public abstract class AbstractXepSupport implements UserFeaturesProvider {
 
             final QName qName = QName.get( iqHandler.getInfo().getName(), iqHandler.getInfo().getNamespace() );
             element2Handlers.put(qName, iqHandler);
+            if (iqHandler instanceof AbstractIQHandler) {
+                for (final String additionalElementName : ((AbstractIQHandler) iqHandler).getAdditionalElementNames()) {
+                    element2Handlers.put(QName.get(additionalElementName, iqHandler.getInfo().getNamespace()), iqHandler);
+                }
+            }
             if (iqHandler instanceof ServerFeaturesProvider) {
                 for (Iterator<String> i = ((ServerFeaturesProvider) iqHandler)
                         .getFeatures(); i.hasNext();) {
@@ -100,6 +105,11 @@ public abstract class AbstractXepSupport implements UserFeaturesProvider {
         for (IQHandler iqHandler : iqHandlers) {
             final QName qName = QName.get( iqHandler.getInfo().getName(), iqHandler.getInfo().getNamespace() );
             element2Handlers.remove(qName);
+            if (iqHandler instanceof AbstractIQHandler) {
+                for (final String additionalElementName : ((AbstractIQHandler) iqHandler).getAdditionalElementNames()) {
+                    element2Handlers.remove(QName.get(additionalElementName, iqHandler.getInfo().getNamespace()));
+                }
+            }
             try {
                 iqHandler.stop();
                 iqHandler.destroy();
