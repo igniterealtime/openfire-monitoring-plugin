@@ -160,6 +160,12 @@ public class MucMamPersistenceManager implements PersistenceManager {
         }
 
 
+        // Capture the chronological boundaries (oldest/newest) before any flip-page reversal, as these
+        // drive the 'next page'/completion lookup below, which must rely on the actual chronological
+        // order regardless of how the page is ordered for display.
+        final ArchivedMessage chronologicallyFirst = !msgs.isEmpty() ? msgs.get(0) : null;
+        final ArchivedMessage chronologicallyLast = !msgs.isEmpty() ? msgs.get(msgs.size()-1) : null;
+
         // mam:2#extended flip-page: when paging backwards, deliver the page newest-first instead of chronological.
         if (isPagingBackwards && extendedQuery.isFlipPage() && msgs.size() > 1) {
             Collections.reverse(msgs);
@@ -198,8 +204,9 @@ public class MucMamPersistenceManager implements PersistenceManager {
             // Check to see if there are more pages, by simulating a request for the next page.
             // When paging backwards, we need to find out if there are results 'before' the first result.
             // When paging forward, we need to find out if there are results 'after' the last result.
-            final Long afterForNextPage = isPagingBackwards ? null : lastMessage.getId();
-            final Long beforeForNextPage = isPagingBackwards ? firstMessage.getId() : null;
+            // Use the chronological boundaries (unaffected by any flip-page reversal above) here.
+            final Long afterForNextPage = isPagingBackwards ? null : chronologicallyLast.getId();
+            final Long beforeForNextPage = isPagingBackwards ? chronologicallyFirst.getId() : null;
             final List<ArchivedMessage> nextPage;
             if ( query != null && !query.isEmpty() )
             {
