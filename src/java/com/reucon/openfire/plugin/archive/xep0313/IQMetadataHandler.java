@@ -47,10 +47,6 @@ class IQMetadataHandler extends AbstractIQHandler
     @Override
     public IQ handleIQ(final IQ packet) throws UnauthorizedException
     {
-        if (packet.getType() != IQ.Type.get) {
-            return buildErrorResponse(packet, PacketError.Condition.bad_request, "Metadata queries must use IQ type get.");
-        }
-
         JID archiveJid = packet.getTo();
         if (archiveJid == null) {
             archiveJid = packet.getFrom().asBareJID();
