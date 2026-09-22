@@ -132,19 +132,19 @@ public class GraphServlet extends HttpServlet {
                 final String serverName = XMPPServer.getInstance().getServerInfo().getXMPPDomain();
                 final String dateName = JiveGlobals.formatDate(new Date(starttime)) + " - " + JiveGlobals.formatDate(new Date(endtime));
 
-                writer.addParagraph(serverName, PdfReportWriter.HELVETICA_BOLD, 18, Color.BLACK);
-                writer.addParagraph(dateName, PdfReportWriter.HELVETICA, 14, Color.BLACK);
+                writer.addParagraph(serverName, writer.bold(), 18, Color.BLACK);
+                writer.addParagraph(dateName, writer.regular(), 14, Color.BLACK);
 
                 writer.addBlankLine(14);
                 writer.addBlankLine(14);
 
-                writer.addParagraph(++chapIndex + ". " + stat.getName(), PdfReportWriter.HELVETICA_BOLD, 16, Color.BLACK);
+                writer.addParagraph(++chapIndex + ". " + stat.getName(), writer.bold(), 16, Color.BLACK);
 
                 // total hack: no idea what tags people are going to use in the description
                 // possibly recommend that we only use a <p> tag?
                 String[] paragraphs = stat.getDescription().split("<p>");
                 for (String s : paragraphs) {
-                    writer.addParagraph(s, PdfReportWriter.HELVETICA, 12, Color.BLACK);
+                    writer.addParagraph(s, writer.regular(), 12, Color.BLACK);
                 }
                 writer.addBlankLine(12);
 

@@ -28,3 +28,9 @@ nbbuild/
 # build temp folders
 rpmbuild/
 debian/
+
+CLAUDE.md
+
+# Downloaded at build time by pom.xml (see download-maven-plugin/maven-antrun-plugin executions);
+# not committed since it's a ~16MB binary. See src/web/fonts/LICENSE-NotoSansCJK.txt for licensing.
+src/web/fonts/NotoSansCJKsc-Regular.otf

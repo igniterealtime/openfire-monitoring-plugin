@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008 Jive Software. All rights reserved.
+ * Copyright (C) 2008 Jive Software, 2026 Ignite Realtime Foundation. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -55,6 +55,10 @@ public class ConversationPDFServlet extends HttpServlet {
                 conversation = ConversationDAO.loadConversation(conversationID);
 
                 ByteArrayOutputStream stream = new ConversationUtils().getConversationPDF(conversationManager, conversation);
+                if (stream == null) {
+                    response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Unable to generate a PDF for this conversation.");
+                    return;
+                }
 
                 // setting some response headers
                 response.setHeader("Expires", "0");
