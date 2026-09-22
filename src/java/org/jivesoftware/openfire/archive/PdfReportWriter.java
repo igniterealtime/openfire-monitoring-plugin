@@ -17,7 +17,9 @@ package org.jivesoftware.openfire.archive;
 
 import org.apache.fontbox.ttf.OTFParser;
 import org.apache.fontbox.ttf.OpenTypeFont;
+import org.apache.pdfbox.Loader;
 import org.apache.pdfbox.io.RandomAccessReadBuffer;
+import org.apache.pdfbox.multipdf.LayerUtility;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.pdmodel.PDPage;
 import org.apache.pdfbox.pdmodel.PDPageContentStream;
@@ -27,15 +29,12 @@ import org.apache.pdfbox.pdmodel.font.PDType0Font;
 import org.apache.pdfbox.pdmodel.font.PDType1Font;
 import org.apache.pdfbox.pdmodel.font.Standard14Fonts;
 import org.apache.pdfbox.pdmodel.graphics.form.PDFormXObject;
-import org.apache.pdfbox.pdmodel.graphics.image.LosslessFactory;
-import org.apache.pdfbox.pdmodel.graphics.image.PDImageXObject;
 import org.apache.pdfbox.util.Matrix;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.imageio.ImageIO;
 import java.awt.Color;
-import java.awt.image.BufferedImage;
+import java.awt.geom.AffineTransform;
 import java.io.Closeable;
 import java.io.IOException;
 import java.io.InputStream;
@@ -46,7 +45,7 @@ import java.util.List;
 
 /**
  * Builds a simple, multi-page PDF report consisting of left-aligned, word-wrapped text and
- * (optionally) an embedded chart, with a small footer image and rule drawn on every page.
+ * (optionally) an embedded chart, with a small footer logo and rule drawn on every page.
  * <p>
  * This is a minimal, purpose-built replacement for the layout functionality that the plugin
  * used to get "for free" from the iText7 layout API. It's written directly against Apache
@@ -67,9 +66,10 @@ public class PdfReportWriter implements Closeable {
     private static final float MARGIN = 36f;
     private static final float LEADING_MULTIPLIER = 1.2f;
     private static final float FOOTER_RESERVE = 20f;
+    private static final float FOOTER_LOGO_HEIGHT = 20f;
 
     private final PDDocument document = new PDDocument();
-    private final PDImageXObject footerImage;
+    private final PDFormXObject footerLogo;
     private final PDFont regularFont;
     private final PDFont boldFont;
     private final PDFont obliqueFont;
@@ -85,7 +85,7 @@ public class PdfReportWriter implements Closeable {
         this.regularFont = loadFont("fonts/DejaVuSans.ttf", Standard14Fonts.FontName.HELVETICA);
         this.boldFont = loadFont("fonts/DejaVuSans-Bold.ttf", Standard14Fonts.FontName.HELVETICA_BOLD);
         this.obliqueFont = loadFont("fonts/DejaVuSans-Oblique.ttf", Standard14Fonts.FontName.HELVETICA_OBLIQUE);
-        this.footerImage = loadFooterImage();
+        this.footerLogo = loadFooterLogo();
         newPage();
     }
 
@@ -236,8 +236,15 @@ public class PdfReportWriter implements Closeable {
     }
 
     private void drawFooter() throws IOException {
-        if (footerImage != null) {
-            contentStream.drawImage(footerImage, MARGIN, 4);
+        if (footerLogo != null) {
+            final float scale = FOOTER_LOGO_HEIGHT / footerLogo.getBBox().getHeight();
+            final AffineTransform at = new AffineTransform();
+            at.translate(MARGIN, 4);
+            at.scale(scale, scale);
+            contentStream.saveGraphicsState();
+            contentStream.transform(new Matrix(at));
+            contentStream.drawForm(footerLogo);
+            contentStream.restoreGraphicsState();
         }
         contentStream.setStrokingColor(new Color(156, 156, 156));
         contentStream.setLineWidth(2);
@@ -354,18 +361,30 @@ public class PdfReportWriter implements Closeable {
         }
     }
 
-    private PDImageXObject loadFooterImage() {
+    /**
+     * Pre-rendered from https://www.igniterealtime.org/fans/logo-openfire.svg, since this
+     * graphic never changes between exports.
+     * <p>
+     * To regenerate after an upstream logo change: parse the SVG into a GVT tree (e.g. via
+     * Apache Batik's {@code SAXSVGDocumentFactory} + {@code GVTBuilder}), paint that onto a
+     * {@code PdfBoxGraphics2D} canvas sized to the SVG's own bounds (the same technique
+     * {@code GraphServlet} uses to render JFreeChart charts), wrap the result in a single-page
+     * PDF sized to those same bounds, and replace this file. Batik is only needed for this
+     * one-off regeneration step; it is not, and should not become, a project dependency.
+     */
+    private PDFormXObject loadFooterLogo() {
         try {
-            final URL resource = PdfReportWriter.class.getClassLoader().getResource("images/pdf_generatedbyof.gif");
+            final URL resource = PdfReportWriter.class.getClassLoader().getResource("images/logo-openfire.pdf");
             if (resource == null) {
+                Log.warn("Footer logo resource not found");
                 return null;
             }
-            try (InputStream in = resource.openStream()) {
-                final BufferedImage image = ImageIO.read(in);
-                return image == null ? null : LosslessFactory.createFromImage(document, image);
+            try (InputStream in = resource.openStream();
+                 PDDocument logoDoc = Loader.loadPDF(RandomAccessReadBuffer.createBufferFromStream(in))) {
+                return new LayerUtility(document).importPageAsForm(logoDoc, 0);
             }
         } catch (IOException e) {
-            Log.warn("Unable to load PDF footer image", e);
+            Log.warn("Unable to load footer logo", e);
             return null;
         }
     }
