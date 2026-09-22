@@ -140,7 +140,7 @@ public class ConversationUtils {
             writer.addBlankLine(12);
             writer.addParagraph(
                 LocaleUtils.getLocalizedString("archive.search.pdf.title", MonitoringConstants.NAME),
-                PdfReportWriter.HELVETICA_BOLD, 18, Color.BLACK
+                writer.bold(), 18, Color.BLACK
             );
             writer.addBlankLine(12);
 
@@ -159,7 +159,7 @@ public class ConversationUtils {
                 LocaleUtils.getLocalizedString("archive.search.pdf.startdate", MonitoringConstants.NAME) + " " + coninfo.getDate() + '\n' +
                 LocaleUtils.getLocalizedString("archive.search.pdf.duration", MonitoringConstants.NAME) + " " + coninfo.getDuration() + '\n' +
                 LocaleUtils.getLocalizedString("archive.search.pdf.messagecount", MonitoringConstants.NAME) + " " + conversation.getMessageCount();
-            writer.addParagraph(infoText, PdfReportWriter.HELVETICA_BOLD, 12, Color.BLACK);
+            writer.addParagraph(infoText, writer.bold(), 12, Color.BLACK);
 
             writer.addBlankLine(12);
 
@@ -189,15 +189,15 @@ public class ConversationUtils {
                         color = Color.BLACK;
                     }
 
-                    runs.add(new PdfReportWriter.Run(prefix, PdfReportWriter.HELVETICA_BOLD, 11, color));
-                    runs.add(new PdfReportWriter.Run(body, PdfReportWriter.HELVETICA, 11, Color.BLACK));
+                    runs.add(new PdfReportWriter.Run(prefix, writer.bold(), 11, color));
+                    runs.add(new PdfReportWriter.Run(body, writer.regular(), 11, Color.BLACK));
                 }
                 else {
                     prefix = "[" + time + "] ";
-                    runs.add(new PdfReportWriter.Run(prefix, PdfReportWriter.HELVETICA_OBLIQUE, 11, Color.MAGENTA));
-                    runs.add(new PdfReportWriter.Run(body, PdfReportWriter.HELVETICA_OBLIQUE, 11, Color.MAGENTA));
+                    runs.add(new PdfReportWriter.Run(prefix, writer.oblique(), 11, Color.MAGENTA));
+                    runs.add(new PdfReportWriter.Run(body, writer.oblique(), 11, Color.MAGENTA));
                 }
-                runs.add(new PdfReportWriter.Run("\n", PdfReportWriter.HELVETICA, 11, Color.BLACK));
+                runs.add(new PdfReportWriter.Run("\n", writer.regular(), 11, Color.BLACK));
             }
             writer.addRuns(runs);
 

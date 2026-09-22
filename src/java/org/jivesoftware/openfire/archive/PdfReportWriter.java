@@ -15,11 +15,15 @@
  */
 package org.jivesoftware.openfire.archive;
 
+import org.apache.fontbox.ttf.OTFParser;
+import org.apache.fontbox.ttf.OpenTypeFont;
+import org.apache.pdfbox.io.RandomAccessReadBuffer;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.pdmodel.PDPage;
 import org.apache.pdfbox.pdmodel.PDPageContentStream;
 import org.apache.pdfbox.pdmodel.common.PDRectangle;
 import org.apache.pdfbox.pdmodel.font.PDFont;
+import org.apache.pdfbox.pdmodel.font.PDType0Font;
 import org.apache.pdfbox.pdmodel.font.PDType1Font;
 import org.apache.pdfbox.pdmodel.font.Standard14Fonts;
 import org.apache.pdfbox.pdmodel.graphics.form.PDFormXObject;
@@ -37,6 +41,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.URL;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -47,14 +52,17 @@ import java.util.List;
  * used to get "for free" from the iText7 layout API. It's written directly against Apache
  * PDFBox, as no Apache-licensed equivalent of iText's flowing layout engine is bundled with
  * the plugin (see OF-issue about AGPL/GPL licensed PDF dependencies).
+ * <p>
+ * Text is set in an embedded DejaVu Sans (Bitstream Vera license), rather than a base-14
+ * Helvetica, so that archived conversations containing non-Latin scripts (Cyrillic, Greek,
+ * accented Latin, etc.) render correctly instead of throwing when a character falls outside
+ * WinAnsiEncoding. Characters DejaVu can't cover (chiefly CJK) fall back to an embedded Noto
+ * Sans CJK, loaded lazily since most conversations never need it. Anything neither font can
+ * represent (e.g. emoji) is substituted with '?' rather than failing PDF generation outright.
  */
 public class PdfReportWriter implements Closeable {
 
     private static final Logger Log = LoggerFactory.getLogger(PdfReportWriter.class);
-
-    public static final PDFont HELVETICA = new PDType1Font(Standard14Fonts.FontName.HELVETICA);
-    public static final PDFont HELVETICA_BOLD = new PDType1Font(Standard14Fonts.FontName.HELVETICA_BOLD);
-    public static final PDFont HELVETICA_OBLIQUE = new PDType1Font(Standard14Fonts.FontName.HELVETICA_OBLIQUE);
 
     private static final float MARGIN = 36f;
     private static final float LEADING_MULTIPLIER = 1.2f;
@@ -62,14 +70,38 @@ public class PdfReportWriter implements Closeable {
 
     private final PDDocument document = new PDDocument();
     private final PDImageXObject footerImage;
+    private final PDFont regularFont;
+    private final PDFont boldFont;
+    private final PDFont obliqueFont;
+
+    private PDFont cjkFont;
+    private boolean cjkFontLoadAttempted;
 
     private PDPageContentStream contentStream;
     private float cursorX;
     private float cursorY;
 
     public PdfReportWriter() throws IOException {
+        this.regularFont = loadFont("fonts/DejaVuSans.ttf", Standard14Fonts.FontName.HELVETICA);
+        this.boldFont = loadFont("fonts/DejaVuSans-Bold.ttf", Standard14Fonts.FontName.HELVETICA_BOLD);
+        this.obliqueFont = loadFont("fonts/DejaVuSans-Oblique.ttf", Standard14Fonts.FontName.HELVETICA_OBLIQUE);
         this.footerImage = loadFooterImage();
         newPage();
+    }
+
+    /** A regular-weight font able to render most non-CJK scripts. */
+    public PDFont regular() {
+        return regularFont;
+    }
+
+    /** A bold-weight font able to render most non-CJK scripts. */
+    public PDFont bold() {
+        return boldFont;
+    }
+
+    /** An oblique-weight font able to render most non-CJK scripts. */
+    public PDFont oblique() {
+        return obliqueFont;
     }
 
     /**
@@ -125,11 +157,13 @@ public class PdfReportWriter implements Closeable {
     /** Writes a sequence of differently-styled runs that flow together, wrapping as needed. */
     public void addRuns(List<Run> runs) throws IOException {
         for (Run run : runs) {
-            final String[] lines = run.text.split("\n", -1);
-            for (int i = 0; i < lines.length; i++) {
-                writeLineFragment(lines[i], run.font, run.size, run.color);
-                if (i < lines.length - 1) {
-                    newLine(run.size);
+            for (Run segment : splitByFontCoverage(run)) {
+                final String[] lines = segment.text.split("\n", -1);
+                for (int i = 0; i < lines.length; i++) {
+                    writeLineFragment(lines[i], segment.font, segment.size, segment.color);
+                    if (i < lines.length - 1) {
+                        newLine(segment.size);
+                    }
                 }
             }
         }
@@ -211,6 +245,113 @@ public class PdfReportWriter implements Closeable {
         contentStream.moveTo(MARGIN, lineY);
         contentStream.lineTo(PDRectangle.A4.getWidth() - MARGIN, lineY);
         contentStream.stroke();
+    }
+
+    /**
+     * Splits a run into consecutive sub-runs, each assigned whichever font can actually render
+     * it: the run's own font where possible, else the (lazily-loaded) CJK fallback font, else the
+     * run's own font with '?' substituted so text never fails to render. '\n' rides along with
+     * whatever sub-run it falls in without affecting font selection, since it's a structural line
+     * break for {@link #addRuns} rather than a glyph to be drawn.
+     */
+    private List<Run> splitByFontCoverage(Run run) throws IOException {
+        final List<Run> segments = new ArrayList<>();
+        StringBuilder current = new StringBuilder();
+        PDFont currentFont = run.font;
+        int i = 0;
+        while (i < run.text.length()) {
+            final int codePoint = run.text.codePointAt(i);
+            final int charCount = Character.charCount(codePoint);
+            if (codePoint == '\n') {
+                current.append('\n');
+                i += charCount;
+                continue;
+            }
+            final PDFont resolved = resolveFont(run.font, codePoint);
+            final String piece = canEncode(resolved, codePoint) ? new String(Character.toChars(codePoint)) : "?";
+            if (current.length() > 0 && resolved != currentFont) {
+                segments.add(new Run(current.toString(), currentFont, run.size, run.color));
+                current = new StringBuilder();
+            }
+            currentFont = resolved;
+            current.append(piece);
+            i += charCount;
+        }
+        if (current.length() > 0) {
+            segments.add(new Run(current.toString(), currentFont, run.size, run.color));
+        }
+        return segments.isEmpty() ? List.of(run) : segments;
+    }
+
+    /** The run's own font if it can encode the character, else the CJK fallback, else the run's own font. */
+    private PDFont resolveFont(PDFont primary, int codePoint) throws IOException {
+        if (canEncode(primary, codePoint)) {
+            return primary;
+        }
+        final PDFont cjk = getCjkFont();
+        if (cjk != null && canEncode(cjk, codePoint)) {
+            return cjk;
+        }
+        return primary;
+    }
+
+    private boolean canEncode(PDFont font, int codePoint) {
+        try {
+            font.encode(new String(Character.toChars(codePoint)));
+            return true;
+        } catch (IOException | IllegalArgumentException e) {
+            return false;
+        }
+    }
+
+    /** Loaded on first use, since most conversations never need CJK glyph coverage. */
+    private PDFont getCjkFont() throws IOException {
+        if (!cjkFontLoadAttempted) {
+            cjkFontLoadAttempted = true;
+            cjkFont = loadOptionalFont("fonts/NotoSansCJKsc-Regular.otf");
+        }
+        return cjkFont;
+    }
+
+    private PDFont loadFont(String resourcePath, Standard14Fonts.FontName fallback) {
+        try {
+            final URL resource = PdfReportWriter.class.getClassLoader().getResource(resourcePath);
+            if (resource == null) {
+                Log.warn("Font resource '{}' not found, falling back to {}", resourcePath, fallback);
+                return new PDType1Font(fallback);
+            }
+            try (InputStream in = resource.openStream()) {
+                return PDType0Font.load(document, in, true);
+            }
+        } catch (IOException e) {
+            Log.warn("Unable to load font '" + resourcePath + "', falling back to " + fallback, e);
+            return new PDType1Font(fallback);
+        }
+    }
+
+    /**
+     * Unlike {@link #loadFont}, there's no meaningful fallback font for this slot: null means CJK
+     * renders as '?'. Loaded via {@link OTFParser} rather than the plain {@code PDType0Font.load}
+     * used for the DejaVu fonts, because Noto Sans CJK is a CFF-flavored OpenType font (signature
+     * "OTTO"), which PDFBox's TrueType-outline loader rejects. PDFBox also can't subset CFF-flavored
+     * fonts, so this embeds the font in full (~16MB) the first time a PDF actually needs a CJK
+     * glyph; conversations that don't need CJK never load it, since it's only fetched on first use.
+     */
+    private PDFont loadOptionalFont(String resourcePath) {
+        try {
+            final URL resource = PdfReportWriter.class.getClassLoader().getResource(resourcePath);
+            if (resource == null) {
+                Log.warn("Font resource '{}' not found; CJK text will render as '?'", resourcePath);
+                return null;
+            }
+            try (InputStream in = resource.openStream()) {
+                final OpenTypeFont otf = new OTFParser().parse(RandomAccessReadBuffer.createBufferFromStream(in));
+                return PDType0Font.load(document, otf, false);
+            }
+        } catch (IOException e) {
+            Log.warn("Unable to load font '" + resourcePath + "'; CJK text will render as '?'", e);
+            return null;
+        }
     }
 
     private PDImageXObject loadFooterImage() {
