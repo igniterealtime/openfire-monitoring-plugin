@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008 Jive Software. All rights reserved.
+ * Copyright (C) 2008 Jive Software, 2026 Ignite Realtime Foundation. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,29 +16,6 @@
 
 package org.jivesoftware.openfire.archive;
 
-import com.itextpdf.io.font.constants.StandardFonts;
-import com.itextpdf.io.image.ImageData;
-import com.itextpdf.io.image.ImageDataFactory;
-import com.itextpdf.kernel.colors.Color;
-import com.itextpdf.kernel.colors.ColorConstants;
-import com.itextpdf.kernel.colors.DeviceRgb;
-import com.itextpdf.kernel.events.Event;
-import com.itextpdf.kernel.events.IEventHandler;
-import com.itextpdf.kernel.events.PdfDocumentEvent;
-import com.itextpdf.kernel.font.PdfFontFactory;
-import com.itextpdf.kernel.geom.PageSize;
-import com.itextpdf.kernel.geom.Rectangle;
-import com.itextpdf.kernel.pdf.PdfDocument;
-import com.itextpdf.kernel.pdf.PdfPage;
-import com.itextpdf.kernel.pdf.PdfWriter;
-import com.itextpdf.kernel.pdf.canvas.PdfCanvas;
-import com.itextpdf.kernel.pdf.canvas.draw.SolidLine;
-import com.itextpdf.kernel.pdf.xobject.PdfImageXObject;
-import com.itextpdf.layout.Document;
-import com.itextpdf.layout.element.Paragraph;
-import com.itextpdf.layout.element.Text;
-import com.itextpdf.layout.properties.Leading;
-import com.itextpdf.layout.properties.Property;
 import org.jivesoftware.openfire.XMPPServer;
 import org.jivesoftware.openfire.plugin.MonitoringPlugin;
 import org.jivesoftware.openfire.user.UserManager;
@@ -50,9 +27,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.xmpp.packet.JID;
 
+import java.awt.Color;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.net.URL;
 import java.util.*;
 import java.util.concurrent.Future;
 
@@ -139,15 +116,15 @@ public class ConversationUtils {
             for (JID jid : set) {
                 if (conversation.getRoom() == null) {
                     if (count == 0) {
-                        colorMap.put(jid, ColorConstants.BLUE);
+                        colorMap.put(jid, Color.BLUE);
                     }
                     else {
-                        colorMap.put(jid, ColorConstants.RED);
+                        colorMap.put(jid, Color.RED);
                     }
                     count++;
                 }
                 else {
-                    colorMap.put(jid, ColorConstants.BLACK);
+                    colorMap.put(jid, Color.BLACK);
                 }
             }
         }
@@ -158,24 +135,14 @@ public class ConversationUtils {
 
     private ByteArrayOutputStream buildPDFContent(ConversationManager conversationManager, Conversation conversation, Map<JID, Color> colorMap) throws IOException {
 
-        try ( final ByteArrayOutputStream baos = new ByteArrayOutputStream();
-              final PdfWriter writer = new PdfWriter(baos);
-              final PdfDocument pdfDocument = new PdfDocument(writer)
-        )
+        try ( final PdfReportWriter writer = new PdfReportWriter() )
         {
-            pdfDocument.setDefaultPageSize( PageSize.A4 );
-            final Document document = new Document(pdfDocument);
-
-            pdfDocument.addEventHandler(PdfDocumentEvent.END_PAGE, new PDFEventListener(document));
-            document.setProperty(Property.LEADING, new Leading(Leading.MULTIPLIED, 1.0f));
-
-            document.add( new Paragraph() );
-            document.add(
-                new Paragraph( LocaleUtils.getLocalizedString("archive.search.pdf.title", MonitoringConstants.NAME) )
-                    .setFont(PdfFontFactory.createFont(StandardFonts.HELVETICA_BOLD))
-                    .setFontSize( 18 )
+            writer.addBlankLine(12);
+            writer.addParagraph(
+                LocaleUtils.getLocalizedString("archive.search.pdf.title", MonitoringConstants.NAME),
+                PdfReportWriter.HELVETICA_BOLD, 18, Color.BLACK
             );
-            document.add( new Paragraph().add(new Text("\n")) );
+            writer.addBlankLine(12);
 
             final ConversationInfo coninfo = new ConversationUtils().getConversationInfo(conversation.getConversationID(), false);
 
@@ -187,18 +154,16 @@ public class ConversationUtils {
                 participantsDetail = String.valueOf(coninfo.getAllParticipants().length);
             }
 
-            document.add(
-                new Paragraph( LocaleUtils.getLocalizedString("archive.search.pdf.participants", MonitoringConstants.NAME) + " " + participantsDetail + '\n')
-                    .add( LocaleUtils.getLocalizedString("archive.search.pdf.startdate", MonitoringConstants.NAME) + " " + coninfo.getDate() + '\n')
-                    .add( LocaleUtils.getLocalizedString("archive.search.pdf.duration", MonitoringConstants.NAME) + " " + coninfo.getDuration() + '\n')
-                    .add( LocaleUtils.getLocalizedString("archive.search.pdf.messagecount", MonitoringConstants.NAME) + " " + conversation.getMessageCount() + '\n' )
-                    .setFont(PdfFontFactory.createFont(StandardFonts.HELVETICA_BOLD))
-                    .setFontSize(12)
-            );
+            final String infoText =
+                LocaleUtils.getLocalizedString("archive.search.pdf.participants", MonitoringConstants.NAME) + " " + participantsDetail + '\n' +
+                LocaleUtils.getLocalizedString("archive.search.pdf.startdate", MonitoringConstants.NAME) + " " + coninfo.getDate() + '\n' +
+                LocaleUtils.getLocalizedString("archive.search.pdf.duration", MonitoringConstants.NAME) + " " + coninfo.getDuration() + '\n' +
+                LocaleUtils.getLocalizedString("archive.search.pdf.messagecount", MonitoringConstants.NAME) + " " + conversation.getMessageCount();
+            writer.addParagraph(infoText, PdfReportWriter.HELVETICA_BOLD, 12, Color.BLACK);
 
-            document.add( new Paragraph().add(new Text("\n")));
+            writer.addBlankLine(12);
 
-            final Paragraph messageParagraph = new Paragraph();
+            final List<PdfReportWriter.Run> runs = new ArrayList<>();
             for (ArchivedMessage message : conversation.getMessages(conversationManager))
             {
                 String time = JiveGlobals.formatTime(message.getSentDate());
@@ -221,23 +186,23 @@ public class ConversationUtils {
                         color = colorMap.get(message.getFromJID().asBareJID());
                     }
                     if (color == null) {
-                        color = ColorConstants.BLACK;
+                        color = Color.BLACK;
                     }
 
-                    messageParagraph.add(new Text(prefix).setFont(PdfFontFactory.createFont(StandardFonts.HELVETICA_BOLD)).setFontColor(color));
-                    messageParagraph.add(new Text(body).setFontColor(ColorConstants.BLACK));
+                    runs.add(new PdfReportWriter.Run(prefix, PdfReportWriter.HELVETICA_BOLD, 11, color));
+                    runs.add(new PdfReportWriter.Run(body, PdfReportWriter.HELVETICA, 11, Color.BLACK));
                 }
                 else {
                     prefix = "[" + time + "] ";
-                    messageParagraph.add( new Text(prefix)).setFont(PdfFontFactory.createFont(StandardFonts.HELVETICA_OBLIQUE)).setFontColor(ColorConstants.MAGENTA);
-                    messageParagraph.add( new Text(body).setFont(PdfFontFactory.createFont(StandardFonts.HELVETICA_OBLIQUE)).setFontColor(ColorConstants.MAGENTA));
+                    runs.add(new PdfReportWriter.Run(prefix, PdfReportWriter.HELVETICA_OBLIQUE, 11, Color.MAGENTA));
+                    runs.add(new PdfReportWriter.Run(body, PdfReportWriter.HELVETICA_OBLIQUE, 11, Color.MAGENTA));
                 }
-                messageParagraph.add(new Text("\n"));
+                runs.add(new PdfReportWriter.Run("\n", PdfReportWriter.HELVETICA, 11, Color.BLACK));
             }
+            writer.addRuns(runs);
 
-            document.add(messageParagraph);
-
-            document.close();
+            final ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            writer.save(baos);
             return baos;
         }
         catch (Exception e) {
@@ -359,44 +324,5 @@ public class ConversationUtils {
             formattedJID = jid.toBareJID();
         }
         return formattedJID;
-    }
-
-    /**
-     * Writes a footer.
-     */
-    public static class PDFEventListener implements IEventHandler {
-        private final Document document;
-
-        public PDFEventListener(Document document) {
-            this.document = document;
-        }
-
-        @Override
-        public void handleEvent(Event event) {
-            try {
-                final URL resource = ConversationUtils.class.getClassLoader().getResource("images/pdf_generatedbyof.gif");
-                if (resource != null) {
-                    final ImageData imageData = ImageDataFactory.create(resource);
-
-                    final PdfDocumentEvent docEvent = (PdfDocumentEvent) event;
-                    final PdfDocument pdf = docEvent.getDocument();
-                    final PdfPage page = docEvent.getPage();
-                    final Rectangle pageSize = page.getPageSize();
-                    final PdfCanvas pdfCanvas = new PdfCanvas(page.getLastContentStream(), page.getResources(), pdf);
-                    float x = document.getLeftMargin();
-                    float y = 4; // Counts from the bottom of the page.
-
-                    pdfCanvas.addXObjectAt(new PdfImageXObject(imageData), x, y);
-
-                    final SolidLine line = new SolidLine(2);
-                    line.setColor(new DeviceRgb(156, 156, 156));
-                    line.draw(pdfCanvas, new Rectangle(document.getLeftMargin(), document.getBottomMargin() - 2, pageSize.getWidth() - document.getRightMargin() - document.getLeftMargin(), 2));
-
-                    pdfCanvas.release();
-                }
-            } catch (Exception e) {
-                Log.error("error drawing PDF footer.", e);
-            }
-        }
     }
 }
