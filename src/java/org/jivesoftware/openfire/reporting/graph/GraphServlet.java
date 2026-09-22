@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008 Jive Software. All rights reserved.
+ * Copyright (C) 2008 Jive Software, 2026 Ignite Realtime Foundation. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,8 +15,8 @@
  */
 package org.jivesoftware.openfire.reporting.graph;
 
-import java.awt.*;
-import java.io.ByteArrayInputStream;
+import java.awt.Color;
+import java.awt.geom.Rectangle2D;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.Arrays;
@@ -31,31 +31,12 @@ import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
-import com.itextpdf.io.font.PdfEncodings;
-import com.itextpdf.io.font.constants.StandardFonts;
-import com.itextpdf.kernel.events.PdfDocumentEvent;
-import com.itextpdf.kernel.font.PdfFont;
-import com.itextpdf.kernel.font.PdfFontFactory;
-import com.itextpdf.kernel.geom.PageSize;
-import com.itextpdf.kernel.pdf.PdfDocument;
-import com.itextpdf.kernel.pdf.PdfReader;
-import com.itextpdf.kernel.pdf.PdfWriter;
-import com.itextpdf.kernel.pdf.xobject.PdfFormXObject;
-import com.itextpdf.layout.Document;
-import com.itextpdf.layout.element.AreaBreak;
-import com.itextpdf.layout.element.Image;
-import com.itextpdf.layout.element.Paragraph;
-import com.itextpdf.layout.element.Text;
-import com.itextpdf.layout.properties.AreaBreakType;
-import com.itextpdf.layout.properties.HorizontalAlignment;
-import com.orsonpdf.PDFDocument;
-import com.orsonpdf.PDFGraphics2D;
-import com.orsonpdf.Page;
-import org.dom4j.DocumentException;
+import de.rototor.pdfbox.graphics2d.PdfBoxGraphics2D;
+import org.apache.pdfbox.pdmodel.graphics.form.PDFormXObject;
 import org.jfree.chart.JFreeChart;
 import org.jivesoftware.openfire.XMPPServer;
-import org.jivesoftware.openfire.archive.ConversationUtils;
 import org.jivesoftware.openfire.archive.MonitoringConstants;
+import org.jivesoftware.openfire.archive.PdfReportWriter;
 import org.jivesoftware.openfire.plugin.MonitoringPlugin;
 import org.jivesoftware.openfire.reporting.stats.StatsViewer;
 import org.jivesoftware.openfire.stats.Statistic;
@@ -140,15 +121,8 @@ public class GraphServlet extends HttpServlet {
     private void writePDFContent(HttpServletRequest request, HttpServletResponse response, JFreeChart[] charts, Statistic[] stats, long starttime, long endtime, int width, int height)
             throws IOException
     {
-        try (final ByteArrayOutputStream baos = new ByteArrayOutputStream();
-             final PdfWriter writer = new PdfWriter(baos);
-             final PdfDocument pdfDocument = new PdfDocument(writer)
-        )
+        try (final PdfReportWriter writer = new PdfReportWriter())
         {
-            pdfDocument.setDefaultPageSize( PageSize.A4 );
-            final Document document = new Document(pdfDocument);
-            pdfDocument.addEventHandler(PdfDocumentEvent.END_PAGE, new ConversationUtils.PDFEventListener(document));
-
             int index = 0;
             int chapIndex = 0;
             for (int i = 0; i < stats.length; i++)
@@ -158,47 +132,33 @@ public class GraphServlet extends HttpServlet {
                 final String serverName = XMPPServer.getInstance().getServerInfo().getXMPPDomain();
                 final String dateName = JiveGlobals.formatDate(new Date(starttime)) + " - " + JiveGlobals.formatDate(new Date(endtime));
 
-                document.add( new Paragraph(serverName)
-                    .setFont(PdfFontFactory.createFont(StandardFonts.HELVETICA_BOLD))
-                    .setFontSize( 18 )
-                );
+                writer.addParagraph(serverName, PdfReportWriter.HELVETICA_BOLD, 18, Color.BLACK);
+                writer.addParagraph(dateName, PdfReportWriter.HELVETICA, 14, Color.BLACK);
 
-                document.add( new Paragraph(dateName)
-                    .setFontSize( 14 )
-                );
+                writer.addBlankLine(14);
+                writer.addBlankLine(14);
 
-                document.add( new Paragraph().add(new Text("\n")) );
-                document.add( new Paragraph().add(new Text("\n")) );
-
-                document.add( new Paragraph(++chapIndex + ". " + stat.getName())
-                    .setFont(PdfFontFactory.createFont(StandardFonts.HELVETICA_BOLD))
-                    .setFontSize( 16 )
-                );
+                writer.addParagraph(++chapIndex + ". " + stat.getName(), PdfReportWriter.HELVETICA_BOLD, 16, Color.BLACK);
 
                 // total hack: no idea what tags people are going to use in the description
                 // possibly recommend that we only use a <p> tag?
                 String[] paragraphs = stat.getDescription().split("<p>");
                 for (String s : paragraphs) {
-                    Paragraph p = new Paragraph(s);
-                    document.add(p);
+                    writer.addParagraph(s, PdfReportWriter.HELVETICA, 12, Color.BLACK);
                 }
-                document.add( new Paragraph().add(new Text("\n")) );
+                writer.addBlankLine(12);
 
-                // Use OrsonPDF to generate PDF data from JFreeChart, then import it into iText. See https://jfree.github.io/orsonpdf/
-                final PdfReader reader = new PdfReader(new ByteArrayInputStream(generateChartPDF(charts[index++], width, height)));
-                final PdfDocument chartDoc = new PdfDocument(reader);
-                final PdfFormXObject chart = chartDoc.getFirstPage().copyAsFormXObject(pdfDocument);
-                final Image chartImage = new Image(chart);
-                chartImage.setHorizontalAlignment(HorizontalAlignment.CENTER);
-                document.add(chartImage);
+                final PDFormXObject chartForm = renderChartForm(writer, charts[index++], width, height);
+                writer.addCenteredForm(chartForm, width, height);
 
                 // Ensure each graph is on a new page.
                 if ( i < stats.length - 1 ) {
-                    document.add(new AreaBreak(AreaBreakType.NEXT_PAGE));
+                    writer.newPage();
                 }
             }
 
-            document.close();
+            final ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            writer.save(baos);
 
             // setting some response headers
             response.setHeader("Expires", "0");
@@ -218,21 +178,20 @@ public class GraphServlet extends HttpServlet {
     }
 
     /**
-     * Transform the JFreeChart data into a byte array of PDF image data.
+     * Renders a JFreeChart directly as a PDF form (vector graphics), embedded in the same
+     * document as the report being written, ready to be placed on a page.
      *
+     * @param writer the report the chart will be embedded into.
      * @param chart The chart to transform.
-     * @param width width of the PDF image object.
-     * @param height height of the PDF image object.
-     * @return PDF image data.
+     * @param width width of the rendered chart.
+     * @param height height of the rendered chart.
+     * @return a PDF form object containing the rendered chart.
      */
-    private static byte[] generateChartPDF(final JFreeChart chart, final int width, final int height) {
-        // here we use OrsonPDF to generate PDF in a byte array
-        PDFDocument doc = new PDFDocument();
-        Rectangle bounds = new Rectangle(width,height);
-        Page page = doc.createPage(bounds);
-        PDFGraphics2D g2 = page.getGraphics2D();
-        chart.draw(g2, bounds);
-        return doc.getPDFBytes();
+    private static PDFormXObject renderChartForm(final PdfReportWriter writer, final JFreeChart chart, final int width, final int height) throws IOException {
+        final PdfBoxGraphics2D g2 = new PdfBoxGraphics2D(writer.getDocument(), width, height);
+        chart.draw(g2, new Rectangle2D.Double(0, 0, width, height));
+        g2.dispose();
+        return g2.getXFormObject();
     }
 
     private static void writeImageContent(HttpServletResponse response, byte[] imageData, String contentType)
