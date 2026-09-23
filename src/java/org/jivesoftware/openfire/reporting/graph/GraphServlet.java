@@ -174,6 +174,7 @@ public class GraphServlet extends HttpServlet {
             out.flush();
         } catch (Exception e) {
             Log.error("error creating PDF document", e);
+            response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Unable to generate a PDF for this graph.");
         }
     }
 
