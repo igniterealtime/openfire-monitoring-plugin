@@ -41,7 +41,10 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * Builds a simple, multi-page PDF report consisting of left-aligned, word-wrapped text and
@@ -290,17 +293,53 @@ public class PdfReportWriter implements Closeable {
         return segments.isEmpty() ? List.of(run) : segments;
     }
 
-    /** The run's own font if it can encode the character, else the CJK fallback, else the run's own font. */
+    /**
+     * The run's own font if it can encode the character
+     * ... else the CJK fallback, if that can encode it
+     * ... else the run's own font, so as to not include the CJK font unnecessarily
+     */
     private PDFont resolveFont(PDFont primary, int codePoint) throws IOException {
         if (canEncode(primary, codePoint)) {
             return primary;
         }
-        final PDFont cjk = getCjkFont();
-        if (cjk != null && canEncode(cjk, codePoint)) {
-            return cjk;
+        if (isCjk(codePoint)) {
+            final PDFont cjk = getCjkFont();
+            if (cjk != null && canEncode(cjk, codePoint)) {
+                return cjk;
+            }
         }
         return primary;
     }
+
+    /**
+     * True for the CJK scripts, and for CJK punctuation/compatibility blocks
+     */
+    private boolean isCjk(int codePoint) {
+        switch (Character.UnicodeScript.of(codePoint)) {
+            case HAN:
+            case HIRAGANA:
+            case KATAKANA:
+            case HANGUL:
+            case BOPOMOFO:
+                return true;
+            default:
+                final Character.UnicodeBlock block = Character.UnicodeBlock.of(codePoint);
+                return CJK_BLOCKS.contains(block);
+        }
+    }
+
+    private static final Set<Character.UnicodeBlock> CJK_BLOCKS = new HashSet<>(Arrays.asList(
+        Character.UnicodeBlock.CJK_SYMBOLS_AND_PUNCTUATION,
+        Character.UnicodeBlock.CJK_COMPATIBILITY,
+        Character.UnicodeBlock.CJK_COMPATIBILITY_FORMS,
+        Character.UnicodeBlock.ENCLOSED_CJK_LETTERS_AND_MONTHS,
+        Character.UnicodeBlock.IDEOGRAPHIC_DESCRIPTION_CHARACTERS,
+        Character.UnicodeBlock.HALFWIDTH_AND_FULLWIDTH_FORMS,
+        Character.UnicodeBlock.VERTICAL_FORMS,
+        Character.UnicodeBlock.SMALL_FORM_VARIANTS,
+        Character.UnicodeBlock.HIRAGANA,
+        Character.UnicodeBlock.KATAKANA
+    ));
 
     private boolean canEncode(PDFont font, int codePoint) {
         try {
