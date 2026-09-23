@@ -5,7 +5,8 @@ This font is fetched at build time (see pom.xml) rather than committed to this r
 ~16MB; it is not present in a source checkout until the build has run once. This file documents its license
 regardless.
 
-Copyright (c) 2014-2021 Adobe (http://www.adobe.com/).
+Copyright 2014-2021 Adobe (http://www.adobe.com/), with Reserved Font Name 'Source'.
+Source is a trademark of Adobe in the United States and/or other countries.
 
 This Font Software is licensed under the SIL Open Font License,
 Version 1.1.
