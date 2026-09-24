@@ -5,7 +5,10 @@ import org.igniterealtime.smack.inttest.annotations.SmackIntegrationTest;
 import org.igniterealtime.smack.inttest.annotations.SpecificationReference;
 import org.jivesoftware.smack.XMPPException;
 import org.jivesoftware.smackx.mam.MamManager;
+import org.jivesoftware.smackx.xdata.FormField;
 import org.jxmpp.jid.parts.Resourcepart;
+
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
@@ -66,7 +69,7 @@ public class MamForMembersOnlyRoomTest extends AbstractMamTest
     /**
      * Verifies that querying the MUC archive with a text filter returns the appropriate public messages.
      */
-    // FIXME this test currently fails because the Lucene index takes a few seconds to update, which means that the query doesn't find the keyword yet. @SmackIntegrationTest
+    @SmackIntegrationTest
     @Override // Sadly, the SINT test framework requires a method in the child class. Working around code duplication using this override that delegates to the parent class.
     public void testMucMamContainsPublicMessagesTextFilter() throws Exception
     {
@@ -92,6 +95,22 @@ public class MamForMembersOnlyRoomTest extends AbstractMamTest
         super.testMucMamContainsPublicMessagesFromOccupantByBareJidForOwner();
     }
 
+    @Override
+    // Sadly, the SINT test framework requires a method in the child class. Working around code duplication using this override that delegates to the parent class.
+    @SmackIntegrationTest
+    public void testMucMamContainsPublicMessagesFromOccupantByBareJidWithMatchingTextFilterForOwner() throws Exception
+    {
+        super.testMucMamContainsPublicMessagesFromOccupantByBareJidWithMatchingTextFilterForOwner();
+    }
+
+    @Override
+    // Sadly, the SINT test framework requires a method in the child class. Working around code duplication using this override that delegates to the parent class.
+    @SmackIntegrationTest
+    public void testMucMamContainsPublicMessagesFromOccupantByBareJidWithNonMatchingTextFilterForOwner() throws Exception
+    {
+        super.testMucMamContainsPublicMessagesFromOccupantByBareJidWithNonMatchingTextFilterForOwner();
+    }
+
     /**
      * Verifies that filtering a MUC archive by a specific user's full bare JID returns all (public) messages sent by
      * that user, without including other messages in rooms that allow for the real JID to be used, or an error is
@@ -109,6 +128,22 @@ public class MamForMembersOnlyRoomTest extends AbstractMamTest
     public void testMucMamContainsPublicMessagesFromOccupantByFullJidForOwner() throws Exception
     {
         super.testMucMamContainsPublicMessagesFromOccupantByFullJidForOwner();
+    }
+
+    @Override
+    // Sadly, the SINT test framework requires a method in the child class. Working around code duplication using this override that delegates to the parent class.
+    @SmackIntegrationTest
+    public void testMucMamContainsPublicMessagesFromOccupantByFullJidWithMatchingTextFilterForOwner() throws Exception
+    {
+        super.testMucMamContainsPublicMessagesFromOccupantByFullJidWithMatchingTextFilterForOwner();
+    }
+
+    @Override
+    // Sadly, the SINT test framework requires a method in the child class. Working around code duplication using this override that delegates to the parent class.
+    @SmackIntegrationTest
+    public void testMucMamContainsPublicMessagesFromOccupantByFullJidWithNonMatchingTextFilterForOwner() throws Exception
+    {
+        super.testMucMamContainsPublicMessagesFromOccupantByFullJidWithNonMatchingTextFilterForOwner();
     }
 
     /**
@@ -137,6 +172,48 @@ public class MamForMembersOnlyRoomTest extends AbstractMamTest
 
         // Verify: Only public messages from that participant are included
         assertMamResultContains(queryResultForUserTwo, MUC_BY_USER1); // message by owner
+        assertMamResultDoesNotContain(queryResultForUserTwo, MUC_BY_USER2); // other participant's message
+        assertMamResultDoesNotContain(queryResultForUserTwo, MUC_BY_USER3); // non-participant's message
+    }
+
+    @Override
+    // Sadly, the SINT test framework requires a method in the child class. Working around code duplication using this override that delegates to the parent class.
+    @SmackIntegrationTest
+    public void testMucMamContainsPublicMessagesFromOccupantByBareJidWithMatchingTextFilterForParticipant() throws Exception
+    {
+        // Setup test fixture.
+        final List<FormField> searchFields = List.of(FormField.textSingleBuilder("{urn:xmpp:fulltext:0}fulltext").setValue("train").build());
+        final MamManager.MamQueryArgs mamQueryArgs = MamManager.MamQueryArgs.builder()
+            .limitResultsToJid(conOne.getUser().asBareJid()) // real JID of the owner
+            .withAdditionalFormFields(searchFields)
+            .build();
+
+        // Execute system under test.
+        final MamManager.MamQuery queryResultForUserTwo = mucMamManagerUserTwo.queryArchive(mamQueryArgs);
+
+        // Verify: Only public messages from that participant are included
+        assertMamResultContains(queryResultForUserTwo, MUC_BY_USER1); // message by owner
+        assertMamResultDoesNotContain(queryResultForUserTwo, MUC_BY_USER2); // other participant's message
+        assertMamResultDoesNotContain(queryResultForUserTwo, MUC_BY_USER3); // non-participant's message
+    }
+
+    @Override
+    // Sadly, the SINT test framework requires a method in the child class. Working around code duplication using this override that delegates to the parent class.
+    @SmackIntegrationTest
+    public void testMucMamContainsPublicMessagesFromOccupantByBareJidWithNonMatchingTextFilterForParticipant() throws Exception
+    {
+        // Setup test fixture.
+        final List<FormField> searchFields = List.of(FormField.textSingleBuilder("{urn:xmpp:fulltext:0}fulltext").setValue("apple").build());
+        final MamManager.MamQueryArgs mamQueryArgs = MamManager.MamQueryArgs.builder()
+            .limitResultsToJid(conOne.getUser().asBareJid()) // real JID of the owner
+            .withAdditionalFormFields(searchFields)
+            .build();
+
+        // Execute system under test.
+        final MamManager.MamQuery queryResultForUserTwo = mucMamManagerUserTwo.queryArchive(mamQueryArgs);
+
+        // Verify: Only public messages from that participant are included
+        assertMamResultDoesNotContain(queryResultForUserTwo, MUC_BY_USER1); // message by owner
         assertMamResultDoesNotContain(queryResultForUserTwo, MUC_BY_USER2); // other participant's message
         assertMamResultDoesNotContain(queryResultForUserTwo, MUC_BY_USER3); // non-participant's message
     }
@@ -171,6 +248,48 @@ public class MamForMembersOnlyRoomTest extends AbstractMamTest
         assertMamResultDoesNotContain(queryResultForUserTwo, MUC_BY_USER3); // non-participant's message
     }
 
+    @Override
+    // Sadly, the SINT test framework requires a method in the child class. Working around code duplication using this override that delegates to the parent class.
+    @SmackIntegrationTest
+    public void testMucMamContainsPublicMessagesFromOccupantByFullJidWithMatchingTextFilterForParticipant() throws Exception
+    {
+        // Setup test fixture.
+        final List<FormField> searchFields = List.of(FormField.textSingleBuilder("{urn:xmpp:fulltext:0}fulltext").setValue("train").build());
+        final MamManager.MamQueryArgs mamQueryArgs = MamManager.MamQueryArgs.builder()
+            .limitResultsToJid(conOne.getUser().asFullJidOrThrow()) // real JID of the owner
+            .withAdditionalFormFields(searchFields)
+            .build();
+
+        // Execute system under test.
+        final MamManager.MamQuery queryResultForUserTwo = mucMamManagerUserTwo.queryArchive(mamQueryArgs);
+
+        // Verify: Only public messages from that participant are included
+        assertMamResultContains(queryResultForUserTwo, MUC_BY_USER1); // message by owner
+        assertMamResultDoesNotContain(queryResultForUserTwo, MUC_BY_USER2); // other participant's message
+        assertMamResultDoesNotContain(queryResultForUserTwo, MUC_BY_USER3); // non-participant's message
+    }
+
+    @Override
+    // Sadly, the SINT test framework requires a method in the child class. Working around code duplication using this override that delegates to the parent class.
+    @SmackIntegrationTest
+    public void testMucMamContainsPublicMessagesFromOccupantByFullJidWithNonMatchingTextFilterForParticipant() throws Exception
+    {
+        // Setup test fixture.
+        final List<FormField> searchFields = List.of(FormField.textSingleBuilder("{urn:xmpp:fulltext:0}fulltext").setValue("apple").build());
+        final MamManager.MamQueryArgs mamQueryArgs = MamManager.MamQueryArgs.builder()
+            .limitResultsToJid(conOne.getUser().asFullJidOrThrow()) // real JID of the owner
+            .withAdditionalFormFields(searchFields)
+            .build();
+
+        // Execute system under test.
+        final MamManager.MamQuery queryResultForUserTwo = mucMamManagerUserTwo.queryArchive(mamQueryArgs);
+
+        // Verify: Only public messages from that participant are included
+        assertMamResultDoesNotContain(queryResultForUserTwo, MUC_BY_USER1); // message by owner
+        assertMamResultDoesNotContain(queryResultForUserTwo, MUC_BY_USER2); // other participant's message
+        assertMamResultDoesNotContain(queryResultForUserTwo, MUC_BY_USER3); // non-participant's message
+    }
+
     /**
      * Verifies that querying the MUC archive without filters does NOT return private MUC messages.
      */
@@ -181,6 +300,13 @@ public class MamForMembersOnlyRoomTest extends AbstractMamTest
         super.testMucMamDoesNotContainPrivateMucMessages();
     }
 
+    @SmackIntegrationTest(section = "6.1.2", quote = "A MUC archive MUST NOT include 'private message' results")
+    @Override // Sadly, the SINT test framework requires a method in the child class. Working around code duplication using this override that delegates to the parent class.
+    public void testMucMamDoesNotContainPrivateMucMessagesWithTextFilter() throws Exception
+    {
+        super.testMucMamDoesNotContainPrivateMucMessagesWithTextFilter();
+    }
+
     /**
      * Verifies that querying the MUC archive without filters does NOT return direct (non-MUC) messages.
      */
@@ -189,6 +315,13 @@ public class MamForMembersOnlyRoomTest extends AbstractMamTest
     public void testMucMamDoesNotContainDirectMessages() throws Exception
     {
         super.testMucMamDoesNotContainDirectMessages();
+    }
+
+    @SmackIntegrationTest(quote = "Although not explicitly stated in the specification, a MUC archive must not contain non-MUC data.")
+    @Override // Sadly, the SINT test framework requires a method in the child class. Working around code duplication using this override that delegates to the parent class.
+    public void testMucMamDoesNotContainDirectMessagesWithTextFilter() throws Exception
+    {
+        super.testMucMamDoesNotContainDirectMessagesWithTextFilter();
     }
 
     /**
@@ -232,6 +365,20 @@ public class MamForMembersOnlyRoomTest extends AbstractMamTest
     public void testPersonalMamIncludesPrivateMessagesNoFilter() throws Exception
     {
         super.testPersonalMamIncludesPrivateMessagesNoFilter();
+    }
+
+    @SmackIntegrationTest(quote = "There's no explicit quote in the specification that says that private MUC messages can be retrieved from the user's personal archive, but as it _is_ specified that they MUST NOT be included in the MUC archive, it can be deduced that they need to be in the personal archives.")
+    @Override // Sadly, the SINT test framework requires a method in the child class. Working around code duplication using this override that delegates to the parent class.
+    public void testPersonalMamIncludesPrivateMessagesWithMatchingTextFilter() throws Exception
+    {
+        super.testPersonalMamIncludesPrivateMessagesWithMatchingTextFilter();
+    }
+
+    @SmackIntegrationTest(quote = "There's no explicit quote in the specification that says that private MUC messages can be retrieved from the user's personal archive, but as it _is_ specified that they MUST NOT be included in the MUC archive, it can be deduced that they need to be in the personal archives.")
+    @Override // Sadly, the SINT test framework requires a method in the child class. Working around code duplication using this override that delegates to the parent class.
+    public void testPersonalMamIncludesPrivateMessagesWithNonMatchingTextFilter() throws Exception
+    {
+        super.testPersonalMamIncludesPrivateMessagesWithNonMatchingTextFilter();
     }
 
     /**
@@ -402,6 +549,26 @@ public class MamForMembersOnlyRoomTest extends AbstractMamTest
     {
         // Setup test fixture.
         final MamManager.MamQueryArgs mamQueryArgs = MamManager.MamQueryArgs.builder()
+            .build();
+
+        // Execute system under test.
+        final XMPPException.XMPPErrorException e = assertThrows(XMPPException.XMPPErrorException.class, () -> {
+            mucMamManagerUserThree.queryArchive(mamQueryArgs);
+        }, "Expected an error to be returned when a non-member tried to query the room archive of message-only room (but no error was returned).");
+        // TODO possibly assert error type?
+    }
+
+    /**
+     * Verifies that archived room messages shared in a members-only room cannot be retrieved by a user
+     * that is not a member.
+     */
+    @SmackIntegrationTest()
+    public void testNonMemberCantQueryJidTextFilter() throws Exception
+    {
+        // Setup test fixture.
+        final List<FormField> searchFields = List.of(FormField.textSingleBuilder("{urn:xmpp:fulltext:0}fulltext").setValue("apple").build());
+        final MamManager.MamQueryArgs mamQueryArgs = MamManager.MamQueryArgs.builder()
+            .withAdditionalFormFields(searchFields)
             .build();
 
         // Execute system under test.
