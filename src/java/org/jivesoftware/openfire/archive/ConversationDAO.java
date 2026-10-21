@@ -62,6 +62,11 @@ public class ConversationDAO {
 
     private static final String CONVERSATIONS_FOR_ROOM = "SELECT DISTINCT conversationID FROM ofConversation WHERE roomID=?";
 
+    /**
+     * The maximum length of the {@code bareJID}, {@code jidResource} and {@code nickname} columns of {@code ofConParticipant}.
+     */
+    private static final int CON_PARTICIPANT_COLUMN_MAX_LENGTH = 255;
+
     private static final Logger Log = LoggerFactory.getLogger(ConversationDAO.class);
 
     /**
@@ -431,9 +436,9 @@ public class ConversationDAO {
                 for (ConversationParticipation participation : conversation.getParticipations(user)) {
                     pstmt.setLong(1, conversation.getConversationID());
                     pstmt.setLong(2, participation.getJoined().getTime());
-                    pstmt.setString(3, user.toBareJID());
-                    pstmt.setString(4, toStoredResource(user));
-                    pstmt.setString(5, participation.getNickname());
+                    pstmt.setString(3, truncate(user.toBareJID(), CON_PARTICIPANT_COLUMN_MAX_LENGTH));
+                    pstmt.setString(4, truncate(toStoredResource(user), CON_PARTICIPANT_COLUMN_MAX_LENGTH));
+                    pstmt.setString(5, truncate(participation.getNickname(), CON_PARTICIPANT_COLUMN_MAX_LENGTH));
                     pstmt.executeUpdate();
                 }
             }
@@ -465,9 +470,9 @@ public class ConversationDAO {
             PreparedStatement pstmt = con.prepareStatement(INSERT_PARTICIPANT);
             pstmt.setLong(1, conversationID);
             pstmt.setLong(2, joined);
-            pstmt.setString(3, participant.toBareJID());
-            pstmt.setString(4, toStoredResource(participant));
-            pstmt.setString(5, nickname);
+            pstmt.setString(3, truncate(participant.toBareJID(), CON_PARTICIPANT_COLUMN_MAX_LENGTH));
+            pstmt.setString(4, truncate(toStoredResource(participant), CON_PARTICIPANT_COLUMN_MAX_LENGTH));
+            pstmt.setString(5, truncate(nickname, CON_PARTICIPANT_COLUMN_MAX_LENGTH));
             pstmt.executeUpdate();
             pstmt.close();
         } finally {
@@ -493,6 +498,24 @@ public class ConversationDAO {
             return jid.getResource();
         }
         return DbConnectionManager.getDatabaseType() == DbConnectionManager.DatabaseType.oracle ? " " : "";
+    }
+
+    /**
+     * Truncates a value to at most {@code maxLength} characters, so that it is guaranteed to fit a database column
+     * of that size. This is used to prevent values that are longer than their corresponding column (such as an
+     * overlong MUC nickname) from causing a database error when it is being persisted.
+     *
+     * @param value the value to (possibly) truncate. Can be {@code null}.
+     * @param maxLength the maximum length of the returned value.
+     * @return the (possibly truncated) value, or {@code null} when {@code value} is {@code null}.
+     */
+    static String truncate(final String value, final int maxLength)
+    {
+        if (value == null || value.length() <= maxLength) {
+            return value;
+        }
+        Log.warn("Truncating value '{}' to {} characters, as it exceeds the maximum length of its database column.", value, maxLength);
+        return value.substring(0, maxLength);
     }
 
     /**
