@@ -78,8 +78,6 @@ public abstract class AbstractMamTest extends AbstractMultiUserChatIntegrationTe
         // Send all test messages once - these populate the archive for all tests
         sendAllTestMessages();
 
-        // Wait for messages to be archived - without this, CI will frequently fail when a message is sent by a user
-        // that's being removed in the next step.
         Thread.sleep(500);
 
         // Finish setting up the room.
@@ -90,6 +88,8 @@ public abstract class AbstractMamTest extends AbstractMultiUserChatIntegrationTe
 
         // Wait for messages to be archived
         Thread.sleep(500);
+
+        // For this to work, make sure that <conversation><search><updateInterval>0</updateInterval></search></conversation> is set (otherwise the Lucene indexes will not be updated in time).
     }
 
     /**
@@ -314,6 +314,25 @@ public abstract class AbstractMamTest extends AbstractMultiUserChatIntegrationTe
     }
 
     /**
+     * Verifies that querying the MUC archive  with a text filter doesn't require a user to be in the chatroom.
+     */
+    public void testMucMamNonOccupantTextFilter() throws Exception
+    {
+        // Setup test fixture.
+        final List<FormField> searchFields = List.of(FormField.textSingleBuilder("{urn:xmpp:fulltext:0}fulltext").setValue("apple").build());
+        final MamManager.MamQueryArgs mamQueryArgs = MamManager.MamQueryArgs.builder()
+            .withAdditionalFormFields(searchFields).build();
+
+        // Execute system under test.
+        final MamManager.MamQuery queryResultForUserThree = mucMamManagerUserThree.queryArchive(mamQueryArgs);
+
+        // Verify: Public messages present
+        assertMamResultDoesNotContain(queryResultForUserThree, MUC_BY_USER1);
+        assertMamResultContains(queryResultForUserThree, MUC_BY_USER2);
+        assertMamResultDoesNotContain(queryResultForUserThree, MUC_BY_USER3);
+    }
+
+    /**
      * Verifies that filtering a MUC archive by a specific user's real bare JID returns all (public) messages sent by
      * that user, without including other messages in rooms that allow for the real JID to be used, or an error is
      * returned for rooms in which real JIDs are not supposed to be known.
@@ -336,6 +355,50 @@ public abstract class AbstractMamTest extends AbstractMultiUserChatIntegrationTe
 
         // Verify: Only public messages from that participant are included
         assertMamResultContains(queryResultForUserOne, MUC_BY_USER2); // message by participant
+        assertMamResultDoesNotContain(queryResultForUserOne, MUC_BY_USER1); // other participant's message
+        assertMamResultDoesNotContain(queryResultForUserOne, MUC_BY_USER3); // non-participant's message
+    }
+
+    /**
+     * Variant of #testMucMamContainsPublicMessagesFromOccupantByBareJidForOwner that adds a text-based search filter
+     * for a word expected to match a message sent by the participant.
+     */
+    public void testMucMamContainsPublicMessagesFromOccupantByBareJidWithMatchingTextFilterForOwner() throws Exception
+    {
+        // Setup test fixture.
+        final List<FormField> searchFields = List.of(FormField.textSingleBuilder("{urn:xmpp:fulltext:0}fulltext").setValue("apple").build());
+        final MamManager.MamQueryArgs mamQueryArgs = MamManager.MamQueryArgs.builder()
+            .limitResultsToJid(conTwo.getUser().asBareJid()) // real JID of the participant
+            .withAdditionalFormFields(searchFields)
+            .build();
+
+        // Execute system under test.
+        final MamManager.MamQuery queryResultForUserOne = mucMamManagerUserOne.queryArchive(mamQueryArgs);
+
+        // Verify: Only public messages from that participant are included
+        assertMamResultContains(queryResultForUserOne, MUC_BY_USER2); // message by participant
+        assertMamResultDoesNotContain(queryResultForUserOne, MUC_BY_USER1); // other participant's message
+        assertMamResultDoesNotContain(queryResultForUserOne, MUC_BY_USER3); // non-participant's message
+    }
+
+    /**
+     * Variant of #testMucMamContainsPublicMessagesFromOccupantByBareJidForOwner that adds a text-based search filter
+     * for a word <em>not</em> expected to match a message sent by the participant.
+     */
+    public void testMucMamContainsPublicMessagesFromOccupantByBareJidWithNonMatchingTextFilterForOwner() throws Exception
+    {
+        // Setup test fixture.
+        final List<FormField> searchFields = List.of(FormField.textSingleBuilder("{urn:xmpp:fulltext:0}fulltext").setValue("river").build());
+        final MamManager.MamQueryArgs mamQueryArgs = MamManager.MamQueryArgs.builder()
+            .limitResultsToJid(conTwo.getUser().asBareJid()) // real JID of the participant
+            .withAdditionalFormFields(searchFields)
+            .build();
+
+        // Execute system under test.
+        final MamManager.MamQuery queryResultForUserOne = mucMamManagerUserOne.queryArchive(mamQueryArgs);
+
+        // Verify: Only public messages from that participant are included
+        assertMamResultDoesNotContain(queryResultForUserOne, MUC_BY_USER2); // message by participant
         assertMamResultDoesNotContain(queryResultForUserOne, MUC_BY_USER1); // other participant's message
         assertMamResultDoesNotContain(queryResultForUserOne, MUC_BY_USER3); // non-participant's message
     }
@@ -368,6 +431,50 @@ public abstract class AbstractMamTest extends AbstractMultiUserChatIntegrationTe
     }
 
     /**
+     * Variant of #testMucMamContainsPublicMessagesFromOccupantByFullJidForOwner that adds a text-based search filter
+     * for a word expected to match a message sent by the participant.
+     */
+    public void testMucMamContainsPublicMessagesFromOccupantByFullJidWithMatchingTextFilterForOwner() throws Exception
+    {
+        // Setup test fixture.
+        final List<FormField> searchFields = List.of(FormField.textSingleBuilder("{urn:xmpp:fulltext:0}fulltext").setValue("apple").build());
+        final MamManager.MamQueryArgs mamQueryArgs = MamManager.MamQueryArgs.builder()
+            .limitResultsToJid(conTwo.getUser().asFullJidOrThrow()) // real JID of the participant
+            .withAdditionalFormFields(searchFields)
+            .build();
+
+        // Execute system under test.
+        final MamManager.MamQuery queryResultForUserOne = mucMamManagerUserOne.queryArchive(mamQueryArgs);
+
+        // Verify: Only public messages from that participant are included
+        assertMamResultContains(queryResultForUserOne, MUC_BY_USER2); // message by participant
+        assertMamResultDoesNotContain(queryResultForUserOne, MUC_BY_USER1); // other participant's message
+        assertMamResultDoesNotContain(queryResultForUserOne, MUC_BY_USER3); // non-participant's message
+    }
+
+    /**
+     * Variant of #testMucMamContainsPublicMessagesFromOccupantByFullJidForOwner that adds a text-based search filter
+     * for a word <em>not</em> expected to match a message sent by the participant.
+     */
+    public void testMucMamContainsPublicMessagesFromOccupantByFullJidWithNonMatchingTextFilterForOwner() throws Exception
+    {
+        // Setup test fixture.
+        final List<FormField> searchFields = List.of(FormField.textSingleBuilder("{urn:xmpp:fulltext:0}fulltext").setValue("river").build());
+        final MamManager.MamQueryArgs mamQueryArgs = MamManager.MamQueryArgs.builder()
+            .limitResultsToJid(conTwo.getUser().asFullJidOrThrow()) // real JID of the participant
+            .withAdditionalFormFields(searchFields)
+            .build();
+
+        // Execute system under test.
+        final MamManager.MamQuery queryResultForUserOne = mucMamManagerUserOne.queryArchive(mamQueryArgs);
+
+        // Verify: Only public messages from that participant are included
+        assertMamResultDoesNotContain(queryResultForUserOne, MUC_BY_USER2); // message by participant
+        assertMamResultDoesNotContain(queryResultForUserOne, MUC_BY_USER1); // other participant's message
+        assertMamResultDoesNotContain(queryResultForUserOne, MUC_BY_USER3); // non-participant's message
+    }
+
+    /**
      * Verifies that filtering a MUC archive by a specific user's real bare JID returns all (public) messages sent by
      * that user, without including other messages in rooms that allow for the real JID to be used, or an error is
      * returned for rooms in which real JIDs are not supposed to be known.
@@ -381,6 +488,18 @@ public abstract class AbstractMamTest extends AbstractMultiUserChatIntegrationTe
     abstract void testMucMamContainsPublicMessagesFromOccupantByBareJidForParticipant() throws Exception;
 
     /**
+     * Variant of #testMucMamContainsPublicMessagesFromOccupantByBareJidForParticipant that adds a text-based search filter
+     * for a word expected to match a message sent by the participant.
+     */
+    abstract void testMucMamContainsPublicMessagesFromOccupantByBareJidWithMatchingTextFilterForParticipant() throws Exception;
+
+    /**
+     * Variant of #testMucMamContainsPublicMessagesFromOccupantByBareJidForParticipant that adds a text-based search filter
+     * for a word <em>not</em> expected to match a message sent by the participant.
+     */
+    abstract void testMucMamContainsPublicMessagesFromOccupantByBareJidWithNonMatchingTextFilterForParticipant() throws Exception;
+
+    /**
      * Verifies that filtering a MUC archive by a specific user's full bare JID returns all (public) messages sent by
      * that user, without including other messages in rooms that allow for the real JID to be used, or an error is
      * returned for rooms in which real JIDs are not supposed to be known.
@@ -392,6 +511,18 @@ public abstract class AbstractMamTest extends AbstractMultiUserChatIntegrationTe
      * (e.g.: "what did Joe say in 'projectchat' the other day?"
      */
     abstract void testMucMamContainsPublicMessagesFromOccupantByFullJidForParticipant() throws Exception;
+
+    /**
+     * Variant of #testMucMamContainsPublicMessagesFromOccupantByFullJidForParticipant that adds a text-based search filter
+     * for a word expected to match a message sent by the participant.
+     */
+    abstract void testMucMamContainsPublicMessagesFromOccupantByFullJidWithMatchingTextFilterForParticipant() throws Exception;
+
+    /**
+     * Variant of #testMucMamContainsPublicMessagesFromOccupantByFullJidForParticipant that adds a text-based search filter
+     * for a word <em>not</em> expected to match a message sent by the participant.
+     */
+    abstract void testMucMamContainsPublicMessagesFromOccupantByFullJidWithNonMatchingTextFilterForParticipant() throws Exception;
 
     /**
      * Verifies that querying the MUC archive without filters does NOT return private MUC messages.
@@ -422,12 +553,86 @@ public abstract class AbstractMamTest extends AbstractMultiUserChatIntegrationTe
     }
 
     /**
+     * Variant of #testMucMamDoesNotContainPrivateMucMessages that adds a text-based search filter for a word that
+     * matches private messages that have previously been exchanged (but which still should not be returned).
+     */
+    public void testMucMamDoesNotContainPrivateMucMessagesWithTextFilter() throws Exception
+    {
+        // Setup test fixture.
+        final List<FormField> searchFields = List.of(FormField.textSingleBuilder("{urn:xmpp:fulltext:0}fulltext").setValue("Private").build());
+        final MamManager.MamQueryArgs mamQueryArgs = MamManager.MamQueryArgs.builder()
+            .withAdditionalFormFields(searchFields)
+            .build();
+
+        // Execute system under test.
+        final MamManager.MamQuery queryResultForUserOne = mucMamManagerUserOne.queryArchive(mamQueryArgs);
+        final MamManager.MamQuery queryResultForUserTwo = mucMamManagerUserTwo.queryArchive(mamQueryArgs);
+
+        // Verify: Private messages NOT present
+        assertMamResultDoesNotContain(queryResultForUserOne, MUC_PM_USER1_TO_USER2);
+        assertMamResultDoesNotContain(queryResultForUserOne, MUC_PM_USER1_TO_USER3);
+        assertMamResultDoesNotContain(queryResultForUserOne, MUC_PM_USER2_TO_USER1);
+        assertMamResultDoesNotContain(queryResultForUserOne, MUC_PM_USER2_TO_USER3);
+        assertMamResultDoesNotContain(queryResultForUserOne, MUC_PM_USER3_TO_USER1);
+        assertMamResultDoesNotContain(queryResultForUserOne, MUC_PM_USER3_TO_USER2);
+        assertMamResultDoesNotContain(queryResultForUserTwo, MUC_PM_USER1_TO_USER2);
+        assertMamResultDoesNotContain(queryResultForUserTwo, MUC_PM_USER1_TO_USER3);
+        assertMamResultDoesNotContain(queryResultForUserTwo, MUC_PM_USER2_TO_USER1);
+        assertMamResultDoesNotContain(queryResultForUserTwo, MUC_PM_USER2_TO_USER3);
+        assertMamResultDoesNotContain(queryResultForUserTwo, MUC_PM_USER3_TO_USER1);
+        assertMamResultDoesNotContain(queryResultForUserTwo, MUC_PM_USER3_TO_USER2);
+    }
+
+    /**
      * Verifies that querying the MUC archive without filters does NOT return direct (non-MUC) messages.
      */
     public void testMucMamDoesNotContainDirectMessages() throws Exception
     {
         // Setup test fixture.
         final MamManager.MamQueryArgs mamQueryArgs = MamManager.MamQueryArgs.builder()
+            .build();
+
+        // Execute system under test.
+        final MamManager.MamQuery queryResultForUserOne = mucMamManagerUserOne.queryArchive(mamQueryArgs);
+        final MamManager.MamQuery queryResultForUserTwo = mucMamManagerUserTwo.queryArchive(mamQueryArgs);
+
+        // Verify: Direct (non-MUC) messages NOT present
+        assertMamResultDoesNotContain(queryResultForUserOne, DIRECT_USER1_TO_USER2_BAREJID);
+        assertMamResultDoesNotContain(queryResultForUserOne, DIRECT_USER1_TO_USER2_FULLJID);
+        assertMamResultDoesNotContain(queryResultForUserOne, DIRECT_USER1_TO_USER3_BAREJID);
+        assertMamResultDoesNotContain(queryResultForUserOne, DIRECT_USER1_TO_USER3_FULLJID);
+        assertMamResultDoesNotContain(queryResultForUserOne, DIRECT_USER2_TO_USER1_BAREJID);
+        assertMamResultDoesNotContain(queryResultForUserOne, DIRECT_USER2_TO_USER1_FULLJID);
+        assertMamResultDoesNotContain(queryResultForUserOne, DIRECT_USER2_TO_USER3_BAREJID);
+        assertMamResultDoesNotContain(queryResultForUserOne, DIRECT_USER2_TO_USER3_FULLJID);
+        assertMamResultDoesNotContain(queryResultForUserOne, DIRECT_USER3_TO_USER1_BAREJID);
+        assertMamResultDoesNotContain(queryResultForUserOne, DIRECT_USER3_TO_USER1_FULLJID);
+        assertMamResultDoesNotContain(queryResultForUserOne, DIRECT_USER3_TO_USER2_BAREJID);
+        assertMamResultDoesNotContain(queryResultForUserOne, DIRECT_USER3_TO_USER2_FULLJID);
+        assertMamResultDoesNotContain(queryResultForUserTwo, DIRECT_USER1_TO_USER2_BAREJID);
+        assertMamResultDoesNotContain(queryResultForUserTwo, DIRECT_USER1_TO_USER2_FULLJID);
+        assertMamResultDoesNotContain(queryResultForUserTwo, DIRECT_USER1_TO_USER3_BAREJID);
+        assertMamResultDoesNotContain(queryResultForUserTwo, DIRECT_USER1_TO_USER3_FULLJID);
+        assertMamResultDoesNotContain(queryResultForUserTwo, DIRECT_USER2_TO_USER1_BAREJID);
+        assertMamResultDoesNotContain(queryResultForUserTwo, DIRECT_USER2_TO_USER1_FULLJID);
+        assertMamResultDoesNotContain(queryResultForUserTwo, DIRECT_USER2_TO_USER3_BAREJID);
+        assertMamResultDoesNotContain(queryResultForUserTwo, DIRECT_USER2_TO_USER3_FULLJID);
+        assertMamResultDoesNotContain(queryResultForUserTwo, DIRECT_USER3_TO_USER1_BAREJID);
+        assertMamResultDoesNotContain(queryResultForUserTwo, DIRECT_USER3_TO_USER1_FULLJID);
+        assertMamResultDoesNotContain(queryResultForUserTwo, DIRECT_USER3_TO_USER2_BAREJID);
+        assertMamResultDoesNotContain(queryResultForUserTwo, DIRECT_USER3_TO_USER2_FULLJID);
+    }
+
+    /**
+     * Variant of #testMucMamDoesNotContainPrivateMucMessages that adds a text-based search filter for a word that
+     * matches private messages that have previously been exchanged (but which still should not be returned).
+     */
+    public void testMucMamDoesNotContainDirectMessagesWithTextFilter() throws Exception
+    {
+        // Setup test fixture.
+        final List<FormField> searchFields = List.of(FormField.textSingleBuilder("{urn:xmpp:fulltext:0}fulltext").setValue("Direct").build());
+        final MamManager.MamQueryArgs mamQueryArgs = MamManager.MamQueryArgs.builder()
+            .withAdditionalFormFields(searchFields)
             .build();
 
         // Execute system under test.
@@ -567,6 +772,68 @@ public abstract class AbstractMamTest extends AbstractMultiUserChatIntegrationTe
         assertMamResultContains(queryResultForUserTwo, MUC_PM_USER2_TO_USER3);
         assertMamResultDoesNotContain(queryResultForUserTwo, MUC_PM_USER3_TO_USER1);
         assertMamResultContains(queryResultForUserTwo, MUC_PM_USER3_TO_USER2);
+    }
+
+    /**
+     * Variant of #testPersonalMamIncludesPrivateMessagesNoFilter that adds a text-based search filter for a word that
+     * matches private messages that have previously been exchanged (and thus should be returned).
+     */
+    public void testPersonalMamIncludesPrivateMessagesWithMatchingTextFilter() throws Exception
+    {
+        // Setup test fixture.
+        final List<FormField> searchFields = List.of(FormField.textSingleBuilder("{urn:xmpp:fulltext:0}fulltext").setValue("Private").build());
+        final MamManager.MamQueryArgs mamQueryArgs = MamManager.MamQueryArgs.builder()
+            .withAdditionalFormFields(searchFields)
+            .build();
+
+        // Execute system under test.
+        final MamManager.MamQuery queryResultForUserOne = personalMamManagerUserOne.queryArchive(mamQueryArgs);
+        final MamManager.MamQuery queryResultForUserTwo = personalMamManagerUserTwo.queryArchive(mamQueryArgs);
+
+        // Verify: Both sent and received private messages should be in the personal archive (of each user)
+        assertMamResultContains(queryResultForUserOne, MUC_PM_USER1_TO_USER2);
+        assertMamResultContains(queryResultForUserOne, MUC_PM_USER1_TO_USER3);
+        assertMamResultContains(queryResultForUserOne, MUC_PM_USER2_TO_USER1);
+        assertMamResultDoesNotContain(queryResultForUserOne, MUC_PM_USER2_TO_USER3);
+        assertMamResultContains(queryResultForUserOne, MUC_PM_USER3_TO_USER1);
+        assertMamResultDoesNotContain(queryResultForUserOne, MUC_PM_USER3_TO_USER2);
+        assertMamResultContains(queryResultForUserTwo, MUC_PM_USER1_TO_USER2);
+        assertMamResultDoesNotContain(queryResultForUserTwo, MUC_PM_USER1_TO_USER3);
+        assertMamResultContains(queryResultForUserTwo, MUC_PM_USER2_TO_USER1);
+        assertMamResultContains(queryResultForUserTwo, MUC_PM_USER2_TO_USER3);
+        assertMamResultDoesNotContain(queryResultForUserTwo, MUC_PM_USER3_TO_USER1);
+        assertMamResultContains(queryResultForUserTwo, MUC_PM_USER3_TO_USER2);
+    }
+
+    /**
+     * Variant of #testPersonalMamIncludesPrivateMessagesNoFilter that adds a text-based search filter for a word that
+     * <em>does not</em> match private messages that have previously been exchanged (and thus should NOT be returned).
+     */
+    public void testPersonalMamIncludesPrivateMessagesWithNonMatchingTextFilter() throws Exception
+    {
+        // Setup test fixture.
+        final List<FormField> searchFields = List.of(FormField.textSingleBuilder("{urn:xmpp:fulltext:0}fulltext").setValue("Invalidated").build());
+        final MamManager.MamQueryArgs mamQueryArgs = MamManager.MamQueryArgs.builder()
+            .withAdditionalFormFields(searchFields)
+            .build();
+
+        // Execute system under test.
+        final MamManager.MamQuery queryResultForUserOne = personalMamManagerUserOne.queryArchive(mamQueryArgs);
+        final MamManager.MamQuery queryResultForUserTwo = personalMamManagerUserTwo.queryArchive(mamQueryArgs);
+
+        // Verify: Both sent and received private messages should be in the personal archive (of each user)
+        assertMamResultDoesNotContain(queryResultForUserOne, MUC_PM_USER1_TO_USER2);
+        assertMamResultDoesNotContain(queryResultForUserOne, MUC_PM_USER1_TO_USER3);
+        assertMamResultDoesNotContain(queryResultForUserOne, MUC_PM_USER2_TO_USER1);
+        assertMamResultDoesNotContain(queryResultForUserOne, MUC_PM_USER2_TO_USER3);
+        assertMamResultDoesNotContain(queryResultForUserOne, MUC_PM_USER3_TO_USER1);
+        assertMamResultDoesNotContain(queryResultForUserOne, MUC_PM_USER3_TO_USER2);
+        assertMamResultDoesNotContain(queryResultForUserTwo, MUC_PM_USER1_TO_USER2);
+        assertMamResultDoesNotContain(queryResultForUserTwo, MUC_PM_USER1_TO_USER3);
+        assertMamResultDoesNotContain(queryResultForUserTwo, MUC_PM_USER2_TO_USER1);
+        assertMamResultDoesNotContain(queryResultForUserTwo, MUC_PM_USER2_TO_USER3);
+        assertMamResultDoesNotContain(queryResultForUserTwo, MUC_PM_USER3_TO_USER1);
+        assertMamResultDoesNotContain(queryResultForUserTwo, MUC_PM_USER3_TO_USER2);
     }
 
     /**
